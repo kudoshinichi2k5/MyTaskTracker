@@ -29,7 +29,10 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins("http://localhost:4200")
+        // Lấy URL từ file appsettings tương ứng với môi trường
+        var frontendUrl = builder.Configuration["FrontendUrl"] ?? "http://localhost:4200";
+
+        policy.WithOrigins(frontendUrl)
               .AllowAnyHeader()
               .AllowAnyMethod();
     });

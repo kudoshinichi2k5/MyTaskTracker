@@ -68,17 +68,23 @@
           "defaultConfiguration": "production"
         },
         "serve": {
-          "builder": "@angular-devkit/build-angular:dev-server",
-          "configurations": {
-            "production": {
-              "buildTarget": "Frontend:build:production"
-            },
-            "development": {
-              "buildTarget": "Frontend:build:development"
-            }
+        "builder": "@angular-devkit/build-angular:dev-server",
+        "configurations": {
+          "production": {
+            "buildTarget": "Frontend:build:production"
           },
-          "defaultConfiguration": "development"
+          "development": {
+            "buildTarget": "Frontend:build:development"
+          },
+          "testing": {
+            "buildTarget": "Frontend:build:testing"
+          },
+          "staging": {
+            "buildTarget": "Frontend:build:staging"
+          }
         },
+        "defaultConfiguration": "development"
+      },
         "extract-i18n": {
           "builder": "@angular-devkit/build-angular:extract-i18n"
         },
