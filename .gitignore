@@ -29,6 +29,7 @@ Backend/**/.vs/
 Backend/**/.vscode/
 Backend/**/appsettings.Development.json
 Backend/**/appsettings.Local.json
+Backend/**/Properties/launchSettings.json
 
 # =========================
 # IDE / Editor
