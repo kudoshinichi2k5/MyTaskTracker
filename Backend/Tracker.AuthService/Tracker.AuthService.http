@@ -1,0 +1,6 @@
+@Tracker.AuthService_HostAddress = http://localhost:5068
+
+GET {{Tracker.AuthService_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
