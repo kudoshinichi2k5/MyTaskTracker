@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
-import { catchError } from 'rxjs/operators';
+import { catchError, map } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 
 export interface NotificationItem {
@@ -19,6 +19,16 @@ export class NotificationService {
     return this.http.get<NotificationItem[]>(`${this.apiUrl}/notifications`).pipe(
       catchError((err: HttpErrorResponse) => {
         console.error('[NotificationService] Failed to load notifications:', err.status, err.message);
+        return throwError(() => err);
+      })
+    );
+  }
+
+  getUnreadCount(): Observable<number> {
+    return this.http.get<{ count: number }>(`${this.apiUrl}/notifications/unread-count`).pipe(
+      map((res) => res.count),
+      catchError((err: HttpErrorResponse) => {
+        console.error('[NotificationService] Failed to load unread count:', err.status, err.message);
         return throwError(() => err);
       })
     );
