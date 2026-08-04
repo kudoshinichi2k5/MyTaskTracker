@@ -18,9 +18,8 @@ export class AuthService {
       clientId: environment.oauth.clientId,
       scope: environment.oauth.scope,
       responseType: 'code',
-      requireHttps: false,
-      // 👇 Thêm dòng này để tránh lỗi lệch dấu "/" của Keycloak
-      strictDiscoveryDocumentValidation: false 
+      requireHttps: environment.production, // chỉ bắt buộc HTTPS khi build production
+      strictDiscoveryDocumentValidation: false
     };
     
     this.oauthService.configure(authConfig);
