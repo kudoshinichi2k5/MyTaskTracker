@@ -14,8 +14,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         options.Authority = builder.Configuration["JwtSettings:Authority"];
         options.Audience = builder.Configuration["JwtSettings:Audience"];
         
-        // Bắt buộc set false ở Phase 1/2 vì test Local không có HTTPS
-        options.RequireHttpsMetadata = false; 
+        options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
     });
 builder.Services.AddAuthorization();
 
