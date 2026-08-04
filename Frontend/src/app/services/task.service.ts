@@ -15,8 +15,7 @@ export interface TaskItem {
   providedIn: 'root'
 })
 export class TaskService {
-  private readonly apiBaseUrl = (environment as { apiUrl?: string }).apiUrl ?? '';
-  private apiUrl = `${this.apiBaseUrl}/tasks`;
+  private apiUrl = `${environment.taskApi}/tasks`;
 
   constructor(private http: HttpClient) {}
 
