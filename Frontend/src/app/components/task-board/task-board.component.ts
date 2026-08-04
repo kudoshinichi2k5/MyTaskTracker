@@ -10,7 +10,7 @@ import { NotificationBellComponent } from '../notification-bell/notification-bel
   standalone: true,
   imports: [CommonModule, FormsModule, NotificationBellComponent],
   templateUrl: './task-board.component.html',
-  styleUrls: ['./task-board.component.css'] // ✅ corrected to plural styleUrls
+  styleUrls: ['./task-board.component.css'] // ✅ corrected to plural
 })
 export class TaskBoardComponent implements OnInit {
   tasks: TaskItem[] = [];
@@ -42,7 +42,6 @@ export class TaskBoardComponent implements OnInit {
     if (!title || this.isAdding) return;
 
     this.isAdding = true;
-    // ✅ use addTask from service instead of createTask
     const newTask: TaskItem = { id: 0, title, isCompleted: false };
     this.taskService.addTask(newTask).subscribe({
       next: (task) => {
@@ -57,7 +56,6 @@ export class TaskBoardComponent implements OnInit {
   toggleTask(task: TaskItem) {
     const nextState = !task.isCompleted;
     task.isCompleted = nextState; // optimistic update
-    // ✅ use updateTask instead of setCompleted
     this.taskService.updateTask({ ...task, isCompleted: nextState }).subscribe({
       error: () => (task.isCompleted = !nextState)
     });
