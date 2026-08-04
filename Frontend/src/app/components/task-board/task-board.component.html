@@ -4,7 +4,36 @@
       <span class="eyebrow">TaskTracker</span>
       <h1>My tasks</h1>
     </div>
-    <button class="logout-button" (click)="logout()">Sign out</button>
+    <div class="header-actions">
+      <div class="notification-bell-wrap">
+        <button
+          class="notification-bell"
+          (click)="toggleNotifications()"
+          [attr.aria-expanded]="notificationsOpen"
+          aria-label="Notifications"
+        >
+          🔔
+          <span class="notification-badge" *ngIf="unreadCount > 0">{{ unreadCount }}</span>
+        </button>
+
+        <div class="notification-panel" *ngIf="notificationsOpen">
+          <p class="notification-empty" *ngIf="notifications.length === 0">
+            No notifications yet.
+          </p>
+          <ul class="notification-list" *ngIf="notifications.length > 0">
+            <li
+              class="notification-row"
+              *ngFor="let notification of notifications"
+              [class.unread]="!notification.isRead"
+              (click)="markAsRead(notification)"
+            >
+              {{ notification.message }}
+            </li>
+          </ul>
+        </div>
+      </div>
+      <button class="logout-button" (click)="logout()">Sign out</button>
+    </div>
   </header>
 
   <div class="progress-block" *ngIf="tasks.length > 0">
