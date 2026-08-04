@@ -1,0 +1,25 @@
+<div class="bell-wrapper">
+  <button class="bell-button" (click)="toggle()" aria-label="Notifications">
+    <span class="bell-icon" aria-hidden="true">&#9838;</span>
+    <span class="bell-badge" *ngIf="unreadCount > 0">{{ unreadCount }}</span>
+  </button>
+
+  <div class="bell-dropdown" *ngIf="isOpen">
+    <p class="dropdown-title">Notifications</p>
+
+    <ul *ngIf="notifications.length > 0; else empty">
+      <li
+        *ngFor="let n of notifications"
+        class="notification-row"
+        [class.unread]="!n.isRead"
+        (click)="markAsRead(n)"
+      >
+        {{ n.message }}
+      </li>
+    </ul>
+
+    <ng-template #empty>
+      <p class="dropdown-empty">You're all caught up.</p>
+    </ng-template>
+  </div>
+</div>
