@@ -1,5 +1,12 @@
-export const environment = {
+import { Environment } from './environment.model';
+
+export const environment: Environment = {
   production: true,
-  authApi: 'https://auth.prod.com/api/v1/auth',
-  taskApi: 'https://api.prod.com/api/v1'
+  taskApi: 'https://api.prod.yourdomain.com/api/v1',
+  oauth: {
+    issuer: 'https://auth.prod.yourdomain.com/realms/TaskTrackerRealm',
+    redirectUri: 'https://app.prod.yourdomain.com/tasks',
+    clientId: 'angular-frontend-client',
+    scope: 'openid profile email'
+  }
 };
