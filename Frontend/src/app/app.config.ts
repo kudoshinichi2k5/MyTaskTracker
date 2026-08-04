@@ -1,13 +1,18 @@
-import { ApplicationConfig, importProvidersFrom } from '@angular/core';
+import { ApplicationConfig, importProvidersFrom, APP_INITIALIZER } from '@angular/core';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideRouter } from '@angular/router';
 import { routes } from './app.routes';
 import { authInterceptor } from './auth.interceptor';
 import { OAuthModule, OAuthStorage } from 'angular-oauth2-oidc';
+import { AuthService } from './services/auth.service';
 
-// Khai báo hàm trỏ thẳng vào localStorage của trình duyệt
 export function storageFactory(): OAuthStorage {
   return localStorage;
+}
+
+// Xử lý OAuth callback (nếu có) NGAY khi app khởi động, trước khi Router điều hướng bất kỳ route nào
+export function initializeOAuth(authService: AuthService) {
+  return () => authService.initialLoadPromise;
 }
 
 export const appConfig: ApplicationConfig = {
@@ -15,7 +20,12 @@ export const appConfig: ApplicationConfig = {
     provideRouter(routes),
     provideHttpClient(withInterceptors([authInterceptor])),
     importProvidersFrom(OAuthModule.forRoot()),
-    // Tiêm Storage toàn cục vào hệ thống
-    { provide: OAuthStorage, useFactory: storageFactory } 
+    { provide: OAuthStorage, useFactory: storageFactory },
+    {
+      provide: APP_INITIALIZER,
+      useFactory: initializeOAuth,
+      deps: [AuthService],
+      multi: true
+    }
   ]
 };

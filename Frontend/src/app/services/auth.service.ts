@@ -12,20 +12,28 @@ export class AuthService {
   }
 
   private configureOAuth(): Promise<boolean> {
-    const authConfig: AuthConfig = {
-      issuer: environment.oauth.issuer,
-      redirectUri: environment.oauth.redirectUri,
-      clientId: environment.oauth.clientId,
-      scope: environment.oauth.scope,
-      responseType: 'code',
-      requireHttps: environment.production, // chỉ bắt buộc HTTPS khi build production
-      strictDiscoveryDocumentValidation: false
-    };
-    
-    this.oauthService.configure(authConfig);
-    // (Đã xóa dòng setStorage ở đây vì đã cấu hình ở app.config.ts)
+      const authConfig: AuthConfig = {
+        issuer: environment.oauth.issuer,
+        redirectUri: environment.oauth.redirectUri,
+        clientId: environment.oauth.clientId,
+        scope: environment.oauth.scope,
+        responseType: 'code',
+        requireHttps: environment.production,
+        strictDiscoveryDocumentValidation: false
+      };
 
-    return this.oauthService.loadDiscoveryDocumentAndTryLogin();
+      this.oauthService.configure(authConfig);
+
+      return this.oauthService.loadDiscoveryDocumentAndTryLogin().then((success) => {
+        // Dọn ?code=&state= khỏi URL ngay sau khi xử lý xong.
+        // Nếu không dọn, F5 lại trang sẽ gửi lại authorization code CŨ (đã dùng 1 lần)
+        // -> Keycloak trả 400 invalid_grant.
+        if (window.location.search.includes('code=') || window.location.search.includes('state=')) {
+          const cleanUrl = window.location.origin + window.location.pathname;
+          window.history.replaceState({}, document.title, cleanUrl);
+        }
+        return success;
+      });
   }
 
   login() {
