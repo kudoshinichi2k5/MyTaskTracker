@@ -1,13 +1,14 @@
-import { ApplicationConfig } from '@angular/core';
-import { provideRouter } from '@angular/router';
+import { ApplicationConfig, importProvidersFrom } from '@angular/core';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
+import { provideRouter } from '@angular/router';
 import { routes } from './app.routes';
-import { authInterceptor } from './auth.interceptor'; // Import interceptor
+import { authInterceptor } from './auth.interceptor';
+import { OAuthModule } from 'angular-oauth2-oidc'; // Import thêm
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideRouter(routes),
-    // Đăng ký HttpClient và Interceptor tại đây
-    provideHttpClient(withInterceptors([authInterceptor])) 
+    provideHttpClient(withInterceptors([authInterceptor])),
+    importProvidersFrom(OAuthModule.forRoot()) // Khởi tạo OAuthModule
   ]
 };

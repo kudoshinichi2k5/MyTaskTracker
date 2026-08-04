@@ -1,17 +1,37 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { OAuthService, AuthConfig } from 'angular-oauth2-oidc';
 import { environment } from '../../environments/environment';
-import { tap } from 'rxjs';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private http = inject(HttpClient);
-  private apiUrl = environment.authApi;
+  private oauthService = inject(OAuthService);
 
-  login(username: string, password: string) {
-    return this.http.post<{status: string, token: string}>(`${this.apiUrl}/login`, { username, password })
-      .pipe(
-        tap(res => localStorage.setItem('jwt_token', res.token)) // Lưu token sau khi thành công
-      );
+  constructor() {
+    this.configureOAuth();
+  }
+
+  private configureOAuth() {
+    const authConfig: AuthConfig = {
+      issuer: environment.oauth.issuer,
+      redirectUri: environment.oauth.redirectUri,
+      clientId: environment.oauth.clientId,
+      scope: environment.oauth.scope,
+      responseType: 'code',
+      requireHttps: false // Tắt cho môi trường Local
+    };
+    this.oauthService.configure(authConfig);
+    this.oauthService.loadDiscoveryDocumentAndTryLogin();
+  }
+
+  login() {
+    this.oauthService.initCodeFlow(); // Kích hoạt luồng chuyển hướng
+  }
+
+  logout() {
+    this.oauthService.logOut();
+  }
+
+  get hasValidToken() {
+    return this.oauthService.hasValidAccessToken();
   }
 }
