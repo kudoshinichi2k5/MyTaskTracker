@@ -11,16 +11,12 @@ var secretKey = Encoding.UTF8.GetBytes(jwtSettings["SecretKey"]!);
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            ValidIssuer = jwtSettings["Issuer"],
-            ValidAudience = jwtSettings["Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(secretKey)
-        };
+        // Trỏ URL về Identity Provider
+        options.Authority = builder.Configuration["JwtSettings:Authority"];
+        options.Audience = builder.Configuration["JwtSettings:Audience"];
+        
+        // Bắt buộc set false ở Phase 1/2 vì test Local không có HTTPS
+        options.RequireHttpsMetadata = false; 
     });
 builder.Services.AddAuthorization();
 
