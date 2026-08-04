@@ -1,0 +1,36 @@
+<div class="board-page">
+  <header class="board-header">
+    <div>
+      <span class="eyebrow">TaskTracker</span>
+      <h1>My tasks</h1>
+    </div>
+    <button class="logout-button" (click)="logout()">Sign out</button>
+  </header>
+
+  <div class="progress-block" *ngIf="tasks.length > 0">
+    <div class="progress-meta">
+      <span>{{ completedCount }} of {{ tasks.length }} done</span>
+      <span class="progress-count">{{ progressPercent }}%</span>
+    </div>
+    <div class="progress-track">
+      <div class="progress-fill" [style.width.%]="progressPercent"></div>
+    </div>
+  </div>
+
+  <p class="error-banner" *ngIf="loadError">
+    Couldn't load your tasks. Please refresh the page or try again later.
+  </p>
+
+  <ul class="task-list" *ngIf="!loadError">
+    <li class="task-row" *ngFor="let task of tasks">
+      <label>
+        <input type="checkbox" [checked]="task.isCompleted" disabled />
+        <span class="task-title" [class.done]="task.isCompleted">{{ task.title }}</span>
+      </label>
+    </li>
+  </ul>
+
+  <p class="empty-state" *ngIf="!loadError && tasks.length === 0">
+    No tasks yet. Enjoy the quiet.
+  </p>
+</div>

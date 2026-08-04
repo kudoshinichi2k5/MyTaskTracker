@@ -1,0 +1,126 @@
+.board-page {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 56px 24px;
+}
+
+.board-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 28px;
+}
+
+.eyebrow {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+  margin-bottom: 8px;
+}
+
+h1 {
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--color-ink);
+}
+
+.logout-button {
+  background: transparent;
+  border: 1px solid var(--color-line);
+  color: var(--color-muted);
+  padding: 9px 16px;
+  border-radius: var(--radius-md);
+  font-size: 13.5px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.logout-button:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.progress-block {
+  margin-bottom: 32px;
+}
+
+.progress-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--color-muted);
+  margin-bottom: 8px;
+}
+
+.progress-count {
+  font-family: var(--font-mono);
+  color: var(--color-accent);
+}
+
+.progress-track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--color-accent-soft);
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--color-accent);
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.task-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--color-line);
+}
+
+.task-row {
+  border-bottom: 1px solid var(--color-line);
+}
+
+.task-row label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 4px;
+  cursor: default;
+}
+
+.task-row input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--color-accent);
+}
+
+.task-title {
+  font-size: 15px;
+  color: var(--color-ink);
+}
+
+.task-title.done {
+  color: var(--color-muted);
+  text-decoration: line-through;
+}
+
+.error-banner {
+  background: #fbeae2;
+  color: var(--color-danger);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  font-size: 14px;
+}
+
+.empty-state {
+  color: var(--color-muted);
+  font-size: 14.5px;
+  padding: 24px 0;
+}
