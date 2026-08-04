@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Tracker.TaskService.Endpoints;
+using Tracker.TaskService.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -29,10 +31,11 @@ builder.Services.AddCors(options =>
     });
 });
 
-// Swagger was already referenced in the .csproj (Swashbuckle.AspNetCore)
-// but never registered/exposed, so the package shipped dead weight and
-// there was no way to explore the API. Only expose it outside Production,
-// since IIS-hosted Production shouldn't advertise its API surface.
+// In-memory task store, scoped per user. Registered as a singleton so all
+// requests share the same in-process dictionary (see InMemoryTaskStore for
+// the persistence caveat).
+builder.Services.AddSingleton<ITaskStore, InMemoryTaskStore>();
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -48,29 +51,11 @@ app.UseCors("AllowFrontend");
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Mock Data In-Memory để test trước khi gắn SQLite
-var tasks = new List<TaskItem>
-{
-    new TaskItem { Id = 1, Title = "Set up local IIS", IsCompleted = false },
-    new TaskItem { Id = 2, Title = "Learn microservices", IsCompleted = true }
-};
-
 // Lightweight liveness endpoint - useful for IIS/App Init monitoring and
 // for smoke-testing each of the three environments (Testing/Staging/
 // Production) after deployment without needing a valid JWT.
 app.MapGet("/health", () => Results.Ok(new { status = "healthy", environment = app.Environment.EnvironmentName }));
 
-// Endpoint lấy task (BẮT BUỘC CÓ TOKEN)
-app.MapGet("/api/v1/tasks", () =>
-{
-    return Results.Ok(tasks);
-}).RequireAuthorization();
+app.MapTaskEndpoints();
 
 app.Run(); // Kestrel tự lấy URL từ appsettings ("Urls") hoặc biến môi trường ASPNETCORE_URLS
-
-public class TaskItem
-{
-    public int Id { get; set; }
-    public string Title { get; set; } = string.Empty;
-    public bool IsCompleted { get; set; }
-}
