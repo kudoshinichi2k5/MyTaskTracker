@@ -1,6 +1,7 @@
 import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TaskService, TaskItem } from '../../services/task.service';
+import { AuthService } from '../../services/auth.service'; // Import thêm AuthService
 
 @Component({
   selector: 'app-task-board',
@@ -19,23 +20,23 @@ import { TaskService, TaskItem } from '../../services/task.service';
           </label>
         </li>
       </ul>
-      <button (click)="logout()">Đăng xuất</button>
+      <button (click)="logout()">Đăng xuất hệ thống</button>
     </div>
   `
 })
 export class TaskBoardComponent implements OnInit {
   tasks: TaskItem[] = [];
   taskService = inject(TaskService);
+  authService = inject(AuthService); // Inject AuthService
 
   ngOnInit() {
     this.taskService.getTasks().subscribe({
       next: (data) => this.tasks = data,
-      error: (err) => alert('Lỗi lấy dữ liệu: Không có quyền truy cập (Missing Token)')
+      error: (err) => alert('Lỗi lấy dữ liệu từ Backend!')
     });
   }
 
   logout() {
-    localStorage.removeItem('jwt_token');
-    window.location.href = '/login'; // Reset lại toàn bộ app
+    this.authService.logout(); // Dùng hàm chuẩn của OAuth2 thay vì xóa localStorage
   }
 }
