@@ -68,6 +68,23 @@ h1 {
   transform: scale(0.98);
 }
 
+.sso-button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.error-banner {
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: rgba(200, 60, 60, 0.08);
+  border: 1px solid rgba(200, 60, 60, 0.25);
+  color: #a83232;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 .arrow {
   transition: transform 0.15s ease;
 }
