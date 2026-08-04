@@ -1,28 +1,28 @@
 import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { TaskService, TaskItem } from '../../services/task.service';
 import { AuthService } from '../../services/auth.service';
-import { NotificationService, NotificationItem } from '../../services/notification.service';
+import { NotificationBellComponent } from '../notification-bell/notification-bell.component';
 
 @Component({
   selector: 'app-task-board',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule, NotificationBellComponent],
   templateUrl: './task-board.component.html',
-  styleUrl: './task-board.component.css'
+  styleUrls: ['./task-board.component.css'] // ✅ corrected to plural styleUrls
 })
 export class TaskBoardComponent implements OnInit {
   tasks: TaskItem[] = [];
   loadError = false;
+  newTaskTitle = '';
+  isAdding = false;
+
   taskService = inject(TaskService);
   authService = inject(AuthService);
 
-  notifications: NotificationItem[] = [];
-  notificationsOpen = false;
-  notificationService = inject(NotificationService);
-
   get completedCount(): number {
-    return this.tasks.filter(t => t.isCompleted).length;
+    return this.tasks.filter((t) => t.isCompleted).length;
   }
 
   get progressPercent(): number {
@@ -30,39 +30,44 @@ export class TaskBoardComponent implements OnInit {
     return Math.round((this.completedCount / this.tasks.length) * 100);
   }
 
-  get unreadCount(): number {
-    return this.notifications.filter(n => !n.isRead).length;
-  }
-
   ngOnInit() {
     this.taskService.getTasks().subscribe({
       next: (data) => (this.tasks = data),
       error: () => (this.loadError = true)
     });
+  }
 
-    // Notifications are a separate microservice (Tracker.NotificationService).
-    // A failure here shouldn't block the task board, so it's kept independent
-    // of loadError and just leaves the bell showing zero.
-    this.notificationService.getNotifications().subscribe({
-      next: (data) => (this.notifications = data),
-      error: () => (this.notifications = [])
+  addTask() {
+    const title = this.newTaskTitle.trim();
+    if (!title || this.isAdding) return;
+
+    this.isAdding = true;
+    // ✅ use addTask from service instead of createTask
+    const newTask: TaskItem = { id: 0, title, isCompleted: false };
+    this.taskService.addTask(newTask).subscribe({
+      next: (task) => {
+        this.tasks = [...this.tasks, task];
+        this.newTaskTitle = '';
+        this.isAdding = false;
+      },
+      error: () => (this.isAdding = false)
     });
   }
 
-  toggleNotifications() {
-    this.notificationsOpen = !this.notificationsOpen;
+  toggleTask(task: TaskItem) {
+    const nextState = !task.isCompleted;
+    task.isCompleted = nextState; // optimistic update
+    // ✅ use updateTask instead of setCompleted
+    this.taskService.updateTask({ ...task, isCompleted: nextState }).subscribe({
+      error: () => (task.isCompleted = !nextState)
+    });
   }
 
-  markAsRead(notification: NotificationItem) {
-    if (notification.isRead) {
-      return;
-    }
-    notification.isRead = true;
-    this.notificationService.markAsRead(notification.id).subscribe({
-      error: () => {
-        // Roll back on failure so the badge count stays accurate.
-        notification.isRead = false;
-      }
+  removeTask(task: TaskItem) {
+    const previousTasks = this.tasks;
+    this.tasks = this.tasks.filter((t) => t.id !== task.id);
+    this.taskService.deleteTask(task.id).subscribe({
+      error: () => (this.tasks = previousTasks)
     });
   }
 

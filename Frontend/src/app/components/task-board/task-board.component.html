@@ -5,36 +5,22 @@
       <h1>My tasks</h1>
     </div>
     <div class="header-actions">
-      <div class="notification-bell-wrap">
-        <button
-          class="notification-bell"
-          (click)="toggleNotifications()"
-          [attr.aria-expanded]="notificationsOpen"
-          aria-label="Notifications"
-        >
-          🔔
-          <span class="notification-badge" *ngIf="unreadCount > 0">{{ unreadCount }}</span>
-        </button>
-
-        <div class="notification-panel" *ngIf="notificationsOpen">
-          <p class="notification-empty" *ngIf="notifications.length === 0">
-            No notifications yet.
-          </p>
-          <ul class="notification-list" *ngIf="notifications.length > 0">
-            <li
-              class="notification-row"
-              *ngFor="let notification of notifications"
-              [class.unread]="!notification.isRead"
-              (click)="markAsRead(notification)"
-            >
-              {{ notification.message }}
-            </li>
-          </ul>
-        </div>
-      </div>
+      <app-notification-bell></app-notification-bell>
       <button class="logout-button" (click)="logout()">Sign out</button>
     </div>
   </header>
+
+  <form class="add-task-form" (ngSubmit)="addTask()">
+    <input
+      type="text"
+      name="newTaskTitle"
+      placeholder="Add a task…"
+      maxlength="200"
+      [(ngModel)]="newTaskTitle"
+      [disabled]="isAdding"
+    />
+    <button type="submit" [disabled]="isAdding || !newTaskTitle.trim()">Add</button>
+  </form>
 
   <div class="progress-block" *ngIf="tasks.length > 0">
     <div class="progress-meta">
@@ -53,9 +39,12 @@
   <ul class="task-list" *ngIf="!loadError">
     <li class="task-row" *ngFor="let task of tasks">
       <label>
-        <input type="checkbox" [checked]="task.isCompleted" disabled />
+        <input type="checkbox" [checked]="task.isCompleted" (change)="toggleTask(task)" />
         <span class="task-title" [class.done]="task.isCompleted">{{ task.title }}</span>
       </label>
+      <button class="delete-button" (click)="removeTask(task)" aria-label="Delete task">
+        &#10005;
+      </button>
     </li>
   </ul>
 
