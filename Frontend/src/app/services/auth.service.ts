@@ -18,13 +18,13 @@ export class AuthService {
       clientId: environment.oauth.clientId,
       scope: environment.oauth.scope,
       responseType: 'code',
-      requireHttps: false
+      requireHttps: false,
+      // 👇 Thêm dòng này để tránh lỗi lệch dấu "/" của Keycloak
+      strictDiscoveryDocumentValidation: false 
     };
     
     this.oauthService.configure(authConfig);
-    
-    // 👇 BỔ SUNG DÒNG NÀY: Ép thư viện lưu Token vào Local Storage
-    this.oauthService.setStorage(localStorage);
+    // (Đã xóa dòng setStorage ở đây vì đã cấu hình ở app.config.ts)
 
     return this.oauthService.loadDiscoveryDocumentAndTryLogin();
   }
