@@ -6,7 +6,6 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Cấu hình JWT Bearer Authentication
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-var secretKey = Encoding.UTF8.GetBytes(jwtSettings["SecretKey"]!);
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
