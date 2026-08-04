@@ -1,12 +1,8 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
-using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Cấu hình JWT Bearer Authentication
-var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -33,7 +29,21 @@ builder.Services.AddCors(options =>
     });
 });
 
+// Swagger was already referenced in the .csproj (Swashbuckle.AspNetCore)
+// but never registered/exposed, so the package shipped dead weight and
+// there was no way to explore the API. Only expose it outside Production,
+// since IIS-hosted Production shouldn't advertise its API surface.
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
 var app = builder.Build();
+
+if (!app.Environment.IsProduction())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
 app.UseCors("AllowFrontend");
 app.UseAuthentication();
 app.UseAuthorization();
@@ -44,6 +54,11 @@ var tasks = new List<TaskItem>
     new TaskItem { Id = 1, Title = "Set up local IIS", IsCompleted = false },
     new TaskItem { Id = 2, Title = "Learn microservices", IsCompleted = true }
 };
+
+// Lightweight liveness endpoint - useful for IIS/App Init monitoring and
+// for smoke-testing each of the three environments (Testing/Staging/
+// Production) after deployment without needing a valid JWT.
+app.MapGet("/health", () => Results.Ok(new { status = "healthy", environment = app.Environment.EnvironmentName }));
 
 // Endpoint lấy task (BẮT BUỘC CÓ TOKEN)
 app.MapGet("/api/v1/tasks", () =>
