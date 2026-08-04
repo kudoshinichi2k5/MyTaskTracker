@@ -41,8 +41,8 @@ app.UseAuthorization();
 // Mock Data In-Memory để test trước khi gắn SQLite
 var tasks = new List<TaskItem>
 {
-    new TaskItem { Id = 1, Title = "Setup IIS Local", IsCompleted = false },
-    new TaskItem { Id = 2, Title = "Học Microservices", IsCompleted = true }
+    new TaskItem { Id = 1, Title = "Set up local IIS", IsCompleted = false },
+    new TaskItem { Id = 2, Title = "Learn microservices", IsCompleted = true }
 };
 
 // Endpoint lấy task (BẮT BUỘC CÓ TOKEN)
