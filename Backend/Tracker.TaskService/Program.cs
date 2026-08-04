@@ -10,11 +10,12 @@ var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        // Trỏ URL về Identity Provider
         options.Authority = builder.Configuration["JwtSettings:Authority"];
         options.Audience = builder.Configuration["JwtSettings:Audience"];
-        
-        options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
+
+        // Đọc trực tiếp từ config thay vì suy đoán theo tên môi trường,
+        // vì Testing/Staging đôi khi vẫn cần trỏ về Keycloak local (HTTP).
+        options.RequireHttpsMetadata = builder.Configuration.GetValue<bool>("JwtSettings:RequireHttpsMetadata");
     });
 builder.Services.AddAuthorization();
 
@@ -50,7 +51,7 @@ app.MapGet("/api/v1/tasks", () =>
     return Results.Ok(tasks);
 }).RequireAuthorization();
 
-app.Run("http://localhost:5002"); // Ép chạy port 5002 cho Task Service
+app.Run(); // Kestrel tự lấy URL từ appsettings ("Urls") hoặc biến môi trường ASPNETCORE_URLS
 
 public class TaskItem
 {
