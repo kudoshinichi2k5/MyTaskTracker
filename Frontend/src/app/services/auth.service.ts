@@ -5,26 +5,32 @@ import { environment } from '../../environments/environment';
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private oauthService = inject(OAuthService);
+  public initialLoadPromise: Promise<boolean>; 
 
   constructor() {
-    this.configureOAuth();
+    this.initialLoadPromise = this.configureOAuth();
   }
 
-  private configureOAuth() {
+  private configureOAuth(): Promise<boolean> {
     const authConfig: AuthConfig = {
       issuer: environment.oauth.issuer,
       redirectUri: environment.oauth.redirectUri,
       clientId: environment.oauth.clientId,
       scope: environment.oauth.scope,
       responseType: 'code',
-      requireHttps: false // Tắt cho môi trường Local
+      requireHttps: false
     };
+    
     this.oauthService.configure(authConfig);
-    this.oauthService.loadDiscoveryDocumentAndTryLogin();
+    
+    // 👇 BỔ SUNG DÒNG NÀY: Ép thư viện lưu Token vào Local Storage
+    this.oauthService.setStorage(localStorage);
+
+    return this.oauthService.loadDiscoveryDocumentAndTryLogin();
   }
 
   login() {
-    this.oauthService.initCodeFlow(); // Kích hoạt luồng chuyển hướng
+    this.oauthService.initCodeFlow();
   }
 
   logout() {
