@@ -5,12 +5,8 @@
     <nav>
       <ul>
         <li [class.active]="activeSection === 'reports'" (click)="setSection('reports')">Reports</li>
-        <li [class.active]="activeSection === 'users'" (click)="setSection('users')">
-          Users <span class="note">(not connected – needs Keycloak Admin REST API)</span>
-        </li>
-        <li [class.active]="activeSection === 'roles'" (click)="setSection('roles')">
-          Roles <span class="note">(not connected – needs Keycloak Admin REST API)</span>
-        </li>
+        <li [class.active]="activeSection === 'users'" (click)="setSection('users')">Users</li>
+        <li [class.active]="activeSection === 'roles'" (click)="setSection('roles')">Roles</li>
       </ul>
     </nav>
     <button class="sign-out-button" (click)="logout()">Sign out</button>
@@ -18,56 +14,132 @@
 
   <!-- Main Content -->
   <main class="main-content">
-    <p class="error-banner" *ngIf="loadError">
-      Couldn't load the team report. Please refresh the page or try again later.
-    </p>
+    <!-- Reports -->
+    <ng-container *ngIf="activeSection === 'reports'">
+      <p class="error-banner" *ngIf="loadError">
+        Couldn't load the team report. Please refresh the page or try again later.
+      </p>
 
-    <ng-container *ngIf="!loadError">
-      <section class="stat-cards">
-        <div class="stat-card">
-          <h3>Team Members</h3>
-          <p>{{ isLoading ? '—' : summary.length }}</p>
-        </div>
-        <div class="stat-card">
-          <h3>Total Tasks</h3>
-          <p>{{ isLoading ? '—' : totalTasks }}</p>
-        </div>
-        <div class="stat-card">
-          <h3>Completed</h3>
-          <p>{{ isLoading ? '—' : totalCompleted }}</p>
-        </div>
-      </section>
+      <ng-container *ngIf="!loadError">
+        <section class="stat-cards">
+          <div class="stat-card">
+            <h3>Team Members</h3>
+            <p>{{ isLoading ? '—' : summary.length }}</p>
+          </div>
+          <div class="stat-card">
+            <h3>Total Tasks</h3>
+            <p>{{ isLoading ? '—' : totalTasks }}</p>
+          </div>
+          <div class="stat-card">
+            <h3>Completed</h3>
+            <p>{{ isLoading ? '—' : totalCompleted }}</p>
+          </div>
+        </section>
+
+        <section class="report-table">
+          <h3>Task Report by Team Member</h3>
+
+          <p class="loading-note" *ngIf="isLoading">Loading team report…</p>
+
+          <table *ngIf="!isLoading && summary.length > 0">
+            <thead>
+              <tr>
+                <th>User ID</th>
+                <th>Total</th>
+                <th>Completed</th>
+                <th>Pending</th>
+                <th>Completion</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let row of summary">
+                <td class="user-id">{{ row.userId }}</td>
+                <td>{{ row.totalTasks }}</td>
+                <td>{{ row.completedTasks }}</td>
+                <td>{{ row.totalTasks - row.completedTasks }}</td>
+                <td>
+                  <span class="completion-badge">{{ completionRate(row) }}%</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <p class="empty-note" *ngIf="!isLoading && summary.length === 0">
+            No team activity yet - nobody has signed into the Customer App.
+          </p>
+        </section>
+      </ng-container>
+    </ng-container>
+
+    <!-- Users -->
+    <ng-container *ngIf="activeSection === 'users'">
+      <p class="error-banner" *ngIf="usersError">{{ usersError }}</p>
 
       <section class="report-table">
-        <h3>Task Report by Team Member</h3>
+        <h3>Users</h3>
+        <p class="section-hint">
+          Toggle the "admin" role to grant or revoke Admin Portal access. Changes take effect the
+          next time that person signs in (Keycloak issues a fresh token on their next login).
+        </p>
 
-        <p class="loading-note" *ngIf="isLoading">Loading team report…</p>
+        <p class="loading-note" *ngIf="usersLoading">Loading users…</p>
 
-        <table *ngIf="!isLoading && summary.length > 0">
+        <table *ngIf="!usersLoading && users.length > 0">
           <thead>
             <tr>
-              <th>User ID</th>
-              <th>Total</th>
-              <th>Completed</th>
-              <th>Pending</th>
-              <th>Completion</th>
+              <th>Username</th>
+              <th>Email</th>
+              <th>Enabled</th>
+              <th>Admin</th>
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let row of summary">
-              <td class="user-id">{{ row.userId }}</td>
-              <td>{{ row.totalTasks }}</td>
-              <td>{{ row.completedTasks }}</td>
-              <td>{{ row.totalTasks - row.completedTasks }}</td>
+            <tr *ngFor="let user of users">
+              <td>{{ user.username }}</td>
+              <td>{{ user.email || '—' }}</td>
+              <td>{{ user.enabled ? 'Yes' : 'No' }}</td>
               <td>
-                <span class="completion-badge">{{ completionRate(row) }}%</span>
+                <label class="role-toggle">
+                  <input
+                    type="checkbox"
+                    [checked]="hasAdminRole(user)"
+                    [disabled]="pendingUserIds.has(user.id)"
+                    (change)="toggleAdminRole(user)"
+                  />
+                </label>
               </td>
             </tr>
           </tbody>
         </table>
 
-        <p class="empty-note" *ngIf="!isLoading && summary.length === 0">
-          No team activity yet - nobody has signed into the Customer App.
+        <p class="empty-note" *ngIf="!usersLoading && !usersError && users.length === 0">
+          No users found in this realm.
+        </p>
+      </section>
+    </ng-container>
+
+    <!-- Roles -->
+    <ng-container *ngIf="activeSection === 'roles'">
+      <p class="error-banner" *ngIf="rolesError">{{ rolesError }}</p>
+
+      <section class="report-table">
+        <h3>Realm Roles</h3>
+        <p class="section-hint">
+          Read-only list of every role defined in this Keycloak realm. Assign the
+          <strong>{{ assignableRole }}</strong> role to a user from the Users tab.
+        </p>
+
+        <p class="loading-note" *ngIf="rolesLoading">Loading roles…</p>
+
+        <ul class="role-list" *ngIf="!rolesLoading && roles.length > 0">
+          <li *ngFor="let role of roles">
+            <span class="role-name">{{ role }}</span>
+            <span class="role-assignable-tag" *ngIf="role === assignableRole">assignable here</span>
+          </li>
+        </ul>
+
+        <p class="empty-note" *ngIf="!rolesLoading && !rolesError && roles.length === 0">
+          No custom roles defined in this realm yet.
         </p>
       </section>
     </ng-container>
