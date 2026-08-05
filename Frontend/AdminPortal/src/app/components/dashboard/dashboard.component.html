@@ -4,50 +4,72 @@
     <h2 class="sidebar-title">Admin Portal</h2>
     <nav>
       <ul>
-        <li class="active">Reports</li>
-        <li>Users <span class="note">(not connected – needs Keycloak Admin REST API)</span></li>
-        <li>Roles <span class="note">(not connected – needs Keycloak Admin REST API)</span></li>
+        <li [class.active]="activeSection === 'reports'" (click)="setSection('reports')">Reports</li>
+        <li [class.active]="activeSection === 'users'" (click)="setSection('users')">
+          Users <span class="note">(not connected – needs Keycloak Admin REST API)</span>
+        </li>
+        <li [class.active]="activeSection === 'roles'" (click)="setSection('roles')">
+          Roles <span class="note">(not connected – needs Keycloak Admin REST API)</span>
+        </li>
       </ul>
     </nav>
+    <button class="sign-out-button" (click)="logout()">Sign out</button>
   </aside>
 
   <!-- Main Content -->
   <main class="main-content">
-    <section class="stat-cards">
-      <div class="stat-card">
-        <h3>Total Tasks</h3>
-        <p>{{ reports?.totalTasks }}</p>
-      </div>
-      <div class="stat-card">
-        <h3>Completed</h3>
-        <p>{{ reports?.completedTasks }}</p>
-      </div>
-      <div class="stat-card">
-        <h3>Pending</h3>
-        <p>{{ reports?.pendingTasks }}</p>
-      </div>
-    </section>
+    <p class="error-banner" *ngIf="loadError">
+      Couldn't load the team report. Please refresh the page or try again later.
+    </p>
 
-    <section class="report-table">
-      <h3>Task Report</h3>
-      <table>
-        <thead>
-          <tr>
-            <th>Task ID</th>
-            <th>Title</th>
-            <th>Status</th>
-            <th>Assigned To</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let task of reports?.tasks">
-            <td>{{ task.id }}</td>
-            <td>{{ task.title }}</td>
-            <td>{{ task.status }}</td>
-            <td>{{ task.assignee }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </section>
+    <ng-container *ngIf="!loadError">
+      <section class="stat-cards">
+        <div class="stat-card">
+          <h3>Team Members</h3>
+          <p>{{ isLoading ? '—' : summary.length }}</p>
+        </div>
+        <div class="stat-card">
+          <h3>Total Tasks</h3>
+          <p>{{ isLoading ? '—' : totalTasks }}</p>
+        </div>
+        <div class="stat-card">
+          <h3>Completed</h3>
+          <p>{{ isLoading ? '—' : totalCompleted }}</p>
+        </div>
+      </section>
+
+      <section class="report-table">
+        <h3>Task Report by Team Member</h3>
+
+        <p class="loading-note" *ngIf="isLoading">Loading team report…</p>
+
+        <table *ngIf="!isLoading && summary.length > 0">
+          <thead>
+            <tr>
+              <th>User ID</th>
+              <th>Total</th>
+              <th>Completed</th>
+              <th>Pending</th>
+              <th>Completion</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let row of summary">
+              <td class="user-id">{{ row.userId }}</td>
+              <td>{{ row.totalTasks }}</td>
+              <td>{{ row.completedTasks }}</td>
+              <td>{{ row.totalTasks - row.completedTasks }}</td>
+              <td>
+                <span class="completion-badge">{{ completionRate(row) }}%</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <p class="empty-note" *ngIf="!isLoading && summary.length === 0">
+          No team activity yet - nobody has signed into the Customer App.
+        </p>
+      </section>
+    </ng-container>
   </main>
 </div>
