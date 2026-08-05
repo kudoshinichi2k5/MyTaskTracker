@@ -64,9 +64,33 @@ export class AuthService {
    * Keycloak realm role check.
    * AdminPortal is only for users with "admin" role.
    * Server-side enforcement still applies.
+   *
+   * Reads realm_access.roles from the ACCESS token, not
+   * getIdentityClaims() (which decodes the ID token). Tracker.TaskService's
+   * AdminOnly policy maps roles from the access token it receives as the
+   * Bearer header (see Program.cs's OnTokenValidated) - those are two
+   * different tokens, and Keycloak doesn't guarantee they carry the same
+   * claims unless every relevant client scope's protocol mapper is
+   * configured to include realm roles in both. Checking the ID token here
+   * risks a mismatch: a user this guard sends to /forbidden might actually
+   * be allowed by the API (extra clicks to reach a working screen), or one
+   * it lets through might get 403'd by every request (dead-end dashboard
+   * with only failed loads). Checking the access token directly makes this
+   * guard's decision match what the API will do, by construction.
    */
   get isAdmin(): boolean {
-    const claims = this.oauthService.getIdentityClaims() as { realm_access?: { roles?: string[] } } | null;
-    return !!claims?.realm_access?.roles?.includes('admin');
+    const token = this.oauthService.getAccessToken();
+    if (!token) return false;
+
+    try {
+      const payloadSegment = token.split('.')[1];
+      const normalized = payloadSegment.replace(/-/g, '+').replace(/_/g, '/');
+      const payload = JSON.parse(atob(normalized));
+      const roles: string[] = payload?.realm_access?.roles ?? [];
+      return roles.includes('admin');
+    } catch (err) {
+      console.error('[AuthService] Failed to decode access token roles:', err);
+      return false;
+    }
   }
 }
