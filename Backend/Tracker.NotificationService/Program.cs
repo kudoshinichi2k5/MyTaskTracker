@@ -1,19 +1,43 @@
+using System.Security.Claims;
+using System.Text.Json;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Tracker.NotificationService.Endpoints;
 using Tracker.NotificationService.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Same JWT Bearer setup as Tracker.TaskService: both services validate
-// tokens issued by the same Keycloak realm, so a user only signs in once
-// (via the frontend's SSO flow) and the resulting token is accepted by
-// every backend microservice.
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
         options.Authority = builder.Configuration["JwtSettings:Authority"];
         options.Audience = builder.Configuration["JwtSettings:Audience"];
         options.RequireHttpsMetadata = builder.Configuration.GetValue<bool>("JwtSettings:RequireHttpsMetadata");
+
+        // Mirrors Tracker.TaskService: unpack Keycloak's "realm_access.roles"
+        // claim into standard ClaimTypes.Role claims, so role checks behave
+        // the same way across every backend service.
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = context =>
+            {
+                var realmAccessJson = context.Principal?.FindFirst("realm_access")?.Value;
+                if (string.IsNullOrEmpty(realmAccessJson) || context.Principal?.Identity is not ClaimsIdentity identity)
+                {
+                    return Task.CompletedTask;
+                }
+
+                using var doc = JsonDocument.Parse(realmAccessJson);
+                if (doc.RootElement.TryGetProperty("roles", out var roles))
+                {
+                    foreach (var role in roles.EnumerateArray())
+                    {
+                        identity.AddClaim(new Claim(ClaimTypes.Role, role.GetString() ?? string.Empty));
+                    }
+                }
+
+                return Task.CompletedTask;
+            }
+        };
     });
 builder.Services.AddAuthorization();
 
@@ -21,16 +45,16 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        var frontendUrl = builder.Configuration["FrontendUrl"] ?? "http://localhost:4200";
+        var origins = (builder.Configuration["AllowedFrontendOrigins"]
+                        ?? "http://localhost:4200,http://localhost:4300")
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-        policy.WithOrigins(frontendUrl)
+        policy.WithOrigins(origins)
               .AllowAnyHeader()
               .AllowAnyMethod();
     });
 });
 
-// In-memory notification store, scoped per user (see InMemoryNotificationStore
-// for the persistence caveat).
 builder.Services.AddSingleton<INotificationStore, InMemoryNotificationStore>();
 
 builder.Services.AddEndpointsApiExplorer();
