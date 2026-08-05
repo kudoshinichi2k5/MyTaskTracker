@@ -71,4 +71,15 @@ public class InMemoryTaskStore : ITaskStore
     {
         return BucketFor(userId).TryRemove(id, out _);
     }
+
+    public IReadOnlyList<UserTaskSummary> GetSummaryForAllUsers()
+    {
+        return _byUser
+            .Select(kvp => new UserTaskSummary(
+                UserId: kvp.Key,
+                TotalTasks: kvp.Value.Count,
+                CompletedTasks: kvp.Value.Values.Count(t => t.IsCompleted)))
+            .OrderBy(s => s.UserId)
+            .ToList();
+    }
 }

@@ -45,6 +45,14 @@ public static class TaskEndpoints
             var deleted = store.Delete(user.GetUserId(), id);
             return deleted ? Results.NoContent() : Results.NotFound();
         });
+
+        // Admin Portal only: aggregate view across every user's tasks.
+        // "AdminOnly" is enforced server-side via the "admin" Keycloak realm
+        // role - a Customer App user can't reach this even by guessing the URL.
+        var adminGroup = app.MapGroup("/api/v1/tasks/admin").RequireAuthorization("AdminOnly");
+
+        adminGroup.MapGet("/summary", (ITaskStore store) =>
+            Results.Ok(store.GetSummaryForAllUsers()));
     }
 
     // Keycloak's "sub" claim is the stable, unique user id (unlike the display
