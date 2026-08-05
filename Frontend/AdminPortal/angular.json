@@ -32,6 +32,22 @@
             "scripts": []
           },
           "configurations": {
+            "testing": {
+              "fileReplacements": [
+                {
+                  "replace": "src/environments/environment.ts",
+                  "with": "src/environments/environment.testing.ts"
+                }
+              ]
+            },
+            "staging": {
+              "fileReplacements": [
+                {
+                  "replace": "src/environments/environment.ts",
+                  "with": "src/environments/environment.staging.ts"
+                }
+              ]
+            },
             "production": {
               "budgets": [
                 {
@@ -57,12 +73,21 @@
         },
         "serve": {
           "builder": "@angular-devkit/build-angular:dev-server",
+          "options": {
+            "port": 4300
+          },
           "configurations": {
             "production": {
               "buildTarget": "AdminPortal:build:production"
             },
             "development": {
               "buildTarget": "AdminPortal:build:development"
+            },
+            "testing": {
+              "buildTarget": "AdminPortal:build:testing"
+            },
+            "staging": {
+              "buildTarget": "AdminPortal:build:staging"
             }
           },
           "defaultConfiguration": "development"
