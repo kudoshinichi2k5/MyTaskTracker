@@ -1,0 +1,53 @@
+<div class="dashboard">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <h2 class="sidebar-title">Admin Portal</h2>
+    <nav>
+      <ul>
+        <li class="active">Reports</li>
+        <li>Users <span class="note">(not connected – needs Keycloak Admin REST API)</span></li>
+        <li>Roles <span class="note">(not connected – needs Keycloak Admin REST API)</span></li>
+      </ul>
+    </nav>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <section class="stat-cards">
+      <div class="stat-card">
+        <h3>Total Tasks</h3>
+        <p>{{ reports?.totalTasks }}</p>
+      </div>
+      <div class="stat-card">
+        <h3>Completed</h3>
+        <p>{{ reports?.completedTasks }}</p>
+      </div>
+      <div class="stat-card">
+        <h3>Pending</h3>
+        <p>{{ reports?.pendingTasks }}</p>
+      </div>
+    </section>
+
+    <section class="report-table">
+      <h3>Task Report</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Task ID</th>
+            <th>Title</th>
+            <th>Status</th>
+            <th>Assigned To</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let task of reports?.tasks">
+            <td>{{ task.id }}</td>
+            <td>{{ task.title }}</td>
+            <td>{{ task.status }}</td>
+            <td>{{ task.assignee }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+</div>
