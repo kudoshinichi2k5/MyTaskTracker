@@ -1,4 +1,4 @@
-import { Component, ElementRef, HostListener, inject, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, HostListener, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { NotificationService, NotificationItem } from '../../services/notification.service';
 
@@ -7,7 +7,8 @@ import { NotificationService, NotificationItem } from '../../services/notificati
   standalone: true,
   imports: [CommonModule],
   templateUrl: './notification-bell.component.html',
-  styleUrl: './notification-bell.component.css'
+  styleUrl: './notification-bell.component.css',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class NotificationBellComponent implements OnInit {
   notifications: NotificationItem[] = [];
@@ -17,6 +18,11 @@ export class NotificationBellComponent implements OnInit {
 
   private notificationService = inject(NotificationService);
   private elementRef = inject(ElementRef);
+  private cdr = inject(ChangeDetectorRef);
+
+  get badgeText(): string {
+    return this.unreadCount > 9 ? '9+' : String(this.unreadCount);
+  }
 
   ngOnInit() {
     // Only the count is needed to render the badge, so we use the
@@ -24,8 +30,14 @@ export class NotificationBellComponent implements OnInit {
     // on every page load - the full list is only fetched once the
     // dropdown is actually opened (see toggle()).
     this.notificationService.getUnreadCount().subscribe({
-      next: (count) => (this.unreadCount = count),
-      error: () => (this.unreadCount = 0)
+      next: (count) => {
+        this.unreadCount = count;
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.unreadCount = 0;
+        this.cdr.markForCheck();
+      }
     });
   }
 
@@ -34,6 +46,10 @@ export class NotificationBellComponent implements OnInit {
     if (this.isOpen && !this.listLoaded) {
       this.load();
     }
+  }
+
+  close() {
+    this.isOpen = false;
   }
 
   // Close the dropdown when the user clicks anywhere outside of it.
@@ -53,8 +69,13 @@ export class NotificationBellComponent implements OnInit {
       error: () => {
         notification.isRead = false;
         this.unreadCount += 1;
+        this.cdr.markForCheck();
       }
     });
+  }
+
+  trackById(_: number, item: NotificationItem) {
+    return item.id;
   }
 
   private load() {
@@ -62,8 +83,12 @@ export class NotificationBellComponent implements OnInit {
       next: (data) => {
         this.notifications = data;
         this.listLoaded = true;
+        this.cdr.markForCheck();
       },
-      error: () => (this.notifications = [])
+      error: () => {
+        this.notifications = [];
+        this.cdr.markForCheck();
+      }
     });
   }
 }
