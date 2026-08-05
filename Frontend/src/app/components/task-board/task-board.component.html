@@ -36,19 +36,56 @@
     Couldn't load your tasks. Please refresh the page or try again later.
   </p>
 
-  <ul class="task-list" *ngIf="!loadError">
-    <li class="task-row" *ngFor="let task of tasks">
-      <label>
-        <input type="checkbox" [checked]="task.isCompleted" (change)="toggleTask(task)" />
-        <span class="task-title" [class.done]="task.isCompleted">{{ task.title }}</span>
-      </label>
-      <button class="delete-button" (click)="removeTask(task)" aria-label="Delete task">
-        &#10005;
-      </button>
+  <ul class="task-list skeleton-list" *ngIf="isLoading">
+    <li class="task-row skeleton-row" *ngFor="let n of [1, 2, 3]">
+      <span class="skeleton-checkbox"></span>
+      <span class="skeleton-line"></span>
     </li>
   </ul>
 
-  <p class="empty-state" *ngIf="!loadError && tasks.length === 0">
+  <ul class="task-list" *ngIf="!loadError && !isLoading">
+    <li class="task-row" *ngFor="let task of tasks; trackBy: trackByTaskId">
+      <label *ngIf="editingTaskId !== task.id; else editing">
+        <input type="checkbox" [checked]="task.isCompleted" (change)="toggleTask(task)" />
+        <span
+          class="task-title"
+          [class.done]="task.isCompleted"
+          (dblclick)="startEdit(task)"
+        >{{ task.title }}</span>
+      </label>
+
+      <ng-template #editing>
+        <input
+          #editInput
+          type="text"
+          class="edit-input"
+          maxlength="200"
+          autofocus
+          [(ngModel)]="editingTitle"
+          [ngModelOptions]="{ standalone: true }"
+          (keydown.enter)="saveEdit(task)"
+          (keydown.escape)="cancelEdit()"
+          (blur)="saveEdit(task)"
+        />
+      </ng-template>
+
+      <div class="task-actions">
+        <button
+          class="edit-button"
+          *ngIf="editingTaskId !== task.id"
+          (click)="startEdit(task)"
+          aria-label="Rename task"
+        >
+          &#9998;
+        </button>
+        <button class="delete-button" (click)="removeTask(task)" aria-label="Delete task">
+          &#10005;
+        </button>
+      </div>
+    </li>
+  </ul>
+
+  <p class="empty-state" *ngIf="!loadError && !isLoading && tasks.length === 0">
     No tasks yet. Enjoy the quiet.
   </p>
 </div>
