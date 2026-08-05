@@ -75,6 +75,11 @@ builder.Services.AddCors(options =>
 // In-memory task store, scoped per user.
 builder.Services.AddSingleton<ITaskStore, InMemoryTaskStore>();
 
+// Powers the Admin Portal's Users/Roles screens - see Services/
+// KeycloakAdminClient.cs for why this can't just be called from the
+// Angular app directly.
+builder.Services.AddHttpClient<IKeycloakAdminClient, KeycloakAdminClient>();
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -93,5 +98,6 @@ app.UseAuthorization();
 app.MapGet("/health", () => Results.Ok(new { status = "healthy", environment = app.Environment.EnvironmentName }));
 
 app.MapTaskEndpoints();
+app.MapAdminUserEndpoints();
 
 app.Run();
