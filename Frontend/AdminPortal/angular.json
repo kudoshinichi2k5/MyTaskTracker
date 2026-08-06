@@ -33,6 +33,7 @@
           },
           "configurations": {
             "testing": {
+              "baseHref": "/app2/",
               "fileReplacements": [
                 {
                   "replace": "src/environments/environment.ts",

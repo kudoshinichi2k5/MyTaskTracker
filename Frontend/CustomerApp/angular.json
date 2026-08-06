@@ -44,6 +44,7 @@
               "sourceMap": false
             },
             "testing": {
+              "baseHref": "/app1/",
               "fileReplacements": [
                 {
                   "replace": "src/environments/environment.ts",
