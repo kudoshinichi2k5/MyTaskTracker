@@ -46,3 +46,5 @@ Backend/**/Properties/launchSettings.json
 # =========================
 ehthumbs.db
 Desktop.ini
+
+**/Deploy/*
