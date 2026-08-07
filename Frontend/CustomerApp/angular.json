@@ -33,6 +33,7 @@
           },
           "configurations": {
             "production": {
+              "baseHref": "/app1/",
               "fileReplacements": [
                 {
                   "replace": "src/environments/environment.ts",
@@ -53,6 +54,7 @@
               ]
             },
             "staging": {
+              "baseHref": "/app1/",
               "fileReplacements": [
                 {
                   "replace": "src/environments/environment.ts",
@@ -69,23 +71,23 @@
           "defaultConfiguration": "production"
         },
         "serve": {
-        "builder": "@angular-devkit/build-angular:dev-server",
-        "configurations": {
-          "production": {
-            "buildTarget": "Frontend:build:production"
+          "builder": "@angular-devkit/build-angular:dev-server",
+          "configurations": {
+            "production": {
+              "buildTarget": "Frontend:build:production"
+            },
+            "development": {
+              "buildTarget": "Frontend:build:development"
+            },
+            "testing": {
+              "buildTarget": "Frontend:build:testing"
+            },
+            "staging": {
+              "buildTarget": "Frontend:build:staging"
+            }
           },
-          "development": {
-            "buildTarget": "Frontend:build:development"
-          },
-          "testing": {
-            "buildTarget": "Frontend:build:testing"
-          },
-          "staging": {
-            "buildTarget": "Frontend:build:staging"
-          }
+          "defaultConfiguration": "development"
         },
-        "defaultConfiguration": "development"
-      },
         "extract-i18n": {
           "builder": "@angular-devkit/build-angular:extract-i18n"
         },
@@ -113,6 +115,6 @@
     }
   },
   "cli": {
-    "analytics": "5ebd2c76-c7cd-4e0d-a9ee-9b70afe8d71e"
+    "analytics": "5ebbd2c76-c7cd-4e0d-a9ee-9b70afe8d71e"
   }
 }

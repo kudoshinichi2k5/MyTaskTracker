@@ -42,6 +42,7 @@
               ]
             },
             "staging": {
+              "baseHref": "/app2/",
               "fileReplacements": [
                 {
                   "replace": "src/environments/environment.ts",
@@ -50,6 +51,7 @@
               ]
             },
             "production": {
+              "baseHref": "/app2/",
               "budgets": [
                 {
                   "type": "initial",

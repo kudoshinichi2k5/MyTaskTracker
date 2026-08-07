@@ -6,7 +6,7 @@ export const environment: Environment = {
   notificationApi: 'https://notifications.prod.yourdomain.com/api/v1',
   oauth: {
     issuer: 'https://auth.prod.yourdomain.com/realms/TaskTrackerRealm',
-    redirectUri: 'https://app.prod.yourdomain.com/tasks',
+    redirectUri: 'https://app.prod.yourdomain.com/app1/tasks',
     clientId: 'angular-frontend-client',
     scope: 'openid profile email'
   }
