@@ -6,43 +6,25 @@ using Tracker.TaskService.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Cấu hình JWT Bearer Authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        options.Authority = builder.Configuration["JwtSettings:Authority"];
-        options.Audience = builder.Configuration["JwtSettings:Audience"];
-        options.RequireHttpsMetadata = builder.Configuration.GetValue<bool>("JwtSettings:RequireHttpsMetadata");
-
-        // Keycloak puts realm roles under a custom "realm_access": { "roles": [...] }
-        // claim, not the standard ClaimTypes.Role that ASP.NET Core's
-        // [Authorize(Roles=...)] / RequireRole() policies expect. Unpack it once
-        // here so both the "AdminOnly" policy below and any future role checks
-        // work without every endpoint re-parsing the token by hand.
-        options.Events = new JwtBearerEvents
+        var jwtSettings = builder.Configuration.GetSection("Jwt");
+        options.TokenValidationParameters = new TokenValidationParameters
         {
-            OnTokenValidated = context =>
-            {
-                var realmAccessJson = context.Principal?.FindFirst("realm_access")?.Value;
-                if (string.IsNullOrEmpty(realmAccessJson) || context.Principal?.Identity is not ClaimsIdentity identity)
-                {
-                    return Task.CompletedTask;
-                }
-
-                using var doc = JsonDocument.Parse(realmAccessJson);
-                if (doc.RootElement.TryGetProperty("roles", out var roles))
-                {
-                    foreach (var role in roles.EnumerateArray())
-                    {
-                        identity.AddClaim(new Claim(ClaimTypes.Role, role.GetString() ?? string.Empty));
-                    }
-                }
-
-                return Task.CompletedTask;
-            }
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = jwtSettings["Issuer"],
+            ValidAudience = jwtSettings["Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(jwtSettings["SecretKey"]!)),
+            // Khớp claim role cho [Authorize(Roles = "...")]
+            RoleClaimType = "http://schemas.microsoft.com/ws/2008/06/identity/claims/role",
+            NameClaimType = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"
         };
     });
-
 builder.Services.AddAuthorization(options =>
 {
     // Only Keycloak users holding the "admin" realm role (assigned to
