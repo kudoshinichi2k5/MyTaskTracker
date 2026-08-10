@@ -53,7 +53,32 @@ export class AuthService {
   }
 
   logout() {
-    this.oauthService.logOut();
+    // See CustomerApp's AuthService for the full explanation: logOut() only
+    // sends id_token_hint when an ID token is present in storage, with no
+    // fallback, and Keycloak then rejects the request with
+    // "Missing parameters: id_token_hint".
+    if (this.oauthService.getIdToken()) {
+      this.oauthService.logOut();
+      return;
+    }
+
+    this.logoutWithoutIdToken();
+  }
+
+  private logoutWithoutIdToken() {
+    this.oauthService.logOut(true);
+
+    const logoutUrl = this.oauthService.logoutUrl;
+    if (!logoutUrl) {
+      window.location.href = environment.oauth.redirectUri;
+      return;
+    }
+
+    const params = new URLSearchParams({
+      client_id: environment.oauth.clientId,
+      post_logout_redirect_uri: environment.oauth.redirectUri
+    });
+    window.location.href = `${logoutUrl}${logoutUrl.includes('?') ? '&' : '?'}${params.toString()}`;
   }
 
   get hasValidToken(): boolean {

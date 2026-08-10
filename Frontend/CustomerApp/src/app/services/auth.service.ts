@@ -78,7 +78,39 @@ export class AuthService {
   }
 
   logout() {
-    this.oauthService.logOut();
+    // angular-oauth2-oidc's logOut() only appends id_token_hint to the
+    // request when an ID token is present in storage (see its source:
+    // `if (id_token) { params.set('id_token_hint', id_token) }` - no
+    // fallback). If it's missing for any reason, Keycloak's end-session
+    // endpoint rejects the request outright with
+    // "Missing parameters: id_token_hint" instead of just logging out.
+    if (this.oauthService.getIdToken()) {
+      this.oauthService.logOut();
+      return;
+    }
+
+    this.logoutWithoutIdToken();
+  }
+
+  // Fallback used when there's no ID token to hand Keycloak. OIDC
+  // RP-Initiated Logout accepts client_id + post_logout_redirect_uri as an
+  // equally valid alternative to id_token_hint, so we build that request
+  // ourselves. `true` here clears local tokens without navigating, since
+  // we're taking over navigation with our own URL below.
+  private logoutWithoutIdToken() {
+    this.oauthService.logOut(true);
+
+    const logoutUrl = this.oauthService.logoutUrl;
+    if (!logoutUrl) {
+      window.location.href = environment.oauth.redirectUri;
+      return;
+    }
+
+    const params = new URLSearchParams({
+      client_id: environment.oauth.clientId,
+      post_logout_redirect_uri: environment.oauth.redirectUri
+    });
+    window.location.href = `${logoutUrl}${logoutUrl.includes('?') ? '&' : '?'}${params.toString()}`;
   }
 
   get hasValidToken() {
