@@ -78,4 +78,17 @@ export class AuthService {
   get hasValidToken() {
     return this.oauthService.hasValidAccessToken();
   }
+
+  get isAdmin(): boolean {
+    // Đọc thông tin các Claims từ Token do Keycloak trả về
+    const claims = this.oauthService.getIdentityClaims() as any;
+    if (!claims) return false;
+
+    // Lấy danh sách Role từ Token (Tùy thuộc vào cách bạn cấu hình Role Mapper trên Keycloak)
+    const realmRoles = claims['realm_access']?.['roles'] || [];
+    const clientRoles = claims['resource_access']?.['admin-portal-client']?.['roles'] || [];
+
+    // Kiểm tra xem user có chứa role 'admin' hay không
+    return realmRoles.includes('admin') || clientRoles.includes('admin');
+  }
 }
