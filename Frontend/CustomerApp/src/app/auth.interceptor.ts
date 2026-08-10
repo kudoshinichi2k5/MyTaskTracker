@@ -1,16 +1,38 @@
-import { HttpInterceptorFn } from '@angular/common/http';
+import { HttpInterceptorFn, HttpErrorResponse } from '@angular/common/http';
 import { inject } from '@angular/core';
-import { OAuthService } from 'angular-oauth2-oidc';
+import { AuthService } from './services/auth.service';
+import { catchError, switchMap, throwError } from 'rxjs';
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
-  const oauthService = inject(OAuthService);
-  const token = oauthService.getAccessToken(); // Lấy Token chuẩn OAuth
-  
+  const authService = inject(AuthService);
+  const token = authService.accessToken;
+
+  let authReq = req;
   if (token) {
-    const clonedReq = req.clone({
+    authReq = req.clone({
       setHeaders: { Authorization: `Bearer ${token}` }
     });
-    return next(clonedReq);
   }
-  return next(req);
-};  
+
+  return next(authReq).pipe(
+    catchError((error: HttpErrorResponse) => {
+      // Nếu API trả về 401 Unauthorized và chưa retry
+      if (error.status === 401 && token) {
+        return authService.tryRefresh().pipe(
+          switchMap((success) => {
+            if (success && authService.accessToken) {
+              // Refresh thành công, gắn token mới và gọi lại API
+              const retriedReq = req.clone({
+                setHeaders: { Authorization: `Bearer ${authService.accessToken}` }
+              });
+              return next(retriedReq);
+            }
+            // Refresh thất bại, văng lỗi ra để đẩy về trang Login
+            return throwError(() => error);
+          })
+        );
+      }
+      return throwError(() => error);
+    })
+  );
+};

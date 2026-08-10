@@ -1,81 +1,104 @@
 import { Injectable, inject } from '@angular/core';
-import { OAuthService, AuthConfig } from 'angular-oauth2-oidc';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { Observable, catchError, firstValueFrom, map, of, tap, throwError } from 'rxjs';
 import { environment } from '../../environments/environment';
+
+interface AuthResponse {
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: string; 
+  username: string;
+  roles: string[];
+}
+
+interface Session {
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: number; 
+  username: string;
+  roles: string[];
+}
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private oauthService = inject(OAuthService);
-  public initialLoadPromise: Promise<boolean>;
+  private http = inject(HttpClient);
 
+  // CÁCH LY BỘ NHỚ: app1 dùng customerapp_session, app2 dùng adminportal_session
+  private readonly storageKey = 'customerapp_session'; 
+  
+  private session: Session | null = this.loadSession();
+  public readonly initialLoadPromise: Promise<boolean>;
   public lastError: string | null = null;
 
   constructor() {
-    this.initialLoadPromise = this.configureOAuth();
+    this.initialLoadPromise = this.trySilentRefresh();
   }
 
-  private configureOAuth(): Promise<boolean> {
-    const authConfig: AuthConfig = {
-      issuer: environment.oauth.issuer,
-      redirectUri: environment.oauth.redirectUri,
-      clientId: environment.oauth.clientId,
-      scope: environment.oauth.scope,
-      responseType: 'code',
-      requireHttps: environment.production,
-      strictDiscoveryDocumentValidation: false
+  private loadSession(): Session | null {
+    const raw = localStorage.getItem(this.storageKey);
+    if (!raw) return null;
+    try { return JSON.parse(raw) as Session; } catch { return null; }
+  }
+
+  private saveSession(res: AuthResponse) {
+    this.session = {
+      accessToken: res.accessToken,
+      refreshToken: res.refreshToken,
+      expiresAt: new Date(res.expiresAt).getTime(),
+      username: res.username,
+      roles: res.roles
     };
-
-    this.oauthService.configure(authConfig);
-
-    return this.oauthService
-      .loadDiscoveryDocumentAndTryLogin()
-      .then((success) => {
-        if (window.location.search.includes('code=') || window.location.search.includes('state=')) {
-          const cleanUrl = window.location.origin + window.location.pathname;
-          window.history.replaceState({}, document.title, cleanUrl);
-        }
-        this.lastError = null;
-        return success;
-      })
-      .catch((err) => {
-        console.error('[AuthService] OAuth initialization failed:', err);
-        this.lastError = 'We couldn\'t reach the sign-in service. Please try again in a moment.';
-        return false;
-      });
+    localStorage.setItem(this.storageKey, JSON.stringify(this.session));
   }
 
-  login() {
+  private clearSession() {
+    this.session = null;
+    localStorage.removeItem(this.storageKey);
+  }
+
+  private async trySilentRefresh(): Promise<boolean> {
+    if (!this.session) return false;
+    if (this.session.expiresAt - Date.now() > 30_000) return true;
+
     try {
-      this.lastError = null;
-      this.oauthService.initCodeFlow();
-    } catch (err) {
-      console.error('[AuthService] Failed to start SSO redirect:', err);
-      this.lastError = 'Unable to start sign-in. Please check your connection and try again.';
+      await firstValueFrom(this.refresh());
+      return true;
+    } catch {
+      this.clearSession();
+      return false;
     }
+  }
+
+  login(username: string, password: string): Observable<void> {
+    this.lastError = null;
+    return this.http.post<AuthResponse>(`${environment.authApi}/auth/login`, { username, password }).pipe(
+      tap((res) => this.saveSession(res)),
+      map(() => void 0),
+      catchError((err: HttpErrorResponse) => {
+        this.lastError = err.status === 401 ? 'Sai tài khoản hoặc mật khẩu.' : "Lỗi kết nối máy chủ.";
+        return throwError(() => err);
+      })
+    );
+  }
+
+  refresh(): Observable<AuthResponse> {
+    if (!this.session) return throwError(() => new Error('No session'));
+    return this.http.post<AuthResponse>(`${environment.authApi}/auth/refresh`, { refreshToken: this.session.refreshToken })
+      .pipe(tap((res) => this.saveSession(res)));
+  }
+
+  tryRefresh(): Observable<boolean> {
+    return this.refresh().pipe(map(() => true), catchError(() => { this.clearSession(); return of(false); }));
   }
 
   logout() {
-    // 1. Lấy token định danh ra trước khi xóa
-    const idToken = this.oauthService.getIdToken();
-    const issuer = environment.oauth.issuer; 
-    const clientId = environment.oauth.clientId;
-    const redirectUri = environment.oauth.redirectUri;
-
-    // 2. Truyền `true` để ép thư viện xóa sạch token trong bộ nhớ mà KHÔNG tự động chuyển hướng
-    this.oauthService.logOut(true);
-
-    // 3. Tự tay lắp ráp URL Keycloak Logout chống đạn
-    const keycloakLogoutEndpoint = `${issuer}/protocol/openid-connect/logout`;
-    
-    if (idToken) {
-      // Ưu tiên dùng id_token_hint nếu có
-      window.location.href = `${keycloakLogoutEndpoint}?id_token_hint=${idToken}&post_logout_redirect_uri=${encodeURIComponent(redirectUri)}`;
-    } else {
-      // Fallback chuẩn OIDC: dùng client_id nếu mất token
-      window.location.href = `${keycloakLogoutEndpoint}?client_id=${clientId}&post_logout_redirect_uri=${encodeURIComponent(redirectUri)}`;
+    const refreshToken = this.session?.refreshToken;
+    this.clearSession();
+    if (refreshToken) {
+      this.http.post(`${environment.authApi}/auth/logout`, { refreshToken }).subscribe({ error: () => {} });
     }
   }
 
-  get hasValidToken() {
-    return this.oauthService.hasValidAccessToken();
-  }
+  get accessToken(): string | null { return this.session?.accessToken ?? null; }
+  get hasValidToken(): boolean { return !!this.session && this.session.expiresAt > Date.now(); }
 }
