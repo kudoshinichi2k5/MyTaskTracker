@@ -1,13 +1,15 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { OAuthService, AuthConfig } from 'angular-oauth2-oidc';
 import { environment } from '../../environments/environment';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
+  private oauthService = inject(OAuthService);
   public initialLoadPromise: Promise<boolean>;
+
   public lastError: string | null = null;
 
-  constructor(private oauthService: OAuthService) {
+  constructor() {
     this.initialLoadPromise = this.configureOAuth();
   }
 
@@ -27,7 +29,6 @@ export class AuthService {
     return this.oauthService
       .loadDiscoveryDocumentAndTryLogin()
       .then((success) => {
-        // Clean up URL after OAuth redirect
         if (window.location.search.includes('code=') || window.location.search.includes('state=')) {
           const cleanUrl = window.location.origin + window.location.pathname;
           window.history.replaceState({}, document.title, cleanUrl);
@@ -37,7 +38,7 @@ export class AuthService {
       })
       .catch((err) => {
         console.error('[AuthService] OAuth initialization failed:', err);
-        this.lastError = "We couldn't reach the sign-in service. Please try again in a moment.";
+        this.lastError = 'We couldn\'t reach the sign-in service. Please try again in a moment.';
         return false;
       });
   }
@@ -53,69 +54,28 @@ export class AuthService {
   }
 
   logout() {
-    // See CustomerApp's AuthService for the full explanation: logOut() only
-    // sends id_token_hint when an ID token is present in storage, with no
-    // fallback, and Keycloak then rejects the request with
-    // "Missing parameters: id_token_hint".
-    if (this.oauthService.getIdToken()) {
-      this.oauthService.logOut();
-      return;
-    }
+    // 1. Lấy token định danh ra trước khi xóa
+    const idToken = this.oauthService.getIdToken();
+    const issuer = environment.oauth.issuer; 
+    const clientId = environment.oauth.clientId;
+    const redirectUri = environment.oauth.redirectUri;
 
-    this.logoutWithoutIdToken();
-  }
-
-  private logoutWithoutIdToken() {
+    // 2. Truyền `true` để ép thư viện xóa sạch token trong bộ nhớ mà KHÔNG tự động chuyển hướng
     this.oauthService.logOut(true);
 
-    const logoutUrl = this.oauthService.logoutUrl;
-    if (!logoutUrl) {
-      window.location.href = environment.oauth.redirectUri;
-      return;
+    // 3. Tự tay lắp ráp URL Keycloak Logout chống đạn
+    const keycloakLogoutEndpoint = `${issuer}/protocol/openid-connect/logout`;
+    
+    if (idToken) {
+      // Ưu tiên dùng id_token_hint nếu có
+      window.location.href = `${keycloakLogoutEndpoint}?id_token_hint=${idToken}&post_logout_redirect_uri=${encodeURIComponent(redirectUri)}`;
+    } else {
+      // Fallback chuẩn OIDC: dùng client_id nếu mất token
+      window.location.href = `${keycloakLogoutEndpoint}?client_id=${clientId}&post_logout_redirect_uri=${encodeURIComponent(redirectUri)}`;
     }
-
-    const params = new URLSearchParams({
-      client_id: environment.oauth.clientId,
-      post_logout_redirect_uri: environment.oauth.redirectUri
-    });
-    window.location.href = `${logoutUrl}${logoutUrl.includes('?') ? '&' : '?'}${params.toString()}`;
   }
 
-  get hasValidToken(): boolean {
+  get hasValidToken() {
     return this.oauthService.hasValidAccessToken();
-  }
-
-  /**
-   * Keycloak realm role check.
-   * AdminPortal is only for users with "admin" role.
-   * Server-side enforcement still applies.
-   *
-   * Reads realm_access.roles from the ACCESS token, not
-   * getIdentityClaims() (which decodes the ID token). Tracker.TaskService's
-   * AdminOnly policy maps roles from the access token it receives as the
-   * Bearer header (see Program.cs's OnTokenValidated) - those are two
-   * different tokens, and Keycloak doesn't guarantee they carry the same
-   * claims unless every relevant client scope's protocol mapper is
-   * configured to include realm roles in both. Checking the ID token here
-   * risks a mismatch: a user this guard sends to /forbidden might actually
-   * be allowed by the API (extra clicks to reach a working screen), or one
-   * it lets through might get 403'd by every request (dead-end dashboard
-   * with only failed loads). Checking the access token directly makes this
-   * guard's decision match what the API will do, by construction.
-   */
-  get isAdmin(): boolean {
-    const token = this.oauthService.getAccessToken();
-    if (!token) return false;
-
-    try {
-      const payloadSegment = token.split('.')[1];
-      const normalized = payloadSegment.replace(/-/g, '+').replace(/_/g, '/');
-      const payload = JSON.parse(atob(normalized));
-      const roles: string[] = payload?.realm_access?.roles ?? [];
-      return roles.includes('admin');
-    } catch (err) {
-      console.error('[AuthService] Failed to decode access token roles:', err);
-      return false;
-    }
   }
 }
