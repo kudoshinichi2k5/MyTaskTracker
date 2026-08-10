@@ -1,11 +1,6 @@
 export interface Environment {
   production: boolean;
+  authApi: string;
   taskApi: string;
   notificationApi?: string;
-  oauth: {
-    issuer: string;
-    redirectUri: string;
-    clientId: string;
-    scope: string;
-  };
 }
