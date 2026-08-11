@@ -1,38 +1,19 @@
 using System.Security.Claims;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
+using System.Text.Encodings.Web;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.Extensions.Options;
 using Tracker.TaskService.Endpoints;
 using Tracker.TaskService.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var jwtSection = builder.Configuration.GetSection("Jwt");
-var issuer = jwtSection["Issuer"] ?? "http://localhost:5001";
-var audience = jwtSection["Audience"] ?? "task-tracker-clients";
-var secretKey = jwtSection["SecretKey"] ?? "SuperSecretKeyForTaskTrackerSystemDoNotShare2026!";
-var signingKey = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(secretKey));
+builder.Services.AddHttpClient("AuthService", client =>
+{
+    client.BaseAddress = new Uri("http://localhost:5000");
+});
 
-builder.Services.AddAuthentication(options =>
-    {
-        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-    })
-    .AddJwtBearer(options =>
-    {
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            ValidIssuer = issuer,
-            ValidAudience = audience,
-            IssuerSigningKey = signingKey,
-            NameClaimType = ClaimTypes.Name,
-            RoleClaimType = ClaimTypes.Role,
-            ClockSkew = TimeSpan.FromSeconds(30)
-        };
-    });
+builder.Services.AddAuthentication("Bearer")
+    .AddScheme<AuthenticationSchemeOptions, OwinStyleAuthHandler>("Bearer", null);
 
 builder.Services.AddAuthorization(options =>
 {
@@ -75,4 +56,58 @@ app.MapGet("/health", () => Results.Ok(new { status = "healthy", environment = a
 app.MapTaskEndpoints();
 app.MapAdminUserEndpoints();
 
-app.Run();
+app.Run("http://localhost:5002");
+
+public class OwinStyleAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions>
+{
+    private readonly HttpClient _httpClient;
+
+    public OwinStyleAuthHandler(
+        IOptionsMonitor<AuthenticationSchemeOptions> options,
+        ILoggerFactory logger,
+        UrlEncoder encoder,
+        IHttpClientFactory httpClientFactory)
+        : base(options, logger, encoder)
+    {
+        _httpClient = httpClientFactory.CreateClient("AuthService");
+    }
+
+    protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
+    {
+        if (!Request.Headers.ContainsKey("Authorization"))
+        {
+            return AuthenticateResult.Fail("Missing Authorization Header");
+        }
+
+        var authHeader = Request.Headers["Authorization"].ToString();
+        if (!authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+        {
+            return AuthenticateResult.Fail("Invalid Authorization Scheme");
+        }
+
+        var token = authHeader.Substring("Bearer ".Length).Trim();
+        var response = await _httpClient.GetAsync($"/verify?token={Uri.EscapeDataString(token)}");
+
+        if (!response.IsSuccessStatusCode)
+        {
+            return AuthenticateResult.Fail("Auth Service is unreachable");
+        }
+
+        var result = await response.Content.ReadFromJsonAsync<IntrospectionResponse>();
+        if (result is null || !result.Active)
+        {
+            return AuthenticateResult.Fail("Token invalid or expired");
+        }
+
+        var claims = new[] { new Claim(ClaimTypes.Name, result.Username) };
+        var identity = new ClaimsIdentity(claims, Scheme.Name);
+
+        return AuthenticateResult.Success(new AuthenticationTicket(new ClaimsPrincipal(identity), Scheme.Name));
+    }
+}
+
+public class IntrospectionResponse
+{
+    public bool Active { get; set; }
+    public string Username { get; set; } = string.Empty;
+}
