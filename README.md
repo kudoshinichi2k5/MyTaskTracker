@@ -2,35 +2,44 @@
 
 A small .NET 8 microservices sample app with Angular clients, using an OWIN-style custom token flow implemented with ASP.NET Core middleware and opaque tokens.
 
+## Overview
+
+This project was migrated from the legacy OWIN / OAuth server model to a modern .NET 8 implementation while keeping the same high-level contract:
+
+- a dedicated auth service issues a token via `/token`
+- resource services validate bearer tokens through `/verify`
+- frontend apps use the auth service as the identity source
+
+The important difference is that this is not the old `Microsoft.Owin.*` stack. It uses native ASP.NET Core middleware and a custom authentication handler.
+
 ## Architecture
 
 ```mermaid
 flowchart LR
-    FE["Angular Client"] --> AUTH["Auth Service\n:5001"]
+    FE["Angular App"] --> AUTH["Auth Service\n:5001"]
     FE --> TS["Task Service\n:5002"]
     FE --> NS["Notification Service\n:5003"]
     TS --> AUTH
     NS --> AUTH
 ```
 
-This project keeps the classic OWIN-style contract of a dedicated auth service that issues a token over `/token` and lets resource services verify it through `/verify`, but it is implemented on .NET 8 using native ASP.NET Core middleware instead of the legacy `Microsoft.Owin.*` stack.
-
 ## Stack
 
 - ASP.NET Core 8 Minimal APIs
-- Custom opaque-token auth flow
-- ASP.NET Core authentication handler for bearer validation
+- Custom OWIN-style password grant flow
+- Opaque access tokens instead of JWT
+- Custom bearer auth validation in resource services
 - Angular 18 frontend apps
-- In-memory task/notification stores
-- Session and refresh token handling in memory
+- In-memory stores for tasks, notifications, and refresh sessions
 
 ## Authentication flow
 
-1. Angular sends `application/x-www-form-urlencoded` credentials to `POST /token` on the auth service.
-2. The auth service validates `grant_type=password`, `username`, and `password` and returns an opaque `access_token` plus a refresh token for app session compatibility.
-3. The frontend stores the session locally and adds `Authorization: Bearer <token>` to protected requests.
-4. Task and notification services validate the token by calling the auth service `GET /verify?token=...` through a custom ASP.NET Core authentication handler.
-5. Refresh requests are issued through `POST /api/v1/auth/refresh` and logout clears the stored token state.
+1. Frontend submits form-encoded credentials to `POST /token` on Auth Service.
+2. Auth Service validates `grant_type=password`, `username`, and `password`.
+3. If valid, it returns an opaque `access_token` and a `refresh_token`.
+4. Frontend stores the session locally and sends `Authorization: Bearer <token>` to protected API calls.
+5. Task/Notification Service validates the token via `GET /verify?token=...`.
+6. `POST /api/v1/auth/refresh` renews the session and `POST /api/v1/auth/logout` clears it.
 
 ## Auth service endpoints
 
@@ -46,7 +55,7 @@ POST /api/v1/auth/refresh
 POST /api/v1/auth/logout
 ```
 
-## Projects
+## Project structure
 
 ```text
 MyTaskTracker/
@@ -72,7 +81,7 @@ MyTaskTracker/
 
 ## Local development
 
-Run each service in a separate terminal:
+Run services in separate terminals:
 
 ```bash
 cd Backend/Tracker.AuthService && dotnet run
@@ -80,14 +89,14 @@ cd Backend/Tracker.TaskService && dotnet run
 cd Backend/Tracker.NotificationService && dotnet run
 ```
 
-Then start the frontends:
+Run frontends:
 
 ```bash
 cd Frontend/CustomerApp && npm install && npm start
 cd Frontend/AdminPortal && npm install && npm start
 ```
 
-Local endpoints:
+## Local endpoints
 
 - Auth: `http://localhost:5001`
 - Task: `http://localhost:5002`
@@ -97,11 +106,23 @@ Local endpoints:
 
 ## Important note
 
-This repo intentionally keeps the classic OWIN-style token flow contract for compatibility and migration clarity, but it does so on .NET 8 using ASP.NET Core middleware and custom bearer authentication instead of the legacy `Microsoft.Owin.*` stack.
+This repo intentionally preserves the classic OWIN-style token contract for compatibility and migration clarity, but it implements it in .NET 8 using ASP.NET Core middleware and a custom authentication handler instead of legacy `Microsoft.Owin.*` libraries.
 
-## Known limitations
+## Current limitations
 
 - Data is in-memory only
 - No database persistence yet
-- Refresh tokens are session-scoped in memory
-- No gateway layer yet
+- Refresh tokens are session-scoped only
+- No API gateway or external identity provider yet
+
+## Summary
+
+The project is now a working .NET 8 OWIN-style microservice auth flow with:
+
+- `/token` password grant support
+- opaque token issuance
+- backend token verification through `/verify`
+- frontend login integration
+- backend validation with custom bearer auth
+
+This is the correct model if the goal is to preserve the old OWIN contract while running on the modern ASP.NET Core platform.
