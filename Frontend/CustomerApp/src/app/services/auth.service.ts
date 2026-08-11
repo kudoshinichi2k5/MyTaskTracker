@@ -101,7 +101,7 @@ export class AuthService {
       })),
       map(() => void 0),
       catchError((err: HttpErrorResponse) => {
-        this.lastError = err.status === 401 ? 'Sai tài khoản hoặc mật khẩu.' : "Lỗi kết nối máy chủ.";
+        this.lastError = err.status === 400 || err.status === 401 ? 'Sai tài khoản hoặc mật khẩu.' : "Lỗi kết nối máy chủ.";
         return throwError(() => err);
       })
     );
