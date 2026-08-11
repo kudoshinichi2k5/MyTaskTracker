@@ -47,17 +47,16 @@ public static class TaskEndpoints
         });
 
         // Admin Portal only: aggregate view across every user's tasks.
-        // "AdminOnly" is enforced server-side via the "admin" Keycloak realm
-        // role - a Customer App user can't reach this even by guessing the URL.
+        // "AdminOnly" is enforced server-side via the "admin" role in the JWT
+        // issued by the AuthService; an ordinary user cannot reach this route.
         var adminGroup = app.MapGroup("/api/v1/tasks/admin").RequireAuthorization("AdminOnly");
 
         adminGroup.MapGet("/summary", (ITaskStore store) =>
             Results.Ok(store.GetSummaryForAllUsers()));
     }
 
-    // Keycloak's "sub" claim is the stable, unique user id (unlike the display
-    // name/email, which the user can change). Falling back to NameIdentifier
-    // keeps this working if a different OIDC provider is ever swapped in.
+    // The JWT "sub" claim is the stable user identifier; it is issued by the
+    // AuthService and used consistently by the resource services.
     private static string GetUserId(this ClaimsPrincipal user) =>
         user.FindFirstValue("sub")
         ?? user.FindFirstValue(ClaimTypes.NameIdentifier)

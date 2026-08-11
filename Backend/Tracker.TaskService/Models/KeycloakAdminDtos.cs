@@ -1,6 +1,6 @@
 namespace Tracker.TaskService.Models;
 
-public record KeycloakUserDto
+public record AuthUserDto
 {
     public string Id { get; init; } = string.Empty;
     public string Username { get; init; } = string.Empty;
@@ -8,7 +8,7 @@ public record KeycloakUserDto
     public bool Enabled { get; init; }
 }
 
-public record KeycloakRoleDto
+public record AuthRoleDto
 {
     public string Id { get; init; } = string.Empty;
     public string Name { get; init; } = string.Empty;

@@ -101,7 +101,7 @@ public class KeycloakAdminClient : IKeycloakAdminClient
         using var usersResponse = await _http.SendAsync(usersRequest, ct);
         EnsureSuccess(usersResponse, "list users");
 
-        var users = await usersResponse.Content.ReadFromJsonAsync<List<KeycloakUserDto>>(JsonOptions, ct) ?? [];
+        var users = await usersResponse.Content.ReadFromJsonAsync<List<AuthUserDto>>(JsonOptions, ct) ?? [];
         var summaries = new List<AdminUserSummary>();
 
         // N+1 by design for this scope: one role-mappings call per user.
@@ -117,7 +117,7 @@ public class KeycloakAdminClient : IKeycloakAdminClient
             var roleNames = new List<string>();
             if (rolesResponse.IsSuccessStatusCode)
             {
-                var roles = await rolesResponse.Content.ReadFromJsonAsync<List<KeycloakRoleDto>>(JsonOptions, ct) ?? [];
+                var roles = await rolesResponse.Content.ReadFromJsonAsync<List<AuthRoleDto>>(JsonOptions, ct) ?? [];
                 roleNames = roles
                     .Select(r => r.Name)
                     .Where(n => !string.IsNullOrEmpty(n) && !n.StartsWith("default-roles-"))
@@ -136,7 +136,7 @@ public class KeycloakAdminClient : IKeycloakAdminClient
         using var response = await _http.SendAsync(request, ct);
         EnsureSuccess(response, "list realm roles");
 
-        var roles = await response.Content.ReadFromJsonAsync<List<KeycloakRoleDto>>(JsonOptions, ct) ?? [];
+        var roles = await response.Content.ReadFromJsonAsync<List<AuthRoleDto>>(JsonOptions, ct) ?? [];
         return roles
             .Select(r => r.Name)
             // Keycloak-internal roles every realm has - not meaningful to
@@ -175,7 +175,7 @@ public class KeycloakAdminClient : IKeycloakAdminClient
 
     // Keycloak's role-mappings endpoints need the full {id, name} role
     // representation in the request body, not just the name.
-    private async Task<KeycloakRoleDto> GetRoleRepresentationAsync(string roleName, CancellationToken ct)
+    private async Task<AuthRoleDto> GetRoleRepresentationAsync(string roleName, CancellationToken ct)
     {
         var request = await AuthorizedRequestAsync(HttpMethod.Get, $"{_baseUrl}/admin/realms/{_realm}/roles/{roleName}", ct);
         using var response = await _http.SendAsync(request, ct);
@@ -186,7 +186,7 @@ public class KeycloakAdminClient : IKeycloakAdminClient
         }
         EnsureSuccess(response, $"look up role '{roleName}'");
 
-        return await response.Content.ReadFromJsonAsync<KeycloakRoleDto>(JsonOptions, ct)
+        return await response.Content.ReadFromJsonAsync<AuthRoleDto>(JsonOptions, ct)
             ?? throw new KeycloakAdminException($"Keycloak returned an empty response for role '{roleName}'.");
     }
 
