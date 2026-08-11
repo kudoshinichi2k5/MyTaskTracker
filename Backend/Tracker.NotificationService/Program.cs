@@ -1,11 +1,16 @@
 using System.Security.Claims;
-using System.Text.Json;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Tracker.NotificationService.Endpoints;
 using Tracker.NotificationService.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+
+var jwtSection = builder.Configuration.GetSection("Jwt");
+var issuer = jwtSection["Issuer"] ?? "http://localhost:5001";
+var audience = jwtSection["Audience"] ?? "task-tracker-clients";
+var secretKey = jwtSection["SecretKey"] ?? "SuperSecretKeyForTaskTrackerSystemDoNotShare2026!";
+var signingKey = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(secretKey));
 
 builder.Services.AddAuthentication(options =>
     {
@@ -14,62 +19,18 @@ builder.Services.AddAuthentication(options =>
     })
     .AddJwtBearer(options =>
     {
-        var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-        var authority = jwtSettings["Authority"]
-            ?? throw new InvalidOperationException("JwtSettings:Authority is not configured.");
-        var audience = jwtSettings["Audience"] ?? "account";
-
-        options.Authority = authority;
-        options.Audience = audience;
-        options.RequireHttpsMetadata = jwtSettings.GetValue<bool>("RequireHttpsMetadata", true);
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
             ValidateAudience = true,
             ValidateLifetime = true,
-            NameClaimType = "preferred_username",
-            RoleClaimType = ClaimTypes.Role
-        };
-
-        options.Events = new JwtBearerEvents
-        {
-            OnTokenValidated = context =>
-            {
-                var principal = context.Principal;
-                if (principal is null)
-                {
-                    return Task.CompletedTask;
-                }
-
-                var identity = principal.Identity as ClaimsIdentity;
-                if (identity is null)
-                {
-                    return Task.CompletedTask;
-                }
-
-                var realmAccessValue = principal.FindFirst("realm_access")?.Value;
-                if (string.IsNullOrWhiteSpace(realmAccessValue))
-                {
-                    return Task.CompletedTask;
-                }
-
-                using var realmAccess = JsonDocument.Parse(realmAccessValue);
-                if (!realmAccess.RootElement.TryGetProperty("roles", out var rolesElement) || rolesElement.ValueKind != JsonValueKind.Array)
-                {
-                    return Task.CompletedTask;
-                }
-
-                foreach (var role in rolesElement.EnumerateArray())
-                {
-                    var roleName = role.GetString();
-                    if (!string.IsNullOrWhiteSpace(roleName) && !identity.HasClaim(ClaimTypes.Role, roleName))
-                    {
-                        identity.AddClaim(new Claim(ClaimTypes.Role, roleName));
-                    }
-                }
-
-                return Task.CompletedTask;
-            }
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = issuer,
+            ValidAudience = audience,
+            IssuerSigningKey = signingKey,
+            NameClaimType = ClaimTypes.Name,
+            RoleClaimType = ClaimTypes.Role,
+            ClockSkew = TimeSpan.FromSeconds(30)
         };
     });
 
