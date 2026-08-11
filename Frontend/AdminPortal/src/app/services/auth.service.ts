@@ -71,8 +71,30 @@ export class AuthService {
 
   login(username: string, password: string): Observable<void> {
     this.lastError = null;
-    return this.http.post<AuthResponse>(`${environment.authApi}/auth/login`, { username, password }).pipe(
-      tap((res) => this.saveSession(res)),
+
+    const body = new URLSearchParams({
+      grant_type: 'password',
+      username,
+      password
+    });
+
+    return this.http.post<{
+      access_token: string;
+      refresh_token: string;
+      token_type: string;
+      expires_in: number;
+      username: string;
+      roles: string[];
+    }>(`${environment.authApi.replace(/\/api\/v1$/, '')}/token`, body.toString(), {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+    }).pipe(
+      tap((res) => this.saveSession({
+        accessToken: res.access_token,
+        refreshToken: res.refresh_token,
+        expiresAt: new Date(Date.now() + res.expires_in * 1000).toISOString(),
+        username: res.username,
+        roles: res.roles
+      })),
       map(() => void 0),
       catchError((err: HttpErrorResponse) => {
         this.lastError = err.status === 401 ? 'Sai tài khoản hoặc mật khẩu.' : "Lỗi kết nối máy chủ.";
