@@ -7,9 +7,10 @@ using Tracker.TaskService.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var authServiceBaseUrl = builder.Configuration["AuthService:BaseUrl"] ?? "http://localhost:5001";
 builder.Services.AddHttpClient("AuthService", client =>
 {
-    client.BaseAddress = new Uri("http://localhost:5001");
+    client.BaseAddress = new Uri(authServiceBaseUrl);
 });
 
 builder.Services.AddAuthentication("Bearer")
@@ -56,7 +57,10 @@ app.MapGet("/health", () => Results.Ok(new { status = "healthy", environment = a
 app.MapTaskEndpoints();
 app.MapAdminUserEndpoints();
 
-app.Run("http://localhost:5002");
+// Respects the "Urls" key in appsettings.{Environment}.json / ASPNETCORE_URLS
+// instead of forcing every environment (and the IIS in-process host) onto
+// localhost:5002.
+app.Run();
 
 public class OwinStyleAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions>
 {
@@ -99,8 +103,19 @@ public class OwinStyleAuthHandler : AuthenticationHandler<AuthenticationSchemeOp
             return AuthenticateResult.Fail("Token invalid or expired");
         }
 
-        var claims = new[] { new Claim(ClaimTypes.Name, result.Username) };
-        var identity = new ClaimsIdentity(claims, Scheme.Name);
+        // AuthService only knows a username, not a separate opaque user id, so
+        // the username doubles as the subject/"sub" claim. ITaskStore keys its
+        // per-user buckets off this claim, and RequireAuthorization("AdminOnly")
+        // depends on the role claims below - both were previously missing here,
+        // which made every task request 500 and every admin request 403.
+        var claims = new List<Claim>
+        {
+            new(ClaimTypes.Name, result.Username),
+            new(ClaimTypes.NameIdentifier, result.Username)
+        };
+        claims.AddRange(result.Roles.Select(role => new Claim(ClaimTypes.Role, role)));
+
+        var identity = new ClaimsIdentity(claims, Scheme.Name, ClaimTypes.Name, ClaimTypes.Role);
 
         return AuthenticateResult.Success(new AuthenticationTicket(new ClaimsPrincipal(identity), Scheme.Name));
     }
@@ -110,4 +125,5 @@ public class IntrospectionResponse
 {
     public bool Active { get; set; }
     public string Username { get; set; } = string.Empty;
+    public string[] Roles { get; set; } = Array.Empty<string>();
 }

@@ -47,16 +47,18 @@ public static class TaskEndpoints
         });
 
         // Admin Portal only: aggregate view across every user's tasks.
-        // "AdminOnly" is enforced server-side via the "admin" role in the JWT
-        // issued by the AuthService; an ordinary user cannot reach this route.
+        // "AdminOnly" is enforced server-side via the "admin" role claim,
+        // populated from AuthService's /verify response; an ordinary user
+        // cannot reach this route.
         var adminGroup = app.MapGroup("/api/v1/tasks/admin").RequireAuthorization("AdminOnly");
 
         adminGroup.MapGet("/summary", (ITaskStore store) =>
             Results.Ok(store.GetSummaryForAllUsers()));
     }
 
-    // The JWT "sub" claim is the stable user identifier; it is issued by the
-    // AuthService and used consistently by the resource services.
+    // The username, surfaced as the NameIdentifier/"sub" claim by
+    // OwinStyleAuthHandler, is the stable per-user key used consistently
+    // across the resource services.
     private static string GetUserId(this ClaimsPrincipal user) =>
         user.FindFirstValue("sub")
         ?? user.FindFirstValue(ClaimTypes.NameIdentifier)

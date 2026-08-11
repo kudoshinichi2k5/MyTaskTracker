@@ -70,6 +70,7 @@ app.MapPost("/api/v1/auth/refresh", (RefreshRequest request) =>
     tokenStore[accessToken] = new TokenInfo
     {
         Username = session.Username,
+        Roles = session.Roles,
         Expiry = DateTime.UtcNow.AddSeconds(expiresIn)
     };
 
@@ -99,18 +100,21 @@ app.MapGet("/verify", (string token) =>
     {
         if (info.Expiry > DateTime.UtcNow)
         {
-            return Results.Ok(new { active = true, username = info.Username });
+            return Results.Ok(new { active = true, username = info.Username, roles = info.Roles });
         }
 
         tokenStore.TryRemove(token, out _);
     }
 
-    return Results.Ok(new { active = false });
+    return Results.Ok(new { active = false, username = (string?)null, roles = Array.Empty<string>() });
 });
 
 app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
 
-app.Run("http://localhost:5001");
+// Respects the "Urls" key in appsettings.{Environment}.json / ASPNETCORE_URLS
+// so each environment (and the IIS in-process host) can bind independently
+// instead of every deployment being hardcoded to localhost:5001.
+app.Run();
 
 static OAuthTokenResponse? IssueToken(
     string username,
@@ -128,6 +132,9 @@ static OAuthTokenResponse? IssueToken(
         return null;
     }
 
+    // Demo credential store: only "admin" can sign in today, and always gets
+    // both roles. Swap this block for a real user/role lookup before this
+    // goes anywhere near production.
     var roles = new[] { "admin", "user" };
     var accessToken = Guid.NewGuid().ToString("N");
     var refreshToken = Guid.NewGuid().ToString("N");
@@ -136,6 +143,7 @@ static OAuthTokenResponse? IssueToken(
     tokenStore[accessToken] = new TokenInfo
     {
         Username = username,
+        Roles = roles,
         Expiry = DateTime.UtcNow.AddSeconds(expiresIn)
     };
 
@@ -156,6 +164,7 @@ static OAuthTokenResponse? IssueToken(
 public class TokenInfo
 {
     public string Username { get; set; } = string.Empty;
+    public string[] Roles { get; set; } = Array.Empty<string>();
     public DateTime Expiry { get; set; }
 }
 

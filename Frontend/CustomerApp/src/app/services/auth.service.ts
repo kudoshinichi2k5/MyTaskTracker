@@ -78,20 +78,24 @@ export class AuthService {
       password
     });
 
+    // AuthService's Minimal API serializes with System.Text.Json's default
+    // camelCase, i.e. accessToken/refreshToken/expiresIn - NOT the snake_case
+    // OAuth2 convention this used to expect. That mismatch made every field
+    // below come back undefined and silently "logged in" with a dead session.
     return this.http.post<{
-      access_token: string;
-      refresh_token: string;
-      token_type: string;
-      expires_in: number;
+      accessToken: string;
+      refreshToken: string;
+      tokenType: string;
+      expiresIn: number;
       username: string;
       roles: string[];
     }>(`${environment.authApi.replace(/\/api\/v1$/, '')}/token`, body.toString(), {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     }).pipe(
       tap((res) => this.saveSession({
-        accessToken: res.access_token,
-        refreshToken: res.refresh_token,
-        expiresAt: new Date(Date.now() + res.expires_in * 1000).toISOString(),
+        accessToken: res.accessToken,
+        refreshToken: res.refreshToken,
+        expiresAt: new Date(Date.now() + res.expiresIn * 1000).toISOString(),
         username: res.username,
         roles: res.roles
       })),

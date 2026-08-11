@@ -23,6 +23,8 @@ public static class NotificationEndpoints
         });
     }
 
+    // The username, surfaced as the NameIdentifier/"sub" claim by
+    // OwinStyleAuthHandler, is the stable per-user key.
     private static string GetUserId(this ClaimsPrincipal user) =>
         user.FindFirstValue("sub")
         ?? user.FindFirstValue(ClaimTypes.NameIdentifier)
