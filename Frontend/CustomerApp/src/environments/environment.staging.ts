@@ -2,12 +2,7 @@ import { Environment } from './environment.model';
 
 export const environment: Environment = {
   production: false,
+  authApi: 'https://api.staging.yourdomain.com/api/v1',
   taskApi: 'https://api.staging.yourdomain.com/api/v1',
-  notificationApi: 'https://notifications.staging.yourdomain.com/api/v1',
-  oauth: {
-    issuer: 'https://auth.staging.yourdomain.com/realms/TaskTrackerRealm',
-    redirectUri: 'https://app.staging.yourdomain.com/app1/tasks',
-    clientId: 'angular-frontend-client',
-    scope: 'openid profile email'
-  }
+  notificationApi: 'https://notifications.staging.yourdomain.com/api/v1'
 };
