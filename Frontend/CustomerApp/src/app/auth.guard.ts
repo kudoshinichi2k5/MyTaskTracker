@@ -2,18 +2,17 @@ import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
 import { AuthService } from './services/auth.service';
 
-// Thêm async vào đây
-export const authGuard: CanActivateFn = async (route, state) => { 
+export const authGuard: CanActivateFn = (route, state) => {
   const authService = inject(AuthService);
   const router = inject(Router);
 
-  // Ép Guard CHỜ quá trình khởi tạo và giải mã token của OAuth hoàn tất
-  await authService.initialLoadPromise;
-
+  // Nếu có token hợp lệ (trong localStorage) -> Cho phép vào
   if (authService.hasValidToken) {
-    return true; // Có Token -> Cho phép vào
+    // Tùy chọn: Bạn có thể check thêm Role ở đây nếu cần
+    // const requiredRole = route.data['role'];
+    return true;
   }
-  
-  // Chưa có Token -> Đẩy về trang Login
-  return router.parseUrl('/login');
+
+  // Nếu chưa đăng nhập -> Đá về trang Login cục bộ của app
+  return router.createUrlTree(['/login'], { queryParams: { returnUrl: state.url }});
 };

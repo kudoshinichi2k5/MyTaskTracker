@@ -2,35 +2,17 @@ import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
 import { AuthService } from './services/auth.service';
 
-export const authGuard: CanActivateFn = async () => {
+export const authGuard: CanActivateFn = (route, state) => {
   const authService = inject(AuthService);
   const router = inject(Router);
 
-  await authService.initialLoadPromise;
-
+  // Nếu có token hợp lệ (trong localStorage) -> Cho phép vào
   if (authService.hasValidToken) {
+    // Tùy chọn: Bạn có thể check thêm Role ở đây nếu cần
+    // const requiredRole = route.data['role'];
     return true;
   }
 
-  return router.parseUrl('/login');
-};
-
-// Stricter than authGuard: requires a valid token AND the "admin" realm
-// role. A signed-in Customer App-only user (no admin role) who somehow
-// lands here is sent to /forbidden instead of the dashboard.
-export const adminGuard: CanActivateFn = async () => {
-  const authService = inject(AuthService);
-  const router = inject(Router);
-
-  await authService.initialLoadPromise;
-
-  if (!authService.hasValidToken) {
-    return router.parseUrl('/login');
-  }
-
-  if (!authService.isAdmin) {
-    return router.parseUrl('/forbidden');
-  }
-
-  return true;
+  // Nếu chưa đăng nhập -> Đá về trang Login cục bộ của app
+  return router.createUrlTree(['/login'], { queryParams: { returnUrl: state.url }});
 };

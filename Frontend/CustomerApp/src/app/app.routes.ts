@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
-import { LoginComponent } from './components/login/login.component';
+// import { LoginComponent } from './components/login/login.component';
+import { LoginComponent } from './features/login/login.component';
 import { TaskBoardComponent } from './components/task-board/task-board.component';
 import { authGuard } from './auth.guard'; // Import Guard
 
