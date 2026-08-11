@@ -78,8 +78,8 @@
       <section class="report-table">
         <h3>Users</h3>
         <p class="section-hint">
-          Toggle the "admin" role to grant or revoke Admin Portal access. Changes take effect the
-          next time that person signs in (Keycloak issues a fresh token on their next login).
+          Toggle the "admin" role to grant or revoke Admin Portal access. The next login will use the
+          updated JWT claims from the AuthService.
         </p>
 
         <p class="loading-note" *ngIf="usersLoading">Loading users…</p>
@@ -125,7 +125,7 @@
       <section class="report-table">
         <h3>Realm Roles</h3>
         <p class="section-hint">
-          Read-only list of every role defined in this Keycloak realm. Assign the
+          Read-only list of every role defined by the AuthService. Assign the
           <strong>{{ assignableRole }}</strong> role to a user from the Users tab.
         </p>
 

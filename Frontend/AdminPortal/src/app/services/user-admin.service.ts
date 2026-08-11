@@ -15,10 +15,8 @@ export interface AdminUser {
 @Injectable({ providedIn: 'root' })
 export class UserAdminService {
   private http = inject(HttpClient);
-  // Users/Roles endpoints live on Tracker.TaskService itself (under
-  // /api/v1/admin) rather than a separate service, since they're a thin
-  // proxy over Keycloak's Admin API guarded by the same AdminOnly policy
-  // as the existing /api/v1/tasks/admin/summary report endpoint.
+  // Users and roles are managed by the TaskService admin endpoints, which
+  // are protected by the same "AdminOnly" policy used for the task summary.
   private apiUrl = environment.taskApi;
 
   getUsers(): Observable<AdminUser[]> {

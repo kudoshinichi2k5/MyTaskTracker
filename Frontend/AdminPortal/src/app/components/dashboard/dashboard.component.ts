@@ -85,8 +85,7 @@ export class DashboardComponent implements OnInit {
       },
       error: () => {
         this.usersError =
-          "Couldn't load users. This usually means the backend's Keycloak service-account credentials " +
-          "(Keycloak:AdminClientId / Keycloak:AdminClientSecret) aren't configured yet.";
+          "Couldn't load users. Please check the AuthService admin endpoints and try again.";
         this.usersLoading = false;
       }
     });
