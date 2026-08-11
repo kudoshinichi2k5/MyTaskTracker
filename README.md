@@ -1,128 +1,99 @@
 # TaskTracker
 
-A small .NET 8 microservices sample app with Angular clients, using an OWIN-style custom token flow implemented with ASP.NET Core middleware and opaque tokens.
+TaskTracker is a .NET 8 microservices sample with two Angular 18 applications:
 
-## Overview
+- **CustomerApp** (`http://localhost:4200`) manages a signed-in user's tasks and notifications.
+- **AdminPortal** (`http://localhost:4300`) provides task summaries and role administration.
 
-This project was migrated from the legacy OWIN / OAuth server model to a modern .NET 8 implementation while keeping the same high-level contract:
-
-- a dedicated auth service issues a token via `/token`
-- resource services validate bearer tokens through `/verify`
-- frontend apps use the auth service as the identity source
-
-The important difference is that this is not the old `Microsoft.Owin.*` stack. It uses native ASP.NET Core middleware and a custom authentication handler.
+Authentication preserves an OWIN-style password-grant contract while using ASP.NET Core middleware. It issues opaque access tokens rather than JWTs.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-    FE["Angular App"] --> AUTH["Auth Service\n:5001"]
-    FE --> TS["Task Service\n:5002"]
-    FE --> NS["Notification Service\n:5003"]
-    TS --> AUTH
-    NS --> AUTH
+    Customer[CustomerApp :4200] --> Auth[Auth Service :5001]
+    Customer --> Tasks[Task Service :5002]
+    Customer --> Notifications[Notification Service :5003]
+    Admin[AdminPortal :4300] --> Auth
+    Admin --> Tasks
+    Tasks --> Auth
+    Notifications --> Auth
 ```
 
-## Stack
+Both resource services validate bearer tokens against AuthService. NotificationService and TaskService therefore use the same opaque-token authentication model; neither accepts JWTs.
 
-- ASP.NET Core 8 Minimal APIs
-- Custom OWIN-style password grant flow
-- Opaque access tokens instead of JWT
-- Custom bearer auth validation in resource services
-- Angular 18 frontend apps
-- In-memory stores for tasks, notifications, and refresh sessions
+## Projects
+
+| Project | Responsibility | Local URL |
+| --- | --- | --- |
+| `Backend/Tracker.AuthService` | Login, refresh, logout, and token verification | `http://localhost:5001` |
+| `Backend/Tracker.TaskService` | User tasks and admin task/user endpoints | `http://localhost:5002` |
+| `Backend/Tracker.NotificationService` | User notifications | `http://localhost:5003` |
+| `Frontend/CustomerApp` | Customer-facing Angular application | `http://localhost:4200` |
+| `Frontend/AdminPortal` | Admin Angular application | `http://localhost:4300` |
 
 ## Authentication flow
 
-1. Frontend submits form-encoded credentials to `POST /token` on Auth Service.
-2. Auth Service validates `grant_type=password`, `username`, and `password`.
-3. If valid, it returns an opaque `access_token` and a `refresh_token`.
-4. Frontend stores the session locally and sends `Authorization: Bearer <token>` to protected API calls.
-5. Task/Notification Service validates the token via `GET /verify?token=...`.
-6. `POST /api/v1/auth/refresh` renews the session and `POST /api/v1/auth/logout` clears it.
+1. An Angular app sends form-encoded credentials to `POST /token` on AuthService.
+2. AuthService returns a camelCase response containing `accessToken`, `refreshToken`, `expiresIn`, `username`, and `roles`.
+3. The app stores its session locally and adds `Authorization: Bearer <token>` to API requests.
+4. TaskService and NotificationService call AuthService's `GET /verify?token=...` endpoint to validate the opaque token and create user claims.
+5. `POST /api/v1/auth/refresh` renews the access token; `POST /api/v1/auth/logout` invalidates the refresh session.
 
-## Auth service endpoints
-
-```text
-POST /token
-  Content-Type: application/x-www-form-urlencoded
-  grant_type=password&username=admin&password=123456
-
-GET /verify?token=<opaque-token>
-
-POST /api/v1/auth/login
-POST /api/v1/auth/refresh
-POST /api/v1/auth/logout
-```
-
-## Project structure
+Example local sign-in request:
 
 ```text
-MyTaskTracker/
-├── Backend/
-│   ├── Tracker.AuthService/
-│   │   ├── Program.cs
-│   │   ├── appsettings.json
-│   │   └── Tracker.AuthService.csproj
-│   ├── Tracker.TaskService/
-│   │   ├── Program.cs
-│   │   ├── appsettings*.json
-│   │   └── ...
-│   └── Tracker.NotificationService/
-│       ├── Program.cs
-│       ├── appsettings*.json
-│       └── ...
-├── Frontend/
-│   ├── CustomerApp/
-│   └── AdminPortal/
-├── README.md
-└── .gitignore
+POST http://localhost:5001/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=password&username=admin&password=123456
 ```
 
-## Local development
+## Run locally
 
-Run services in separate terminals:
+Prerequisites: .NET 8 SDK, Node.js, and npm.
 
-```bash
-cd Backend/Tracker.AuthService && dotnet run
-cd Backend/Tracker.TaskService && dotnet run
-cd Backend/Tracker.NotificationService && dotnet run
+Start each backend service in a separate terminal:
+
+```powershell
+dotnet run --project Backend/Tracker.AuthService
+dotnet run --project Backend/Tracker.TaskService
+dotnet run --project Backend/Tracker.NotificationService
 ```
 
-Run frontends:
+Start each frontend in a separate terminal:
 
-```bash
-cd Frontend/CustomerApp && npm install && npm start
-cd Frontend/AdminPortal && npm install && npm start
+```powershell
+Push-Location Frontend/CustomerApp; npm.cmd install; npm.cmd start
+Push-Location Frontend/AdminPortal; npm.cmd install; npm.cmd start
 ```
 
-## Local endpoints
+Use `npm.cmd` in PowerShell if local execution policy blocks `npm.ps1`.
 
-- Auth: `http://localhost:5001`
-- Task: `http://localhost:5002`
-- Notification: `http://localhost:5003`
-- Customer app: `http://localhost:4200`
-- Admin portal: `http://localhost:4300`
+## Build
 
-## Important note
+```powershell
+dotnet build Backend/Tracker.AuthService/Tracker.AuthService.csproj
+dotnet build Backend/Tracker.TaskService/Tracker.TaskService.csproj
+dotnet build Backend/Tracker.NotificationService/Tracker.NotificationService.csproj
 
-This repo intentionally preserves the classic OWIN-style token contract for compatibility and migration clarity, but it implements it in .NET 8 using ASP.NET Core middleware and a custom authentication handler instead of legacy `Microsoft.Owin.*` libraries.
+Push-Location Frontend/CustomerApp; npm.cmd run build:production; Pop-Location
+Push-Location Frontend/AdminPortal; npm.cmd run build:production; Pop-Location
+```
 
-## Current limitations
+The production Angular builds use their respective `environment.prod.ts` files and do not require build-time Google Fonts access.
 
-- Data is in-memory only
-- No database persistence yet
-- Refresh tokens are session-scoped only
-- No API gateway or external identity provider yet
+## IIS deployment
 
-## Summary
+See [DEPLOYMENT.md](DEPLOYMENT.md) for prerequisites, production configuration, publish commands, IIS application-pool settings, frontend deployment paths, and post-deployment verification.
 
-The project is now a working .NET 8 OWIN-style microservice auth flow with:
+Before any production build, replace the `*.yourdomain.com` placeholders in both frontend `environment.prod.ts` files with the final HTTPS API origins. They are compiled into the bundles.
 
-- `/token` password grant support
-- opaque token issuance
-- backend token verification through `/verify`
-- frontend login integration
-- backend validation with custom bearer auth
+## Important limitations
 
-This is the correct model if the goal is to preserve the old OWIN contract while running on the modern ASP.NET Core platform.
+This repository is a demonstration, not production-ready identity or data infrastructure:
+
+- AuthService currently contains the demo account `admin` / `123456`.
+- Tokens, refresh sessions, tasks, notifications, users, and roles are in memory only.
+- Restarting a service or recycling an IIS application pool invalidates sessions and loses data.
+- Replace the demo credential lookup and in-memory stores with persistent, securely managed implementations before exposing the application publicly.
