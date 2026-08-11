@@ -1,30 +1,78 @@
 using System.Security.Claims;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
 using Tracker.NotificationService.Endpoints;
 using Tracker.NotificationService.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+builder.Services.AddAuthentication(options =>
+    {
+        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    })
     .AddJwtBearer(options =>
     {
-        var jwtSettings = builder.Configuration.GetSection("Jwt");
+        var jwtSettings = builder.Configuration.GetSection("JwtSettings");
+        var authority = jwtSettings["Authority"]
+            ?? throw new InvalidOperationException("JwtSettings:Authority is not configured.");
+        var audience = jwtSettings["Audience"] ?? "account";
+
+        options.Authority = authority;
+        options.Audience = audience;
+        options.RequireHttpsMetadata = jwtSettings.GetValue<bool>("RequireHttpsMetadata", true);
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
             ValidateAudience = true,
             ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            ValidIssuer = jwtSettings["Issuer"],
-            ValidAudience = jwtSettings["Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(jwtSettings["SecretKey"]!)),
-            // Khớp claim role cho [Authorize(Roles = "...")]
-            RoleClaimType = "http://schemas.microsoft.com/ws/2008/06/identity/claims/role",
-            NameClaimType = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"
+            NameClaimType = "preferred_username",
+            RoleClaimType = ClaimTypes.Role
+        };
+
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = context =>
+            {
+                var principal = context.Principal;
+                if (principal is null)
+                {
+                    return Task.CompletedTask;
+                }
+
+                var identity = principal.Identity as ClaimsIdentity;
+                if (identity is null)
+                {
+                    return Task.CompletedTask;
+                }
+
+                var realmAccessValue = principal.FindFirst("realm_access")?.Value;
+                if (string.IsNullOrWhiteSpace(realmAccessValue))
+                {
+                    return Task.CompletedTask;
+                }
+
+                using var realmAccess = JsonDocument.Parse(realmAccessValue);
+                if (!realmAccess.RootElement.TryGetProperty("roles", out var rolesElement) || rolesElement.ValueKind != JsonValueKind.Array)
+                {
+                    return Task.CompletedTask;
+                }
+
+                foreach (var role in rolesElement.EnumerateArray())
+                {
+                    var roleName = role.GetString();
+                    if (!string.IsNullOrWhiteSpace(roleName) && !identity.HasClaim(ClaimTypes.Role, roleName))
+                    {
+                        identity.AddClaim(new Claim(ClaimTypes.Role, roleName));
+                    }
+                }
+
+                return Task.CompletedTask;
+            }
         };
     });
+
 builder.Services.AddAuthorization();
 
 builder.Services.AddCors(options =>
