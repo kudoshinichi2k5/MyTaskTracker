@@ -85,6 +85,7 @@ app.MapPost("/api/v1/auth/refresh", (RefreshRequest request) =>
     {
         Username = session.Username,
         Roles = session.Roles,
+        RefreshToken = request.RefreshToken,
         Expiry = DateTime.UtcNow.AddSeconds(expiresIn)
     };
 
@@ -100,8 +101,14 @@ app.MapPost("/api/v1/auth/refresh", (RefreshRequest request) =>
 
 app.MapPost("/api/v1/auth/logout", (LogoutRequest request) =>
 {
-    if (!string.IsNullOrWhiteSpace(request.RefreshToken))
-        refreshStore.TryRemove(request.RefreshToken, out _);
+    if (!string.IsNullOrWhiteSpace(request.RefreshToken)
+        && refreshStore.TryRemove(request.RefreshToken, out _))
+    {
+        foreach (var token in tokenStore.Where(pair => pair.Value.RefreshToken == request.RefreshToken))
+        {
+            tokenStore.TryRemove(token.Key, out _);
+        }
+    }
 
     return Results.Ok(new { success = true });
 });
@@ -145,6 +152,7 @@ static OAuthTokenResponse? IssueToken(
     {
         Username = username,
         Roles = roles,
+        RefreshToken = refreshToken,
         Expiry = DateTime.UtcNow.AddSeconds(expiresIn)
     };
     refreshStore[refreshToken] = new RefreshSession(username, roles, DateTime.UtcNow.AddDays(7));
@@ -201,6 +209,7 @@ public class TokenInfo
 {
     public string Username { get; set; } = string.Empty;
     public string[] Roles { get; set; } = Array.Empty<string>();
+    public string RefreshToken { get; set; } = string.Empty;
     public DateTime Expiry { get; set; }
 }
 

@@ -1,5 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { Router } from '@angular/router';
 import { Observable, catchError, firstValueFrom, map, of, tap, throwError } from 'rxjs';
 import { environment } from '../../environments/environment';
 
@@ -22,6 +23,7 @@ interface Session {
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private http = inject(HttpClient);
+  private router = inject(Router);
 
   // CÁCH LY BỘ NHỚ: app1 dùng customerapp_session, app2 dùng adminportal_session
   private readonly storageKey = 'adminportal_session'; 
@@ -116,6 +118,8 @@ export class AuthService {
   logout() {
     const refreshToken = this.session?.refreshToken;
     this.clearSession();
+    void this.router.navigate(['/login']);
+
     if (refreshToken) {
       this.http.post(`${environment.authApi}/auth/logout`, { refreshToken }).subscribe({ error: () => {} });
     }
