@@ -1,148 +1,149 @@
 # TaskTracker
 
-A small task-management app built as a microservices practice project: two
-.NET 8 backend services and one Angular 18 frontend, all secured through a
-single centralized login (OAuth 2.0 / OIDC via Keycloak).
+A small task-management microservices project built with .NET 8 and Angular.
+This repo uses a custom JWT-based authentication flow instead of Keycloak.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
     subgraph Browser
-        FE["Angular SPA (Frontend)"]
+        FE["Angular SPA"]
     end
-    IDP["Keycloak\nRealm: TaskTrackerRealm"]
+
+    AUTH["Tracker.AuthService\n:5001"]
+
     subgraph Backend
         TS["Tracker.TaskService\n:5002"]
         NS["Tracker.NotificationService\n:5003"]
     end
 
-    FE -- "1. Redirect to login" --> IDP
-    IDP -- "2. Auth code -> tokens" --> FE
+    FE -- "1. login(username, password)" --> AUTH
+    AUTH -- "2. access token + refresh token" --> FE
     FE -- "3. Bearer token" --> TS
     FE -- "3. Bearer token" --> NS
-    TS -- "validate JWT via JWKS" --> IDP
-    NS -- "validate JWT via JWKS" --> IDP
+    TS -- "validate JWT" --> AUTH
+    NS -- "validate JWT" --> AUTH
 ```
 
-There is no custom AuthService anymore. Keycloak is the single source of
-identity; the frontend authenticates against it directly, and each backend
-service independently validates the resulting JWT against the same Keycloak
-realm (no shared secret between services).
+The application uses a dedicated `Tracker.AuthService` to issue JWTs. The frontend calls the auth service directly, stores the returned tokens in browser storage, and then sends the access token as a bearer token to the protected backend APIs.
 
 ## Folder structure
 
-```
+```text
 MyTaskTracker/
 ├── Backend/
-│   ├── Tracker.TaskService/            Manages the task list
-│   │   ├── Program.cs                  Minimal API: JWT auth, CORS, /api/v1/tasks
-│   │   ├── appsettings.json            Base config
-│   │   ├── appsettings.Testing.json
-│   │   ├── appsettings.Staging.json
-│   │   └── appsettings.Production.json
-│   └── Tracker.NotificationService/    Serves in-app notifications
-│       ├── Program.cs                  Same JWT/CORS pattern, /api/v1/notifications
-│       └── appsettings*.json
-└── Frontend/                           Angular 18 standalone SPA
-    └── src/
-        ├── app/
-        │   ├── app.config.ts           Bootstraps OAuth via APP_INITIALIZER
-        │   ├── app.routes.ts           /login, /tasks (guarded)
-        │   ├── auth.guard.ts           Blocks /tasks until a valid token exists
-        │   ├── auth.interceptor.ts     Attaches Bearer token to outgoing requests
-        │   ├── components/
-        │   │   ├── login/              SSO entry screen
-        │   │   └── task-board/         Task list + progress bar
-        │   └── services/
-        │       ├── auth.service.ts         Wraps angular-oauth2-oidc
-        │       ├── task.service.ts         Calls TaskService API
-        │       └── notification.service.ts Calls NotificationService API
-        └── environments/               Per-environment API URLs & OAuth config
+│   ├── Tracker.AuthService/
+│   │   ├── Program.cs
+│   │   ├── appsettings.json
+│   │   └── Tracker.AuthService.csproj
+│   ├── Tracker.TaskService/
+│   │   ├── Program.cs
+│   │   ├── appsettings*.json
+│   │   ├── Endpoints/
+│   │   ├── Services/
+│   │   └── Models/
+│   └── Tracker.NotificationService/
+│       ├── Program.cs
+│       ├── appsettings*.json
+│       ├── Endpoints/
+│       ├── Services/
+│       └── Models/
+├── Frontend/
+│   ├── CustomerApp/
+│   │   ├── src/
+│   │   └── package.json
+│   └── AdminPortal/
+│       ├── src/
+│       └── package.json
+├── README.md
+└── .gitignore
 ```
 
 ## Tech stack
 
-- **Backend**: ASP.NET Core 8 Minimal APIs, JWT Bearer auth (validated against
-  a Keycloak `Authority` via OIDC discovery), Swashbuckle/Swagger (enabled
-  outside Production only).
-- **Frontend**: Angular 18 standalone components, `angular-oauth2-oidc`
-  (Authorization Code + PKCE flow).
-- **Identity Provider**: Keycloak — external, **not included in this repo**.
-  You need a running instance with a realm named `TaskTrackerRealm` and a
-  public client named `angular-frontend-client`.
-- **Hosting target**: IIS, one site per app per environment (Testing,
-  Staging, Production).
+- **Backend**: ASP.NET Core 8 Minimal APIs
+- **Authentication**: custom JWT bearer tokens signed by the auth service
+- **Frontend**: Angular 18 standalone apps
+- **Token flow**: username/password login -> JWT access token + refresh token -> bearer auth on API calls
+- **Hosting**: local dev ports and environment-specific config files
 
-## Authentication flow (Authorization Code + PKCE)
+## Authentication flow
 
-1. On app start, `AuthService` configures `angular-oauth2-oidc` and calls
-   `loadDiscoveryDocumentAndTryLogin()` from an `APP_INITIALIZER`, so this
-   always completes before the router picks a route.
-2. `authGuard` redirects any unauthenticated visit to `/tasks` back to
-   `/login`.
-3. Clicking **Continue with SSO** calls `oauthService.initCodeFlow()`, which
-   redirects the full browser to Keycloak (with a PKCE `code_challenge`).
-4. Keycloak authenticates the user and redirects back to `redirectUri`
-   (`/tasks`) with `?code=...&state=...`.
-5. The library exchanges the code (+ PKCE `code_verifier`) for tokens, stores
-   them in `localStorage`, then the app strips `?code&state` from the URL so
-   a page refresh can't resubmit the already-used code.
-6. `authInterceptor` attaches `Authorization: Bearer <access_token>` to every
-   outgoing HTTP request.
-7. `TaskService` and `NotificationService` each validate the token
-   independently against Keycloak's JWKS — no shared secret between them.
-8. Logout calls `oauthService.logOut()`, clearing local tokens and
-   redirecting to Keycloak's end-session endpoint.
+1. The frontend calls `POST /api/v1/auth/login` to the auth service with a username and password.
+2. The auth service validates the credentials and returns:
+   - `accessToken`
+   - `refreshToken`
+   - `expiresAt`
+   - `username`
+   - `roles`
+3. The Angular app stores the session in localStorage and attaches the access token to outgoing requests via the HTTP interceptor.
+4. Protected backend APIs validate the JWT using ASP.NET Core JWT bearer authentication.
+5. When a token expires, the frontend calls `POST /api/v1/auth/refresh` to obtain a fresh access token.
+6. Logout clears the stored session and calls the logout endpoint if a refresh token exists.
 
-## Request flow — loading the task board
+## Backend endpoints
 
-1. `/tasks` activates → `authGuard` confirms a valid token.
-2. `TaskBoardComponent.ngOnInit()` calls `TaskService.getTasks()` → `GET
-   {taskApi}/api/v1/tasks` with the Bearer token attached.
-3. `TaskService` (backend) validates the token and returns the task list
-   (currently in-memory mock data).
-4. The component renders the list and a completion progress bar.
+### Auth Service
 
-`NotificationService` (frontend) exists and can call
-`GET {notificationApi}/api/v1/notifications`, but is **not yet wired into any
-component** — it's ready to use once a notifications UI is built.
+- `POST /token` — OAuth-style token endpoint for token issuance
+- `POST /api/v1/auth/login` — app login endpoint
+- `POST /api/v1/auth/refresh` — refresh access token
+- `POST /api/v1/auth/logout` — revoke refresh token
+- `GET /api/v1/auth/me` — protected endpoint example
+
+### Task Service
+
+- `GET /api/v1/tasks`
+- `POST /api/v1/tasks`
+- `PUT /api/v1/tasks/{id}`
+- `DELETE /api/v1/tasks/{id}`
+- `GET /api/v1/tasks/admin/...` for admin-only routes
+
+### Notification Service
+
+- `GET /api/v1/notifications`
+- `POST /api/v1/notifications`
 
 ## Environments
 
-Three deploy targets — Testing, Staging, Production — each with its own
-config:
+The repo uses per-environment configuration files for local and deployment values:
 
-| Concern | Backend | Frontend |
-|---|---|---|
-| Per-environment values | `appsettings.{Environment}.json` (`Urls`, `FrontendUrl`, `JwtSettings:Authority/Audience/RequireHttpsMetadata`) | `environment.{name}.ts` (`taskApi`, `notificationApi`, `oauth.*`) |
-| Selected by | `ASPNETCORE_ENVIRONMENT` env var | `ng build/serve --configuration={name}` |
+- `Backend/Tracker.AuthService/appsettings.json`
+- `Backend/Tracker.TaskService/appsettings.{Environment}.json`
+- `Backend/Tracker.NotificationService/appsettings.{Environment}.json`
+- `Frontend/CustomerApp/src/environments/environment*.ts`
+- `Frontend/AdminPortal/src/environments/environment*.ts`
 
 ## Running locally
 
-You need a Keycloak instance running (default expected at
-`http://localhost:8080`, realm `TaskTrackerRealm`, client
-`angular-frontend-client`) — not included in this repo.
+Start the services in separate terminals:
 
-**Backend** (in two terminals):
 ```bash
+cd Backend/Tracker.AuthService && dotnet run
 cd Backend/Tracker.TaskService && dotnet run
 cd Backend/Tracker.NotificationService && dotnet run
 ```
 
-**Frontend**:
+Then start the frontend apps:
+
 ```bash
-cd Frontend
-npm install
-npm start              # local dev, http://localhost:4200
-npm run start:testing  # against the Testing config
-npm run start:staging  # against the Staging config
+cd Frontend/CustomerApp && npm install && npm start
+cd Frontend/AdminPortal && npm install && npm start
 ```
+
+Default local URLs:
+
+- Auth Service: `http://localhost:5001`
+- Task Service: `http://localhost:5002`
+- Notification Service: `http://localhost:5003`
+- Customer App: `http://localhost:4200`
+- Admin Portal: `http://localhost:4300`
 
 ## Known limitations / next steps
 
-- Task and notification data are in-memory mocks — nothing persists across a
-  service restart yet (no database wired in).
-- The frontend calls each backend service directly; no API Gateway yet. Worth
-  adding before more services join, to centralize CORS/auth/routing.
-- No notifications UI — the service is ready but unused.
+- The app currently keeps task and notification data in memory.
+- There is no database persistence yet.
+- Refresh tokens are kept in memory in the auth service for the current app session.
+- No API gateway is in place yet.
+- No separate UI for user registration or identity management has been added.
