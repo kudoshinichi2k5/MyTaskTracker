@@ -6,13 +6,21 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        var origins = (builder.Configuration["AllowedFrontendOrigins"]
-                        ?? "http://localhost:4200,http://localhost:4300")
-            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        // 1. Lấy danh sách từ appsettings/biến môi trường và dọn dẹp dấu '/' ở cuối
+        var configuredOrigins = (builder.Configuration["AllowedFrontendOrigins"] ?? "")
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(o => o.TrimEnd('/'));
 
-        policy.WithOrigins(origins)
+        // 2. Luôn đảm bảo có mặt localhost để dev/test không bị gián đoạn
+        var localOrigins = new[] { "http://localhost:4200", "http://localhost:4300" };
+
+        // 3. Gộp cả 2 danh sách lại
+        var allOrigins = configuredOrigins.Concat(localOrigins).Distinct().ToArray();
+
+        policy.WithOrigins(allOrigins)
               .AllowAnyHeader()
-              .AllowAnyMethod();
+              .AllowAnyMethod()
+              .AllowCredentials(); // Bắt buộc khi Angular gắn Header Authorization
     });
 });
 
@@ -20,6 +28,7 @@ var app = builder.Build();
 var tokenStore = new ConcurrentDictionary<string, TokenInfo>();
 var refreshStore = new ConcurrentDictionary<string, RefreshSession>();
 
+// Bật CORS ngay sau khi Build và trước các Map endpoint
 app.UseCors("AllowFrontend");
 
 app.MapPost("/token", async (HttpContext context) =>
@@ -111,9 +120,6 @@ app.MapGet("/verify", (string token) =>
 
 app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
 
-// Respects the "Urls" key in appsettings.{Environment}.json / ASPNETCORE_URLS
-// so each environment (and the IIS in-process host) can bind independently
-// instead of every deployment being hardcoded to localhost:5001.
 app.Run();
 
 static OAuthTokenResponse? IssueToken(
@@ -132,9 +138,6 @@ static OAuthTokenResponse? IssueToken(
         return null;
     }
 
-    // Demo credential store: only "admin" can sign in today, and always gets
-    // both roles. Swap this block for a real user/role lookup before this
-    // goes anywhere near production.
     var roles = new[] { "admin", "user" };
     var accessToken = Guid.NewGuid().ToString("N");
     var refreshToken = Guid.NewGuid().ToString("N");
