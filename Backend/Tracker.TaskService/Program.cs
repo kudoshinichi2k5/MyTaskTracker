@@ -90,7 +90,7 @@ public class OwinStyleAuthHandler : AuthenticationHandler<AuthenticationSchemeOp
         }
 
         var token = authHeader.Substring("Bearer ".Length).Trim();
-        var response = await _httpClient.GetAsync($"/verify?token={Uri.EscapeDataString(token)}");
+        var response = await _httpClient.GetAsync($"verify?token={Uri.EscapeDataString(token)}");
 
         if (!response.IsSuccessStatusCode)
         {

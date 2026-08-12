@@ -66,7 +66,7 @@ public sealed class OwinStyleAuthHandler : AuthenticationHandler<AuthenticationS
 
         try
         {
-            using var response = await _httpClient.GetAsync($"/verify?token={Uri.EscapeDataString(token)}", Context.RequestAborted);
+            using var response = await _httpClient.GetAsync($"verify?token={Uri.EscapeDataString(token)}", Context.RequestAborted);
             if (!response.IsSuccessStatusCode)
                 return AuthenticateResult.Fail("Auth service token verification failed.");
 
