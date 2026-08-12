@@ -1,11 +1,17 @@
 import { HttpInterceptorFn, HttpErrorResponse } from '@angular/common/http';
 import { inject } from '@angular/core';
+import { environment } from '../environments/environment';
 import { AuthService } from './services/auth.service';
 import { catchError, switchMap, throwError } from 'rxjs';
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const authService = inject(AuthService);
   const token = authService.accessToken;
+  const authBaseUrl = environment.authApi.replace(/\/api\/v1$/, '');
+
+  if (req.url.startsWith(authBaseUrl)) {
+    return next(req);
+  }
 
   let authReq = req;
   if (token) {
