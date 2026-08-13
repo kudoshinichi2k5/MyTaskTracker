@@ -52,8 +52,9 @@ public sealed class OpaqueTokenAuthenticationHandler : AuthenticationHandler<Opa
         HttpResponseMessage response;
         try
         {
-            var verifyUrl = $"{Options.VerifyPath}?token={Uri.EscapeDataString(token)}";
-            response = await client.GetAsync(verifyUrl);
+            using var request = new HttpRequestMessage(HttpMethod.Get, Options.VerifyPath);
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            response = await client.SendAsync(request);
         }
         catch (HttpRequestException ex)
         {
