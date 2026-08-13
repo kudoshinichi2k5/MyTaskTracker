@@ -28,18 +28,11 @@ export const authInterceptor: HttpInterceptorFn = (
     );
 
   /*
-   * These endpoints MUST bypass the normal
-   * authentication initialization flow.
-   *
-   * /verify is especially important:
-   *
-   * AuthService.initialLoadPromise
-   *       -> /verify
-   *
-   * Therefore /verify cannot wait for
-   * initialLoadPromise or it creates a deadlock.
+   * These requests are part of the authentication
+   * bootstrap process and must not wait for
+   * initialLoadPromise.
    */
-  const authBypassPaths = [
+  const bypassPaths = [
     '/token',
     '/verify',
     '/auth/refresh',
@@ -48,38 +41,48 @@ export const authInterceptor: HttpInterceptorFn = (
 
   const isAuthEndpoint =
     req.url.startsWith(authBaseUrl) &&
-    authBypassPaths.some(
+    bypassPaths.some(
       path => req.url.endsWith(path)
     );
 
-  if (isAuthEndpoint) {
-    /*
-     * /verify still needs the current access token.
-     */
-    if (req.url.endsWith('/verify')) {
-      const token =
-        authService.accessToken;
+  /*
+   * /verify is special:
+   *
+   * AuthService calls /verify while resolving
+   * initialLoadPromise.
+   *
+   * Therefore /verify must directly use the
+   * stored token instead of waiting for
+   * initialLoadPromise.
+   */
+  if (
+    isAuthEndpoint &&
+    req.url.endsWith('/verify')
+  ) {
+    const token =
+      authService.accessToken;
 
-      if (!token) {
-        return next(req);
-      }
-
-      return next(
-        req.clone({
-          setHeaders: {
-            Authorization:
-              `Bearer ${token}`
-          }
-        })
-      );
+    if (!token) {
+      return next(req);
     }
 
+    return next(
+      req.clone({
+        setHeaders: {
+          Authorization:
+            `Bearer ${token}`
+        }
+      })
+    );
+  }
+
+  if (isAuthEndpoint) {
     return next(req);
   }
 
   /*
-   * Wait until AuthService finishes restoring
-   * and validating the persisted session.
+   * Normal application requests wait until
+   * session restoration has finished.
    */
   return from(
     authService.initialLoadPromise
@@ -103,10 +106,6 @@ export const authInterceptor: HttpInterceptorFn = (
       ).pipe(
         catchError(
           (error: HttpErrorResponse) => {
-            /*
-             * Only attempt refresh for an
-             * authenticated request.
-             */
             if (
               error.status !== 401 ||
               !token
@@ -132,16 +131,13 @@ export const authInterceptor: HttpInterceptorFn = (
                     );
                   }
 
-                  const retryRequest =
+                  return next(
                     req.clone({
                       setHeaders: {
                         Authorization:
                           `Bearer ${refreshedToken}`
                       }
-                    });
-
-                  return next(
-                    retryRequest
+                    })
                   );
                 })
               );
@@ -150,4 +146,4 @@ export const authInterceptor: HttpInterceptorFn = (
       );
     })
   );
-};  
+};

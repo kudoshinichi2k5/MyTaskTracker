@@ -1,5 +1,4 @@
 import { inject } from '@angular/core';
-
 import {
   CanActivateFn,
   Router
@@ -11,21 +10,14 @@ export const authGuard: CanActivateFn = async (
   route,
   state
 ) => {
-  const authService =
-    inject(AuthService);
-
-  const router =
-    inject(Router);
+  const authService = inject(AuthService);
+  const router = inject(Router);
 
   /*
-   * On browser reload, AuthService must first:
+   * AuthService restores the persisted session
+   * asynchronously when the application starts.
    *
-   * 1. Read customerapp_session
-   * 2. Verify the access token
-   * 3. Refresh it if necessary
-   *
-   * Do not check hasValidToken before
-   * that process finishes.
+   * Wait for it before checking the token.
    */
   await authService.initialLoadPromise;
 
