@@ -11,18 +11,12 @@ export const authGuard: CanActivateFn = async (
   route,
   state
 ) => {
-  const authService =
-    inject(AuthService);
-
-  const router =
-    inject(Router);
+  const authService = inject(AuthService);
+  const router = inject(Router);
 
   /*
-   * Wait for AuthService to restore and
-   * validate adminportal_session.
-   *
-   * Without this, F5 can execute the guard
-   * before the /verify request finishes.
+   * Restore the persisted AdminPortal session
+   * before checking authentication.
    */
   await authService.initialLoadPromise;
 
@@ -38,13 +32,11 @@ export const authGuard: CanActivateFn = async (
   }
 
   /*
-   * Only administrators can access
-   * the AdminPortal.
+   * AdminPortal is restricted to users
+   * with the admin role.
    */
   if (!authService.hasRole('admin')) {
-    return router.parseUrl(
-      '/forbidden'
-    );
+    return router.parseUrl('/forbidden');
   }
 
   return true;

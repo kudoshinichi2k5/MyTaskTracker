@@ -7,19 +7,26 @@ import { inject } from '@angular/core';
 
 import {
   catchError,
-  throwError,
-  switchMap
+  switchMap,
+  throwError
 } from 'rxjs';
 
 import { environment } from '../environments/environment';
 import { AuthService } from './services/auth.service';
 
-export const authInterceptor: HttpInterceptorFn = (req, next) => {
+export const authInterceptor: HttpInterceptorFn = (
+  req,
+  next
+) => {
   const authService = inject(AuthService);
 
-  const authBaseUrl = environment.authApi.replace(/\/api\/v1$/, '');
+  const authBaseUrl =
+    environment.authApi.replace(
+      /\/api\/v1$/,
+      ''
+    );
 
-  const authBypassPaths = [
+  const bypassPaths = [
     '/token',
     '/verify',
     '/auth/refresh',
@@ -28,21 +35,20 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
 
   const isAuthEndpoint =
     req.url.startsWith(authBaseUrl) &&
-    authBypassPaths.some(path => req.url.endsWith(path));
+    bypassPaths.some(
+      path => req.url.endsWith(path)
+    );
 
   /*
-   * /token, refresh and logout don't need an access token.
+   * /verify is used during application startup.
+   * Do not wait for initialLoadPromise here.
    */
-  if (isAuthEndpoint && !req.url.endsWith('/verify')) {
-    return next(req);
-  }
-
-  /*
-   * /verify is called by AuthService while initialLoadPromise is being resolved.
-   * Therefore it must NEVER wait for initialLoadPromise.
-   */
-  if (isAuthEndpoint && req.url.endsWith('/verify')) {
-    const token = authService.accessToken;
+  if (
+    isAuthEndpoint &&
+    req.url.endsWith('/verify')
+  ) {
+    const token =
+      authService.accessToken;
 
     if (!token) {
       return next(req);
@@ -51,50 +57,71 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
     return next(
       req.clone({
         setHeaders: {
-          Authorization: `Bearer ${token}`
+          Authorization:
+            `Bearer ${token}`
         }
       })
     );
   }
 
-  /*
-   * Normal protected API requests.
-   * At this point AuthService has already completed its initial session validation.
-   */
-  const token = authService.accessToken;
+  if (isAuthEndpoint) {
+    return next(req);
+  }
 
-  const authenticatedRequest = token
-    ? req.clone({
-        setHeaders: {
-          Authorization: `Bearer ${token}`
-        }
-      })
-    : req;
+  const token =
+    authService.accessToken;
 
-  return next(authenticatedRequest).pipe(
-    catchError((error: HttpErrorResponse) => {
-      if (error.status !== 401 || !token) {
-        return throwError(() => error);
-      }
-
-      return authService.tryRefresh().pipe(
-        catchError(() => throwError(() => error)),
-        switchMap((success: boolean) => {
-          const refreshedToken = authService.accessToken;
-
-          if (!success || !refreshedToken) {
-            return throwError(() => error);
+  const authenticatedRequest =
+    token
+      ? req.clone({
+          setHeaders: {
+            Authorization:
+              `Bearer ${token}`
           }
-
-          const retryRequest = req.clone({
-            setHeaders: {
-              Authorization: `Bearer ${refreshedToken}`
-            }
-          });
-
-          return next(retryRequest);
         })
-      );
-    })
+      : req;
+
+  return next(
+    authenticatedRequest
+  ).pipe(
+    catchError(
+      (error: HttpErrorResponse) => {
+        if (
+          error.status !== 401 ||
+          !token
+        ) {
+          return throwError(
+            () => error
+          );
+        }
+
+        return authService
+          .tryRefresh()
+          .pipe(
+            switchMap(success => {
+              const refreshedToken =
+                authService.accessToken;
+
+              if (
+                !success ||
+                !refreshedToken
+              ) {
+                return throwError(
+                  () => error
+                );
+              }
+
+              return next(
+                req.clone({
+                  setHeaders: {
+                    Authorization:
+                      `Bearer ${refreshedToken}`
+                  }
+                })
+              );
+            })
+          );
+      }
+    )
   );
 };
