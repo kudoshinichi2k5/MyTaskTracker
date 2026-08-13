@@ -1,1 +1,68 @@
-<router-outlet></router-outlet>
+<div
+  class="app-shell"
+  *ngIf="isAuthenticated"
+>
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="brand-label">
+        Admin Portal
+      </span>
+
+      <strong>TaskTracker</strong>
+    </div>
+
+    <nav class="navigation">
+      <a
+        routerLink="/dashboard"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: true }"
+      >
+        <span>Overview</span>
+      </a>
+
+      <a
+        routerLink="/projects"
+        routerLinkActive="active"
+      >
+        <span>Projects</span>
+      </a>
+
+      <a
+        routerLink="/comments"
+        routerLinkActive="active"
+      >
+        <span>Comments</span>
+      </a>
+
+      <a
+        routerLink="/users"
+        routerLinkActive="active"
+      >
+        <span>Users</span>
+      </a>
+
+      <a
+        routerLink="/roles"
+        routerLinkActive="active"
+      >
+        <span>Roles</span>
+      </a>
+    </nav>
+
+    <button
+      type="button"
+      class="logout-button"
+      (click)="logout()"
+    >
+      Sign out
+    </button>
+  </aside>
+
+  <main class="main-content">
+    <router-outlet></router-outlet>
+  </main>
+</div>
+
+<router-outlet
+  *ngIf="!isAuthenticated"
+></router-outlet>
