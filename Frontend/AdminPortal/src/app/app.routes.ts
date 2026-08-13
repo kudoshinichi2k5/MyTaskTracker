@@ -20,9 +20,18 @@ export const routes: Routes = [
   {
     path: 'forbidden',
     loadComponent: () =>
-      import('./components/forbidden/forbidden.component')
-        .then(m => m.ForbiddenComponent)
+      import(
+        './components/forbidden/forbidden.component'
+      ).then(
+        m => m.ForbiddenComponent
+      )
   },
+
+  /*
+   * =========================
+   * Dashboard
+   * =========================
+   */
 
   {
     path: 'dashboard',
@@ -30,13 +39,21 @@ export const routes: Routes = [
     canActivate: [authGuard]
   },
 
+  /*
+   * =========================
+   * Workspace
+   * =========================
+   */
+
   {
     path: 'projects',
     canActivate: [authGuard],
     loadComponent: () =>
       import(
         './features/projects/project-list/project-list.component'
-      ).then(m => m.ProjectListComponent)
+      ).then(
+        m => m.ProjectListComponent
+      )
   },
 
   {
@@ -45,8 +62,16 @@ export const routes: Routes = [
     loadComponent: () =>
       import(
         './features/comments/comment-list/comment-list.component'
-      ).then(m => m.CommentListComponent)
+      ).then(
+        m => m.CommentListComponent
+      )
   },
+
+  /*
+   * =========================
+   * Administration
+   * =========================
+   */
 
   {
     path: 'users',
@@ -54,7 +79,9 @@ export const routes: Routes = [
     loadComponent: () =>
       import(
         './features/users/user-management.component'
-      ).then(m => m.UserManagementComponent)
+      ).then(
+        m => m.UserManagementComponent
+      )
   },
 
   {
@@ -63,8 +90,16 @@ export const routes: Routes = [
     loadComponent: () =>
       import(
         './features/roles/role-management.component'
-      ).then(m => m.RoleManagementComponent)
+      ).then(
+        m => m.RoleManagementComponent
+      )
   },
+
+  /*
+   * =========================
+   * Fallback
+   * =========================
+   */
 
   {
     path: '**',
