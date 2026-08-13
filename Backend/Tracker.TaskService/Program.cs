@@ -55,7 +55,6 @@ app.UseAuthorization();
 app.MapGet("/health", () => Results.Ok(new { status = "healthy", environment = app.Environment.EnvironmentName }));
 
 app.MapTaskEndpoints();
-app.MapAdminUserEndpoints();
 
 // Respects the "Urls" key in appsettings.{Environment}.json / ASPNETCORE_URLS
 // instead of forcing every environment (and the IIS in-process host) onto
@@ -80,7 +79,7 @@ public class OwinStyleAuthHandler : AuthenticationHandler<AuthenticationSchemeOp
     {
         if (!Request.Headers.ContainsKey("Authorization"))
         {
-            return AuthenticateResult.Fail("Missing Authorization Header");
+            return AuthenticateResult.NoResult();
         }
 
         var authHeader = Request.Headers["Authorization"].ToString();
@@ -89,12 +88,33 @@ public class OwinStyleAuthHandler : AuthenticationHandler<AuthenticationSchemeOp
             return AuthenticateResult.Fail("Invalid Authorization Scheme");
         }
 
-        var token = authHeader.Substring("Bearer ".Length).Trim();
-        var response = await _httpClient.GetAsync($"verify?token={Uri.EscapeDataString(token)}");
+        var token = authHeader["Bearer ".Length..].Trim();
+        if (string.IsNullOrEmpty(token))
+        {
+            return AuthenticateResult.Fail("Bearer token is empty.");
+        }
+
+        HttpResponseMessage response;
+        try
+        {
+            // Token travels in the Authorization header, not a query string -
+            // IIS logs full request URLs (including query strings) by
+            // default, which would have written every access token used
+            // anywhere in the system into Tracker.AuthService's own access
+            // logs.
+            using var request = new HttpRequestMessage(HttpMethod.Get, "verify");
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            response = await _httpClient.SendAsync(request, Context.RequestAborted);
+        }
+        catch (HttpRequestException exception)
+        {
+            Logger.LogWarning(exception, "Auth service is unavailable while validating a bearer token.");
+            return AuthenticateResult.Fail("Auth service is unavailable.");
+        }
 
         if (!response.IsSuccessStatusCode)
         {
-            return AuthenticateResult.Fail("Auth Service is unreachable");
+            return AuthenticateResult.Fail("Auth Service returned an error.");
         }
 
         var result = await response.Content.ReadFromJsonAsync<IntrospectionResponse>();
@@ -106,8 +126,7 @@ public class OwinStyleAuthHandler : AuthenticationHandler<AuthenticationSchemeOp
         // AuthService only knows a username, not a separate opaque user id, so
         // the username doubles as the subject/"sub" claim. ITaskStore keys its
         // per-user buckets off this claim, and RequireAuthorization("AdminOnly")
-        // depends on the role claims below - both were previously missing here,
-        // which made every task request 500 and every admin request 403.
+        // depends on the role claims below.
         var claims = new List<Claim>
         {
             new(ClaimTypes.Name, result.Username),
