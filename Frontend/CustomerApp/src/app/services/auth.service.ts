@@ -60,6 +60,13 @@ export class AuthService {
 
   private async trySilentRefresh(): Promise<boolean> {
     if (!this.session) return false;
+
+    const isStillValid = await firstValueFrom(this.verifyCurrentAccessToken()).catch(() => false);
+    if (!isStillValid) {
+      this.clearSession();
+      return false;
+    }
+
     if (this.session.expiresAt - Date.now() > 30_000) return true;
 
     try {
@@ -117,6 +124,21 @@ export class AuthService {
 
   tryRefresh(): Observable<boolean> {
     return this.refresh().pipe(map(() => true), catchError(() => { this.clearSession(); return of(false); }));
+  }
+
+  private verifyCurrentAccessToken(): Observable<boolean> {
+    if (!this.session?.accessToken) {
+      return of(false);
+    }
+
+    return this.http
+      .get<{ active: boolean }>(`${environment.authApi.replace(/\/api\/v1$/, '')}/verify`, {
+        headers: { Authorization: `Bearer ${this.session.accessToken}` }
+      })
+      .pipe(
+        map((res) => !!res.active),
+        catchError(() => of(false))
+      );
   }
 
   logout() {
