@@ -12,6 +12,8 @@ import {
   UserAdminService
 } from '../../services/user-admin.service';
 
+import { AuthService } from '../../services/auth.service';
+
 @Component({
   selector: 'app-user-management',
   standalone: true,
@@ -23,6 +25,7 @@ import {
 export class UserManagementComponent implements OnInit {
   private readonly service = inject(UserAdminService);
   private readonly cdr = inject(ChangeDetectorRef);
+  private readonly authService = inject(AuthService);
 
   readonly assignableRole = 'admin';
 
@@ -33,7 +36,17 @@ export class UserManagementComponent implements OnInit {
 
   pendingUserIds = new Set<string>();
 
-  ngOnInit(): void {
+  async ngOnInit(): Promise<void> {
+    await this.authService.initialLoadPromise;
+
+    if (!this.authService.accessToken) {
+      this.error =
+        'Your session has expired. Please sign in again.';
+      this.isLoading = false;
+      this.cdr.markForCheck();
+      return;
+    }
+
     this.loadUsers();
   }
 

@@ -7,6 +7,8 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
+import { AuthService } from '../../services/auth.service';
+
 import { UserAdminService } from '../../services/user-admin.service';
 
 @Component({
@@ -20,13 +22,23 @@ import { UserAdminService } from '../../services/user-admin.service';
 export class RoleManagementComponent implements OnInit {
   private readonly service = inject(UserAdminService);
   private readonly cdr = inject(ChangeDetectorRef);
-
+  private readonly authService = inject(AuthService);
   roles: string[] = [];
 
   isLoading = true;
   error: string | null = null;
 
-  ngOnInit(): void {
+  async ngOnInit(): Promise<void> {
+    await this.authService.initialLoadPromise;
+
+    if (!this.authService.accessToken) {
+      this.error =
+        'Your session has expired. Please sign in again.';
+      this.isLoading = false;
+      this.cdr.markForCheck();
+      return;
+    }
+
     this.loadRoles();
   }
 
