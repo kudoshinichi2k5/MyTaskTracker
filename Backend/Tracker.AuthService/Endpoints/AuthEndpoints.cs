@@ -129,7 +129,7 @@ public static class AuthEndpoints
         var adminGroup = app.MapGroup("/api/v1/auth/admin").RequireAuthorization("AdminOnly");
 
         adminGroup.MapGet("/users", IResult (IUserStore users) =>
-            Results.Ok(users.GetAll().Select(u => new AdminUserSummary(u.Id, u.Username, u.Email, u.Enabled, u.Roles)).ToList()));
+            Results.Ok(users.GetAll().Select(u => new AdminUserSummary(u.Id, u.Username, u.Email, u.Enabled, u.Roles.ToArray())).ToList()));
 
         adminGroup.MapGet("/roles", IResult () => Results.Ok(new[] { "admin" }));
 
