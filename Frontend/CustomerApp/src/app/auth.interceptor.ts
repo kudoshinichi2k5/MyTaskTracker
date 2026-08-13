@@ -5,7 +5,13 @@ import {
 
 import { inject } from '@angular/core';
 
-import { catchError, switchMap, throwError } from 'rxjs';
+import {
+  catchError,
+  switchMap,
+  throwError,
+  from,
+  map
+} from 'rxjs';
 
 import { environment } from '../environments/environment';
 import { AuthService } from './services/auth.service';
@@ -13,65 +19,54 @@ import { AuthService } from './services/auth.service';
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const authService = inject(AuthService);
 
-  const token = authService.accessToken;
+  const authBaseUrl = environment.authApi.replace(/\/api\/v1$/, '');
 
-  const authBaseUrl = environment.authApi.replace(
-    /\/api\/v1$/,
-    ''
-  );
+  const isAuthEndpoint =
+    req.url.startsWith(authBaseUrl) &&
+    (req.url.endsWith('/token') ||
+      req.url.endsWith('/auth/refresh') ||
+      req.url.endsWith('/auth/logout'));
 
-  const authBypassPaths = [
-    '/token',
-    '/auth/refresh',
-    '/auth/logout'
-  ];
-
-  const isAuthRequest =
-    req.url.startsWith(authBaseUrl);
-
-  const shouldBypassAuth =
-    isAuthRequest &&
-    authBypassPaths.some(path =>
-      req.url.endsWith(path)
-    );
-
-  if (shouldBypassAuth) {
+  // Skip auth headers for login/refresh/logout
+  if (isAuthEndpoint) {
     return next(req);
   }
 
-  const authReq = token
-    ? req.clone({
-        setHeaders: {
-          Authorization: `Bearer ${token}`
-        }
-      })
-    : req;
-
-  return next(authReq).pipe(
-    catchError((error: HttpErrorResponse) => {
-      if (error.status !== 401 || !token) {
-        return throwError(() => error);
-      }
-
-      return authService.tryRefresh().pipe(
-        switchMap(success => {
-          const refreshedToken =
-            authService.accessToken;
-
-          if (!success || !refreshedToken) {
+  // Convert the promise into an observable
+  return from(authService.initialLoadPromise).pipe(
+    map(() => {
+      const token = authService.accessToken;
+      return token
+        ? req.clone({
+            setHeaders: { Authorization: `Bearer ${token}` }
+          })
+        : req;
+    }),
+    switchMap(authenticatedRequest =>
+      next(authenticatedRequest).pipe(
+        catchError((error: HttpErrorResponse) => {
+          if (error.status !== 401 || !authService.accessToken) {
             return throwError(() => error);
           }
 
-          const retryReq = req.clone({
-            setHeaders: {
-              Authorization:
-                `Bearer ${refreshedToken}`
-            }
-          });
+          return authService.tryRefresh().pipe(
+            switchMap(success => {
+              const refreshedToken = authService.accessToken;
+              if (!success || !refreshedToken) {
+                return throwError(() => error);
+              }
 
-          return next(retryReq);
+              const retryRequest = req.clone({
+                setHeaders: {
+                  Authorization: `Bearer ${refreshedToken}`
+                }
+              });
+
+              return next(retryRequest);
+            })
+          );
         })
-      );
-    })
+      )
+    )
   );
 };
