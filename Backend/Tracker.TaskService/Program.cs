@@ -25,11 +25,18 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        var origins = (builder.Configuration["AllowedFrontendOrigins"]
-                        ?? "http://localhost:4200,http://localhost:4300")
-            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var configuredOrigins = (builder.Configuration["AllowedFrontendOrigins"] ?? "")
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(origin => origin.TrimEnd('/'));
 
-        policy.WithOrigins(origins)
+        var localOrigins = new[]
+        {
+            "http://localhost:4200",
+            "http://localhost:4300",
+            "http://app.testing.local"
+        };
+
+        policy.WithOrigins(configuredOrigins.Concat(localOrigins).Distinct().ToArray())
               .AllowAnyHeader()
               .AllowAnyMethod();
     });
