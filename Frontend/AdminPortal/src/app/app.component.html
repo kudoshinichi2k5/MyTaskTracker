@@ -1,68 +1,178 @@
+<!--
+  Login / public pages
+  --------------------
+  Do not display the Admin shell here.
+-->
+<router-outlet
+  *ngIf="isReady && !isAuthenticated"
+></router-outlet>
+
+
+<!--
+  Authenticated Admin Portal
+  --------------------------
+-->
 <div
-  class="app-shell"
-  *ngIf="isAuthenticated"
+  class="admin-shell"
+  *ngIf="isReady && isAuthenticated"
 >
   <aside class="sidebar">
-    <div class="brand">
-      <span class="brand-label">
-        Admin Portal
-      </span>
 
-      <strong>TaskTracker</strong>
+    <div class="brand">
+      <div class="brand-mark">
+        TT
+      </div>
+
+      <div class="brand-text">
+        <strong>TaskTracker</strong>
+        <span>Admin Portal</span>
+      </div>
     </div>
 
+
     <nav class="navigation">
-      <a
-        routerLink="/dashboard"
-        routerLinkActive="active"
-        [routerLinkActiveOptions]="{ exact: true }"
-      >
-        <span>Overview</span>
-      </a>
 
-      <a
-        routerLink="/projects"
-        routerLinkActive="active"
-      >
-        <span>Projects</span>
-      </a>
+      <div class="nav-section">
+        <span class="nav-section-title">
+          Overview
+        </span>
 
-      <a
-        routerLink="/comments"
-        routerLinkActive="active"
-      >
-        <span>Comments</span>
-      </a>
+        <a
+          routerLink="/dashboard"
+          routerLinkActive="active"
+          [routerLinkActiveOptions]="{
+            exact: true
+          }"
+          class="nav-item"
+        >
+          <span class="nav-icon">⌂</span>
+          <span>Dashboard</span>
+        </a>
+      </div>
 
-      <a
-        routerLink="/users"
-        routerLinkActive="active"
-      >
-        <span>Users</span>
-      </a>
 
-      <a
-        routerLink="/roles"
-        routerLinkActive="active"
-      >
-        <span>Roles</span>
-      </a>
+      <div class="nav-section">
+        <span class="nav-section-title">
+          Workspace
+        </span>
+
+        <a
+          routerLink="/projects"
+          routerLinkActive="active"
+          class="nav-item"
+        >
+          <span class="nav-icon">▣</span>
+          <span>Projects</span>
+        </a>
+
+        <a
+          routerLink="/comments"
+          routerLinkActive="active"
+          class="nav-item"
+        >
+          <span class="nav-icon">◌</span>
+          <span>Comments</span>
+        </a>
+      </div>
+
+
+      <div class="nav-section">
+        <span class="nav-section-title">
+          Administration
+        </span>
+
+        <a
+          routerLink="/users"
+          routerLinkActive="active"
+          class="nav-item"
+        >
+          <span class="nav-icon">♙</span>
+          <span>Users</span>
+        </a>
+
+        <a
+          routerLink="/roles"
+          routerLinkActive="active"
+          class="nav-item"
+        >
+          <span class="nav-icon">◆</span>
+          <span>Roles</span>
+        </a>
+      </div>
+
     </nav>
 
-    <button
-      type="button"
-      class="logout-button"
-      (click)="logout()"
-    >
-      Sign out
-    </button>
+
+    <div class="sidebar-footer">
+
+      <div class="user-card">
+
+        <div class="user-avatar">
+          {{ username.charAt(0).toUpperCase() }}
+        </div>
+
+        <div class="user-info">
+          <strong>
+            {{ username || 'Administrator' }}
+          </strong>
+
+          <span>
+            Administrator
+          </span>
+        </div>
+
+      </div>
+
+      <button
+        type="button"
+        class="logout-button"
+        (click)="logout()"
+      >
+        <span>↪</span>
+        <span>Sign out</span>
+      </button>
+
+    </div>
+
   </aside>
 
-  <main class="main-content">
-    <router-outlet></router-outlet>
-  </main>
-</div>
 
-<router-outlet
-  *ngIf="!isAuthenticated"
-></router-outlet>
+  <main class="main-area">
+
+    <header class="topbar">
+
+      <div>
+        <span class="topbar-label">
+          Administration
+        </span>
+
+        <h2>
+          {{
+            currentUrl.includes('/projects')
+              ? 'Projects'
+              : currentUrl.includes('/comments')
+                ? 'Comments'
+                : currentUrl.includes('/users')
+                  ? 'Users'
+                  : currentUrl.includes('/roles')
+                    ? 'Roles'
+                    : 'Dashboard'
+          }}
+        </h2>
+      </div>
+
+      <div class="topbar-user">
+        <span class="status-dot"></span>
+        <span>Admin</span>
+      </div>
+
+    </header>
+
+
+    <section class="page-container">
+      <router-outlet></router-outlet>
+    </section>
+
+  </main>
+
+</div>

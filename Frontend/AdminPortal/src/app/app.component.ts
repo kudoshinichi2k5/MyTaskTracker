@@ -1,11 +1,19 @@
-import { CommonModule } from '@angular/common';
-import { Component, inject } from '@angular/core';
 import {
-  NavigationEnd,
+  Component,
+  OnInit,
+  inject
+} from '@angular/core';
+
+import {
+  CommonModule
+} from '@angular/common';
+
+import {
   Router,
   RouterLink,
   RouterLinkActive,
-  RouterOutlet
+  RouterOutlet,
+  NavigationEnd
 } from '@angular/router';
 
 import { filter } from 'rxjs';
@@ -24,31 +32,59 @@ import { AuthService } from './services/auth.service';
   templateUrl: './app.component.html',
   styleUrl: './app.component.css'
 })
-export class AppComponent {
-  private readonly router = inject(Router);
-  readonly authService = inject(AuthService);
+export class AppComponent implements OnInit {
+  private readonly authService =
+    inject(AuthService);
+
+  private readonly router =
+    inject(Router);
 
   isAuthenticated = false;
+  isReady = false;
 
-  constructor() {
-    void this.authService.initialLoadPromise.then(() => {
-      this.isAuthenticated =
-        !!this.authService.accessToken;
-    });
+  currentUrl = '';
+
+  ngOnInit(): void {
+    this.currentUrl =
+      this.router.url;
 
     this.router.events
       .pipe(
         filter(
-          (event) => event instanceof NavigationEnd
+          event =>
+            event instanceof NavigationEnd
         )
       )
-      .subscribe(() => {
-        this.isAuthenticated =
-          !!this.authService.accessToken;
-      });
+      .subscribe(
+        (event: NavigationEnd) => {
+          this.currentUrl =
+            event.urlAfterRedirects;
+        }
+      );
+
+    void this.initialize();
+  }
+
+  private async initialize(): Promise<void> {
+    await this.authService.initialLoadPromise;
+
+    this.isAuthenticated =
+      this.authService.hasValidToken;
+
+    this.isReady = true;
+  }
+
+  get username(): string {
+    return this.authService.username;
   }
 
   logout(): void {
     this.authService.logout();
+  }
+
+  isLoginPage(): boolean {
+    return this.currentUrl.startsWith(
+      '/login'
+    );
   }
 }
