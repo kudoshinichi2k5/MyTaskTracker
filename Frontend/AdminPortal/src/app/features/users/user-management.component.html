@@ -1,0 +1,109 @@
+<section class="page">
+  <header class="page-header">
+    <div>
+      <span class="eyebrow">Access</span>
+      <h1>Users</h1>
+      <p>
+        Manage accounts and Admin Portal access.
+      </p>
+    </div>
+
+    <button
+      type="button"
+      class="secondary-button"
+      (click)="loadUsers()"
+      [disabled]="isLoading"
+    >
+      Refresh
+    </button>
+  </header>
+
+  <section class="content-card">
+    <div class="section-title">
+      <div>
+        <h2>User accounts</h2>
+        <p>
+          Assign the admin role to grant portal access.
+        </p>
+      </div>
+    </div>
+
+    <div
+      class="error"
+      *ngIf="error"
+    >
+      {{ error }}
+    </div>
+
+    <div
+      class="loading"
+      *ngIf="isLoading"
+    >
+      Loading users...
+    </div>
+
+    <div
+      class="table-wrapper"
+      *ngIf="
+        !isLoading &&
+        users.length > 0
+      "
+    >
+      <table>
+        <thead>
+          <tr>
+            <th>Username</th>
+            <th>Email</th>
+            <th>Status</th>
+            <th>Admin access</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          <tr *ngFor="let user of users">
+            <td>
+              <strong>{{ user.username }}</strong>
+            </td>
+
+            <td>
+              {{ user.email || '—' }}
+            </td>
+
+            <td>
+              <span
+                class="status"
+                [class.disabled]="!user.enabled"
+              >
+                {{ user.enabled ? 'Enabled' : 'Disabled' }}
+              </span>
+            </td>
+
+            <td>
+              <label class="toggle">
+                <input
+                  type="checkbox"
+                  [checked]="hasAdminRole(user)"
+                  [disabled]="pendingUserIds.has(user.id)"
+                  (change)="toggleAdminRole(user)"
+                />
+
+                <span></span>
+              </label>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div
+      class="empty"
+      *ngIf="
+        !isLoading &&
+        !error &&
+        users.length === 0
+      "
+    >
+      No users found.
+    </div>
+  </section>
+</section>
