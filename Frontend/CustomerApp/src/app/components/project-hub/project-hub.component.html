@@ -1,0 +1,180 @@
+<section class="project-hub">
+  <div class="hub-panel">
+    <div class="panel-head">
+      <div>
+        <span class="eyebrow">Project Service</span>
+        <h2>Projects</h2>
+      </div>
+      <button type="button" class="ghost-button" (click)="loadProjects()">Refresh</button>
+    </div>
+
+    <form class="stacked-form" (ngSubmit)="createProject()">
+      <input
+        type="text"
+        name="newProjectName"
+        placeholder="Project name"
+        [(ngModel)]="newProjectName"
+        maxlength="160"
+      />
+      <textarea
+        name="newProjectDescription"
+        placeholder="Project description"
+        rows="3"
+        [(ngModel)]="newProjectDescription"
+      ></textarea>
+      <button type="submit" [disabled]="!newProjectName.trim()">Create project</button>
+    </form>
+
+    <p class="error-banner" *ngIf="projectsError">{{ projectsError }}</p>
+
+    <div class="project-list" *ngIf="!projectsLoading; else projectsSkeleton">
+      <article class="project-card" *ngFor="let project of projects; trackBy: trackByProjectId">
+        <div class="project-card-head">
+          <div class="project-text" *ngIf="editingProjectId !== project.id; else editProject">
+            <h3>{{ project.name }}</h3>
+            <p>{{ project.description || 'No description yet.' }}</p>
+          </div>
+
+          <ng-template #editProject>
+            <div class="project-edit">
+              <input
+                type="text"
+                [(ngModel)]="editingProjectName"
+                [ngModelOptions]="{ standalone: true }"
+                maxlength="160"
+              />
+              <textarea
+                rows="2"
+                [(ngModel)]="editingProjectDescription"
+                [ngModelOptions]="{ standalone: true }"
+              ></textarea>
+            </div>
+          </ng-template>
+
+          <div class="project-actions">
+            <button type="button" class="ghost-button" *ngIf="editingProjectId !== project.id" (click)="beginEditProject(project)">Edit</button>
+            <button type="button" class="ghost-button" *ngIf="editingProjectId === project.id" (click)="saveProject(project)">Save</button>
+            <button type="button" class="ghost-button" *ngIf="editingProjectId === project.id" (click)="cancelEditProject()">Cancel</button>
+            <button type="button" class="danger-button" (click)="deleteProject(project)">Delete</button>
+          </div>
+        </div>
+
+        <div class="project-task-links" *ngIf="project.taskIds.length > 0; else emptyTaskLinks">
+          <span class="chip" *ngFor="let taskId of project.taskIds">{{ taskId }}</span>
+        </div>
+
+        <ng-template #emptyTaskLinks>
+          <p class="muted">No attached task GUIDs yet.</p>
+        </ng-template>
+
+        <form class="attach-form" (ngSubmit)="attachTask(project)">
+          <input
+            type="text"
+            [name]="'taskId-' + project.id"
+            placeholder="Task GUID to attach"
+            [(ngModel)]="taskIdsToAttach[project.id]"
+            [ngModelOptions]="{ standalone: true }"
+          />
+          <button type="submit">Attach task</button>
+        </form>
+
+        <div class="chip-row" *ngIf="project.taskIds.length > 0">
+          <button
+            type="button"
+            class="link-button"
+            *ngFor="let taskId of project.taskIds"
+            (click)="detachTask(project, taskId)"
+          >
+            Detach {{ taskId }}
+          </button>
+        </div>
+      </article>
+    </div>
+
+    <ng-template #projectsSkeleton>
+      <div class="skeleton-card" *ngFor="let _ of [1, 2]"></div>
+    </ng-template>
+  </div>
+
+  <div class="hub-panel">
+    <div class="panel-head">
+      <div>
+        <span class="eyebrow">Comment Service</span>
+        <h2>Comments</h2>
+      </div>
+      <button type="button" class="ghost-button" (click)="loadComments()">Load</button>
+    </div>
+
+    <form class="stacked-form" (ngSubmit)="loadComments()">
+      <input
+        type="text"
+        name="commentTaskId"
+        placeholder="Task GUID"
+        [(ngModel)]="commentTaskId"
+      />
+      <button type="submit">Load comments</button>
+    </form>
+
+    <p class="helper-text">CommentService expects a task GUID, not the numeric task IDs from TaskService.</p>
+    <p class="error-banner" *ngIf="commentsError">{{ commentsError }}</p>
+
+    <form class="stacked-form" *ngIf="loadedCommentTaskId" (ngSubmit)="addComment()">
+      <textarea
+        name="newCommentBody"
+        placeholder="Write a comment"
+        rows="3"
+        [(ngModel)]="newCommentBody"
+      ></textarea>
+      <button type="submit" [disabled]="!newCommentBody.trim()">Add comment</button>
+    </form>
+
+    <div class="comment-list" *ngIf="!commentsLoading && loadedCommentTaskId; else commentsSkeleton">
+      <article class="comment-card" *ngFor="let comment of comments; trackBy: trackByCommentId">
+        <div class="comment-body" *ngIf="editingCommentId !== comment.id; else editComment">
+          <p>{{ comment.body }}</p>
+          <span class="meta">By {{ comment.authorUserId }} on {{ comment.createdAt | date:'short' }}</span>
+        </div>
+
+        <ng-template #editComment>
+          <textarea
+            rows="3"
+            [(ngModel)]="editingCommentBody"
+            [ngModelOptions]="{ standalone: true }"
+          ></textarea>
+        </ng-template>
+
+        <div class="comment-actions">
+          <button
+            type="button"
+            class="ghost-button"
+            *ngIf="editingCommentId !== comment.id"
+            (click)="beginEditComment(comment)"
+          >
+            Edit
+          </button>
+          <button
+            type="button"
+            class="ghost-button"
+            *ngIf="editingCommentId === comment.id"
+            (click)="saveComment(comment)"
+          >
+            Save
+          </button>
+          <button
+            type="button"
+            class="ghost-button"
+            *ngIf="editingCommentId === comment.id"
+            (click)="cancelEditComment()"
+          >
+            Cancel
+          </button>
+          <button type="button" class="danger-button" (click)="deleteComment(comment)">Delete</button>
+        </div>
+      </article>
+    </div>
+
+    <ng-template #commentsSkeleton>
+      <div class="skeleton-card" *ngFor="let _ of [1, 2, 3]"></div>
+    </ng-template>
+  </div>
+</section>

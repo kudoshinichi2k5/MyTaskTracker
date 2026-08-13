@@ -1,0 +1,175 @@
+.project-hub {
+  display: grid;
+  gap: 24px;
+  margin-top: 28px;
+}
+
+.hub-panel {
+  border: 1px solid var(--color-line);
+  border-radius: 20px;
+  padding: 22px;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.05);
+}
+
+.panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.panel-head h2 {
+  margin: 4px 0 0;
+  font-family: var(--font-display);
+  font-size: 22px;
+  color: var(--color-ink);
+}
+
+.eyebrow {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+
+.ghost-button,
+.danger-button,
+.stacked-form button,
+.attach-form button {
+  border-radius: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--color-line);
+  background: #fff;
+  color: var(--color-ink);
+  cursor: pointer;
+}
+
+.danger-button {
+  color: var(--color-danger);
+}
+
+.stacked-form,
+.attach-form {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.stacked-form input,
+.stacked-form textarea,
+.attach-form input,
+.project-edit input,
+.project-edit textarea,
+.comment-body textarea {
+  width: 100%;
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  padding: 11px 12px;
+  font: inherit;
+  color: var(--color-ink);
+  background: var(--color-surface);
+}
+
+.stacked-form button,
+.attach-form button {
+  background: var(--color-ink);
+  color: #fff;
+  border-color: var(--color-ink);
+}
+
+.project-list,
+.comment-list {
+  display: grid;
+  gap: 14px;
+}
+
+.project-card,
+.comment-card {
+  border: 1px solid var(--color-line);
+  border-radius: 16px;
+  padding: 16px;
+  background: #fff;
+}
+
+.project-card-head,
+.comment-actions,
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.project-text h3 {
+  margin: 0 0 4px;
+  font-size: 17px;
+}
+
+.project-text p,
+.muted,
+.helper-text,
+.meta {
+  color: var(--color-muted);
+  margin: 0;
+  font-size: 13px;
+}
+
+.project-edit {
+  display: grid;
+  gap: 10px;
+  width: min(100%, 420px);
+}
+
+.project-task-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  padding: 6px 10px;
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.link-button {
+  border: 0;
+  background: transparent;
+  color: var(--color-accent);
+  cursor: pointer;
+  padding: 0;
+  font-size: 12.5px;
+}
+
+.error-banner {
+  background: #fbeae2;
+  color: var(--color-danger);
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 14px;
+  margin: 0 0 14px;
+}
+
+.skeleton-card {
+  min-height: 96px;
+  border-radius: 16px;
+  background: linear-gradient(90deg, var(--color-line), #f5f7fb, var(--color-line));
+  background-size: 240% 100%;
+  animation: shimmer 1.3s infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 0 0; }
+  100% { background-position: 240% 0; }
+}

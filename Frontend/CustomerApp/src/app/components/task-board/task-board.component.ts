@@ -5,11 +5,12 @@ import { TaskService, TaskItem } from '../../services/task.service';
 import { AuthService } from '../../services/auth.service';
 import { ToastService } from '../../services/toast.service';
 import { NotificationBellComponent } from '../notification-bell/notification-bell.component';
+import { ProjectHubComponent } from '../project-hub/project-hub.component';
 
 @Component({
   selector: 'app-task-board',
   standalone: true,
-  imports: [CommonModule, FormsModule, NotificationBellComponent],
+  imports: [CommonModule, FormsModule, NotificationBellComponent, ProjectHubComponent],
   templateUrl: './task-board.component.html',
   styleUrls: ['./task-board.component.css'], // ✅ corrected to plural
   changeDetection: ChangeDetectionStrategy.OnPush
