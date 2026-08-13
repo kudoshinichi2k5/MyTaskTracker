@@ -8,8 +8,10 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const authService = inject(AuthService);
   const token = authService.accessToken;
   const authBaseUrl = environment.authApi.replace(/\/api\/v1$/, '');
+  const authBypassPaths = ['/token', '/auth/refresh', '/auth/logout'];
+  const shouldBypassAuth = req.url.startsWith(authBaseUrl) && authBypassPaths.some((path) => req.url.endsWith(path));
 
-  if (req.url.startsWith(authBaseUrl)) {
+  if (shouldBypassAuth) {
     return next(req);
   }
 
