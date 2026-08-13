@@ -61,6 +61,10 @@ export class ProjectHubComponent implements OnInit {
     return comment.id;
   }
 
+  private isValidGuid(value: string): boolean {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+  }
+
   loadProjects() {
     this.projectsLoading = true;
     this.projectsError = null;
@@ -133,10 +137,11 @@ export class ProjectHubComponent implements OnInit {
 
   loadComments() {
     const taskId = this.commentTaskId.trim();
-    if (!taskId) {
-      this.commentsError = 'Enter a task GUID first.';
+    if (!taskId || !this.isValidGuid(taskId)) {
+      this.commentsError = 'Enter a valid task GUID first.';
       this.comments = [];
       this.loadedCommentTaskId = null;
+      this.commentsLoading = false;
       this.cdr.markForCheck();
       return;
     }

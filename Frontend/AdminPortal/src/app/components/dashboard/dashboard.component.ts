@@ -148,11 +148,12 @@ export class DashboardComponent implements OnInit {
 
   loadComments() {
     const taskId = this.commentTaskId.trim();
-    if (!taskId) {
-      this.commentsError = 'Enter a task GUID first.';
+    if (!taskId || !this.isValidGuid(taskId)) {
+      this.commentsError = 'Enter a valid task GUID first.';
       this.comments = [];
       this.loadedCommentTaskId = null;
       this.commentsLoaded = false;
+      this.commentsLoading = false;
       return;
     }
 
@@ -209,5 +210,9 @@ export class DashboardComponent implements OnInit {
   completionRate(row: UserTaskSummary): number {
     if (row.totalTasks === 0) return 0;
     return Math.round((row.completedTasks / row.totalTasks) * 100);
+  }
+
+  private isValidGuid(value: string): boolean {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
   }
 }
