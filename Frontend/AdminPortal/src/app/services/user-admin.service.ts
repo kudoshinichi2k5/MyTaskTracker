@@ -15,31 +15,31 @@ export interface AdminUser {
 @Injectable({ providedIn: 'root' })
 export class UserAdminService {
   private http = inject(HttpClient);
-  // Users and roles are managed by the TaskService admin endpoints, which
-  // are protected by the same "AdminOnly" policy used for the task summary.
-  private apiUrl = environment.taskApi;
+  // Users and roles are managed by Tracker.AuthService (it owns the real
+  // user store), protected by the same "AdminOnly" policy used elsewhere.
+  private apiUrl = environment.authApi;
 
   getUsers(): Observable<AdminUser[]> {
     return this.http
-      .get<AdminUser[]>(`${this.apiUrl}/admin/users`)
+      .get<AdminUser[]>(`${this.apiUrl}/auth/admin/users`)
       .pipe(this.handleError<AdminUser[]>('load users'));
   }
 
   getRoles(): Observable<string[]> {
     return this.http
-      .get<string[]>(`${this.apiUrl}/admin/roles`)
+      .get<string[]>(`${this.apiUrl}/auth/admin/roles`)
       .pipe(this.handleError<string[]>('load roles'));
   }
 
   assignRole(userId: string, role: string): Observable<void> {
     return this.http
-      .post<void>(`${this.apiUrl}/admin/users/${userId}/roles/${role}`, {})
+      .post<void>(`${this.apiUrl}/auth/admin/users/${userId}/roles/${role}`, {})
       .pipe(this.handleError<void>(`assign role "${role}"`));
   }
 
   removeRole(userId: string, role: string): Observable<void> {
     return this.http
-      .delete<void>(`${this.apiUrl}/admin/users/${userId}/roles/${role}`)
+      .delete<void>(`${this.apiUrl}/auth/admin/users/${userId}/roles/${role}`)
       .pipe(this.handleError<void>(`remove role "${role}"`));
   }
 

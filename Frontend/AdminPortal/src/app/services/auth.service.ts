@@ -127,4 +127,7 @@ export class AuthService {
 
   get accessToken(): string | null { return this.session?.accessToken ?? null; }
   get hasValidToken(): boolean { return !!this.session && this.session.expiresAt > Date.now(); }
+
+  get roles(): string[] { return this.session?.roles ?? []; }
+  hasRole(role: string): boolean { return this.roles.includes(role); }
 }
