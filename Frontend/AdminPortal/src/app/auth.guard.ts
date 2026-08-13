@@ -1,4 +1,5 @@
 import { inject } from '@angular/core';
+
 import {
   CanActivateFn,
   Router
@@ -10,17 +11,18 @@ export const authGuard: CanActivateFn = async (
   route,
   state
 ) => {
-  const authService = inject(AuthService);
-  const router = inject(Router);
+  const authService =
+    inject(AuthService);
+
+  const router =
+    inject(Router);
 
   /*
-   * Important:
-   * AuthService restores and verifies the persisted
-   * session asynchronously.
+   * Wait for AuthService to restore and
+   * validate adminportal_session.
    *
-   * Wait for that process before checking the token.
-   * Otherwise a browser reload can temporarily see
-   * hasValidToken === false and redirect to /login.
+   * Without this, F5 can execute the guard
+   * before the /verify request finishes.
    */
   await authService.initialLoadPromise;
 
@@ -35,8 +37,14 @@ export const authGuard: CanActivateFn = async (
     );
   }
 
+  /*
+   * Only administrators can access
+   * the AdminPortal.
+   */
   if (!authService.hasRole('admin')) {
-    return router.parseUrl('/forbidden');
+    return router.parseUrl(
+      '/forbidden'
+    );
   }
 
   return true;

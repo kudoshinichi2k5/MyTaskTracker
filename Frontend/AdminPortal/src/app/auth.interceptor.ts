@@ -1,46 +1,151 @@
-import { HttpInterceptorFn, HttpErrorResponse } from '@angular/common/http';
+import {
+  HttpErrorResponse,
+  HttpInterceptorFn
+} from '@angular/common/http';
+
 import { inject } from '@angular/core';
+
+import {
+  catchError,
+  throwError
+} from 'rxjs';
+
 import { environment } from '../environments/environment';
 import { AuthService } from './services/auth.service';
-import { catchError, switchMap, throwError } from 'rxjs';
 
-export const authInterceptor: HttpInterceptorFn = (req, next) => {
-  const authService = inject(AuthService);
-  const token = authService.accessToken;
-  const authBaseUrl = environment.authApi.replace(/\/api\/v1$/, '');
-  const authBypassPaths = ['/token', '/auth/refresh', '/auth/logout'];
-  const shouldBypassAuth = req.url.startsWith(authBaseUrl) && authBypassPaths.some((path) => req.url.endsWith(path));
+export const authInterceptor: HttpInterceptorFn = (
+  req,
+  next
+) => {
+  const authService =
+    inject(AuthService);
 
-  if (shouldBypassAuth) {
+  const authBaseUrl =
+    environment.authApi.replace(
+      /\/api\/v1$/,
+      ''
+    );
+
+  const authBypassPaths = [
+    '/token',
+    '/verify',
+    '/auth/refresh',
+    '/auth/logout'
+  ];
+
+  const isAuthEndpoint =
+    req.url.startsWith(authBaseUrl) &&
+    authBypassPaths.some(
+      path => req.url.endsWith(path)
+    );
+
+  /*
+   * /token, refresh and logout don't need
+   * an access token.
+   */
+  if (
+    isAuthEndpoint &&
+    !req.url.endsWith('/verify')
+  ) {
     return next(req);
   }
 
-  let authReq = req;
-  if (token) {
-    authReq = req.clone({
-      setHeaders: { Authorization: `Bearer ${token}` }
-    });
+  /*
+   * /verify is called by AuthService while
+   * initialLoadPromise is being resolved.
+   *
+   * Therefore it must NEVER wait for
+   * initialLoadPromise.
+   */
+  if (
+    isAuthEndpoint &&
+    req.url.endsWith('/verify')
+  ) {
+    const token =
+      authService.accessToken;
+
+    if (!token) {
+      return next(req);
+    }
+
+    return next(
+      req.clone({
+        setHeaders: {
+          Authorization:
+            `Bearer ${token}`
+        }
+      })
+    );
   }
 
-  return next(authReq).pipe(
-    catchError((error: HttpErrorResponse) => {
-      // Nếu API trả về 401 Unauthorized và chưa retry
-      if (error.status === 401 && token) {
-        return authService.tryRefresh().pipe(
-          switchMap((success) => {
-            if (success && authService.accessToken) {
-              // Refresh thành công, gắn token mới và gọi lại API
-              const retriedReq = req.clone({
-                setHeaders: { Authorization: `Bearer ${authService.accessToken}` }
-              });
-              return next(retriedReq);
-            }
-            // Refresh thất bại, văng lỗi ra để đẩy về trang Login
-            return throwError(() => error);
-          })
-        );
+  /*
+   * Normal protected API requests.
+   *
+   * At this point AuthService has already
+   * completed its initial session validation.
+   */
+  const token =
+    authService.accessToken;
+
+  const authenticatedRequest =
+    token
+      ? req.clone({
+          setHeaders: {
+            Authorization:
+              `Bearer ${token}`
+          }
+        })
+      : req;
+
+  return next(
+    authenticatedRequest
+  ).pipe(
+    catchError(
+      (error: HttpErrorResponse) => {
+        if (
+          error.status !== 401 ||
+          !token
+        ) {
+          return throwError(
+            () => error
+          );
+        }
+
+        return authService
+          .tryRefresh()
+          .pipe(
+            catchError(() =>
+              throwError(
+                () => error
+              )
+            ),
+            switchMap(success => {
+              const refreshedToken =
+                authService.accessToken;
+
+              if (
+                !success ||
+                !refreshedToken
+              ) {
+                return throwError(
+                  () => error
+                );
+              }
+
+              const retryRequest =
+                req.clone({
+                  setHeaders: {
+                    Authorization:
+                      `Bearer ${refreshedToken}`
+                  }
+                });
+
+              return next(
+                retryRequest
+              );
+            })
+          );
       }
-      return throwError(() => error);
-    })
+    )
   );
 };
