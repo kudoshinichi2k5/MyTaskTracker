@@ -1,11 +1,11 @@
 # TaskTracker
 
-TaskTracker is a .NET 8 microservices sample with two Angular 18 applications:
+TaskTracker is a .NET 8 microservices sample with two Angular 18 applications and five backend services:
 
-- **CustomerApp** (`http://localhost:4200`) manages a signed-in user's tasks and notifications.
-- **AdminPortal** (`http://localhost:4300`) provides task summaries and role administration.
+- **CustomerApp** (`http://localhost:4200`) for tasks, projects, comments, and notifications.
+- **AdminPortal** (`http://localhost:4300`) for task summaries, user access, projects, and comments.
 
-Authentication preserves an OWIN-style password-grant contract while using ASP.NET Core middleware. The system utilizes a centralized authentication model where tokens are simply random, opaque strings. These strings are stored in a database/memory and must be explicitly looked up and validated on every single request, completely bypassing JWTs.
+Authentication preserves an OWIN-style password-grant contract while using ASP.NET Core middleware. The system uses opaque bearer tokens: they are random strings stored in memory and validated server-side on every protected request. No JWT is used for the runtime auth flow.
 
 ## Architecture
 
@@ -14,13 +14,19 @@ flowchart LR
     Customer[CustomerApp :4200] --> Auth[Auth Service :5001]
     Customer --> Tasks[Task Service :5002]
     Customer --> Notifications[Notification Service :5003]
+    Customer --> Projects[Project Service :5004]
+    Customer --> Comments[Comment Service :5005]
     Admin[AdminPortal :4300] --> Auth
     Admin --> Tasks
+    Admin --> Projects
+    Admin --> Comments
     Tasks --> Auth
     Notifications --> Auth
+    Projects --> Auth
+    Comments --> Auth
 ```
 
-Both resource services validate bearer tokens against AuthService. NotificationService and TaskService therefore use the same opaque-token authentication model; neither accepts JWTs.
+All protected resource services validate bearer tokens against AuthService. NotificationService, TaskService, ProjectService, and CommentService therefore use the same opaque-token authentication model; none of them accepts JWTs.
 
 ## Projects
 
@@ -29,6 +35,8 @@ Both resource services validate bearer tokens against AuthService. NotificationS
 | `Backend/Tracker.AuthService` | Login, refresh, logout, and token verification | `http://localhost:5001` |
 | `Backend/Tracker.TaskService` | User tasks and admin task/user endpoints | `http://localhost:5002` |
 | `Backend/Tracker.NotificationService` | User notifications | `http://localhost:5003` |
+| `Backend/Tracker.ProjectService` | Lightweight project grouping for tasks | `http://localhost:5004` |
+| `Backend/Tracker.CommentService` | Task comment threads | `http://localhost:5005` |
 | `Frontend/CustomerApp` | Customer-facing Angular application | `http://localhost:4200` |
 | `Frontend/AdminPortal` | Admin Angular application | `http://localhost:4300` |
 
@@ -37,7 +45,7 @@ Both resource services validate bearer tokens against AuthService. NotificationS
 1. An Angular app sends form-encoded credentials to `POST /token` on AuthService.
 2. AuthService returns a camelCase response containing `accessToken`, `refreshToken`, `expiresIn`, `username`, and `roles`.
 3. The app stores its session locally and adds `Authorization: Bearer <token>` to API requests.
-4. TaskService and NotificationService call AuthService's `GET /verify?token=...` endpoint to validate the opaque token and create user claims.
+4. TaskService, NotificationService, ProjectService, and CommentService call AuthService's `GET /verify` endpoint to validate the opaque token and create user claims.
 5. `POST /api/v1/auth/refresh` renews the access token; `POST /api/v1/auth/logout` invalidates the refresh session.
 
 Example local sign-in request:
@@ -59,6 +67,8 @@ Start each backend service in a separate terminal:
 dotnet run --project Backend/Tracker.AuthService
 dotnet run --project Backend/Tracker.TaskService
 dotnet run --project Backend/Tracker.NotificationService
+dotnet run --project Backend/Tracker.ProjectService
+dotnet run --project Backend/Tracker.CommentService
 ```
 
 Start each frontend in a separate terminal:
@@ -76,6 +86,8 @@ Use `npm.cmd` in PowerShell if local execution policy blocks `npm.ps1`.
 dotnet build Backend/Tracker.AuthService/Tracker.AuthService.csproj
 dotnet build Backend/Tracker.TaskService/Tracker.TaskService.csproj
 dotnet build Backend/Tracker.NotificationService/Tracker.NotificationService.csproj
+dotnet build Backend/Tracker.ProjectService/Tracker.ProjectService.csproj
+dotnet build Backend/Tracker.CommentService/Tracker.CommentService.csproj
 
 Push-Location Frontend/CustomerApp; npm.cmd run build:production; Pop-Location
 Push-Location Frontend/AdminPortal; npm.cmd run build:production; Pop-Location
@@ -97,3 +109,9 @@ This repository is a demonstration, not production-ready identity or data infras
 - Tokens, refresh sessions, tasks, notifications, users, and roles are in memory only.
 - Restarting a service or recycling an IIS application pool invalidates sessions and loses data.
 - Replace the demo credential lookup and in-memory stores with persistent, securely managed implementations before exposing the application publicly.
+
+## Current local UI notes
+
+- CustomerApp now shows a project hub alongside task work, and its comment area lets you pick a task from the visible project list instead of forcing manual GUID entry.
+- AdminPortal includes project and comment inspection panels in the main dashboard.
+- If you restart AuthService or any protected backend, sign out and sign in again. The apps now validate the stored token on startup, but a fresh login is still the fastest recovery path because the services keep auth state in memory.
