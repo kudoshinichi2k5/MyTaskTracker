@@ -1,0 +1,78 @@
+<section class="page">
+  <header class="page-header">
+    <div>
+      <span class="eyebrow">Identity</span>
+      <h1>Roles</h1>
+      <p>
+        Review the roles available in the system.
+      </p>
+    </div>
+
+    <button
+      type="button"
+      class="secondary-button"
+      (click)="loadRoles()"
+      [disabled]="isLoading"
+    >
+      Refresh
+    </button>
+  </header>
+
+  <section class="content-card">
+    <div
+      class="error"
+      *ngIf="error"
+    >
+      {{ error }}
+    </div>
+
+    <div
+      class="loading"
+      *ngIf="isLoading"
+    >
+      Loading roles...
+    </div>
+
+    <div
+      class="role-list"
+      *ngIf="
+        !isLoading &&
+        roles.length > 0
+      "
+    >
+      <div
+        class="role"
+        *ngFor="let role of roles"
+      >
+        <div class="role-icon">◆</div>
+
+        <div>
+          <strong>{{ role }}</strong>
+
+          <span
+            *ngIf="role === 'admin'"
+          >
+            Can access the Admin Portal
+          </span>
+
+          <span
+            *ngIf="role !== 'admin'"
+          >
+            System role
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div
+      class="empty"
+      *ngIf="
+        !isLoading &&
+        !error &&
+        roles.length === 0
+      "
+    >
+      No roles found.
+    </div>
+  </section>
+</section>
