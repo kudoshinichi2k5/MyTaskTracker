@@ -1,0 +1,200 @@
+<section class="page">
+  <header class="page-header">
+    <div>
+      <span class="eyebrow">Workspace</span>
+      <h1>Projects</h1>
+      <p>
+        Group related work and keep track of project progress.
+      </p>
+    </div>
+
+    <button
+      type="button"
+      class="secondary-button"
+      (click)="loadProjects()"
+      [disabled]="isLoading"
+    >
+      Refresh
+    </button>
+  </header>
+
+  <section class="stats">
+    <div class="stat-card">
+      <span>Projects</span>
+      <strong>{{ totalProjects }}</strong>
+    </div>
+
+    <div class="stat-card">
+      <span>Linked tasks</span>
+      <strong>{{ totalLinkedTasks }}</strong>
+    </div>
+  </section>
+
+  <section class="content-card">
+    <div class="section-title">
+      <div>
+        <h2>Create a project</h2>
+        <p>Give your project a clear name and description.</p>
+      </div>
+    </div>
+
+    <form
+      class="project-form"
+      (ngSubmit)="createProject()"
+    >
+      <input
+        type="text"
+        name="projectName"
+        [(ngModel)]="newProjectName"
+        maxlength="160"
+        placeholder="Project name"
+        [disabled]="isCreating"
+      />
+
+      <textarea
+        name="projectDescription"
+        [(ngModel)]="newProjectDescription"
+        rows="3"
+        placeholder="Short description"
+        [disabled]="isCreating"
+      ></textarea>
+
+      <div class="form-actions">
+        <button
+          type="submit"
+          class="primary-button"
+          [disabled]="
+            isCreating ||
+            !newProjectName.trim()
+          "
+        >
+          {{ isCreating ? 'Creating...' : 'Create project' }}
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <div
+    class="error-state"
+    *ngIf="loadError"
+  >
+    <strong>{{ loadError }}</strong>
+
+    <button
+      type="button"
+      class="secondary-button"
+      (click)="loadProjects()"
+    >
+      Try again
+    </button>
+  </div>
+
+  <section
+    class="project-grid"
+    *ngIf="!isLoading && !loadError"
+  >
+    <article
+      class="project-card"
+      *ngFor="
+        let project of projects;
+        trackBy: trackByProjectId
+      "
+    >
+      <ng-container
+        *ngIf="
+          editingProjectId !== project.id;
+          else editProject
+        "
+      >
+        <div class="project-header">
+          <div>
+            <h3>{{ project.name }}</h3>
+            <p>
+              {{
+                project.description ||
+                'No description yet.'
+              }}
+            </p>
+          </div>
+
+          <span class="task-count">
+            {{ project.taskIds.length }}
+            {{ project.taskIds.length === 1 ? 'task' : 'tasks' }}
+          </span>
+        </div>
+
+        <div class="project-footer">
+          <span class="project-date">
+            Updated {{ project.updatedAt | date:'mediumDate' }}
+          </span>
+
+          <div class="actions">
+            <button
+              type="button"
+              class="text-button"
+              (click)="startEdit(project)"
+            >
+              Edit
+            </button>
+
+            <button
+              type="button"
+              class="text-button danger"
+              (click)="deleteProject(project)"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      </ng-container>
+
+      <ng-template #editProject>
+        <div class="edit-form">
+          <input
+            type="text"
+            [(ngModel)]="editingProjectName"
+            [ngModelOptions]="{ standalone: true }"
+            maxlength="160"
+          />
+
+          <textarea
+            rows="3"
+            [(ngModel)]="editingProjectDescription"
+            [ngModelOptions]="{ standalone: true }"
+          ></textarea>
+
+          <div class="actions">
+            <button
+              type="button"
+              class="primary-button"
+              (click)="saveProject(project)"
+            >
+              Save
+            </button>
+
+            <button
+              type="button"
+              class="secondary-button"
+              (click)="cancelEdit()"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </ng-template>
+    </article>
+  </section>
+
+  <section
+    class="empty-state"
+    *ngIf="
+      !isLoading &&
+      !loadError &&
+      projects.length === 0
+    "
+  >
+    <div class="empty-icon">▦</div>
+    <h3>No projects yet</h3>
+    <p>Create a project to organize related work.</p>
+  </section>
+</section>
