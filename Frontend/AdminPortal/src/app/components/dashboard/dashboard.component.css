@@ -304,6 +304,42 @@
   word-break: break-all;
 }
 
+.task-quick-picks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 14px;
+}
+
+.task-chip {
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.task-chip:hover {
+  border-color: var(--color-accent);
+  transform: translateY(-1px);
+}
+
+.advanced-lookup {
+  margin: 10px 0 14px;
+  border: 1px dashed var(--color-line);
+  border-radius: 16px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.advanced-lookup summary {
+  cursor: pointer;
+  color: var(--color-muted);
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+
+.advanced-lookup[open] summary {
+  margin-bottom: 12px;
+}
+
 .lookup-form {
   display: flex;
   gap: 10px;

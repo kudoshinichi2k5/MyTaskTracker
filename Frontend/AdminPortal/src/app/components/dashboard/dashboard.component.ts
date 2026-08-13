@@ -68,15 +68,17 @@ export class DashboardComponent implements OnInit {
   }
 
   ngOnInit() {
-    this.reportService.getTaskSummary().subscribe({
-      next: (data) => {
-        this.summary = data;
-        this.isLoading = false;
-      },
-      error: () => {
-        this.loadError = true;
-        this.isLoading = false;
-      }
+    void this.authService.initialLoadPromise.finally(() => {
+      this.reportService.getTaskSummary().subscribe({
+        next: (data) => {
+          this.summary = data;
+          this.isLoading = false;
+        },
+        error: () => {
+          this.loadError = true;
+          this.isLoading = false;
+        }
+      });
     });
   }
 
@@ -97,7 +99,13 @@ export class DashboardComponent implements OnInit {
     }
   }
 
-  private loadUsers() {
+  private async loadUsers() {
+    await this.authService.initialLoadPromise;
+    if (!this.authService.accessToken) {
+      this.usersError = 'Please sign in again to load users.';
+      this.usersLoading = false;
+      return;
+    }
     this.usersLoading = true;
     this.usersError = null;
     this.userAdminService.getUsers().subscribe({
@@ -114,7 +122,13 @@ export class DashboardComponent implements OnInit {
     });
   }
 
-  private loadRoles() {
+  private async loadRoles() {
+    await this.authService.initialLoadPromise;
+    if (!this.authService.accessToken) {
+      this.rolesError = 'Please sign in again to load roles.';
+      this.rolesLoading = false;
+      return;
+    }
     this.rolesLoading = true;
     this.rolesError = null;
     this.userAdminService.getRoles().subscribe({
@@ -130,7 +144,13 @@ export class DashboardComponent implements OnInit {
     });
   }
 
-  loadProjects() {
+  async loadProjects() {
+    await this.authService.initialLoadPromise;
+    if (!this.authService.accessToken) {
+      this.projectsError = 'Please sign in again to load projects.';
+      this.projectsLoading = false;
+      return;
+    }
     this.projectsLoading = true;
     this.projectsError = null;
     this.projectService.getProjects().subscribe({
@@ -146,7 +166,13 @@ export class DashboardComponent implements OnInit {
     });
   }
 
-  loadComments() {
+  async loadComments() {
+    await this.authService.initialLoadPromise;
+    if (!this.authService.accessToken) {
+      this.commentsError = 'Please sign in again to load comments.';
+      this.commentsLoading = false;
+      return;
+    }
     const taskId = this.commentTaskId.trim();
     if (!taskId || !this.isValidGuid(taskId)) {
       this.commentsError = 'Enter a valid task GUID first.';
@@ -171,6 +197,16 @@ export class DashboardComponent implements OnInit {
         this.commentsLoading = false;
       }
     });
+  }
+
+  get taskChoices(): string[] {
+    const taskIds = this.projects.flatMap((project) => project.taskIds);
+    return Array.from(new Set(taskIds));
+  }
+
+  selectTask(taskId: string) {
+    this.commentTaskId = taskId;
+    this.loadComments();
   }
 
   hasAdminRole(user: AdminUser): boolean {

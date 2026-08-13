@@ -198,22 +198,39 @@
             <span class="section-kicker">Comment Service</span>
             <h3>Comments</h3>
           </div>
-          <span class="summary-pill">Loaded {{ commentsLoaded && loadedCommentTaskId ? comments.length : 0 }}</span>
+          <span class="summary-pill">
+            {{ commentsLoaded && loadedCommentTaskId ? comments.length : 0 }} loaded
+          </span>
         </div>
 
-        <form class="lookup-form" (ngSubmit)="loadComments()">
-          <input
-            type="text"
-            name="commentTaskId"
-            placeholder="Task GUID"
-            [(ngModel)]="commentTaskId"
-          />
-          <button type="submit" class="action-button">Load comments</button>
-        </form>
-
         <p class="section-hint">
-          Enter the task GUID you want to inspect. The service returns the comment thread for that task.
+          Pick a task from the project list below to open its thread. If needed, you can still paste a
+          GUID manually.
         </p>
+
+        <div class="task-quick-picks" *ngIf="taskChoices.length > 0">
+          <button
+            type="button"
+            class="chip task-chip"
+            *ngFor="let taskId of taskChoices"
+            (click)="selectTask(taskId)"
+          >
+            {{ taskId }}
+          </button>
+        </div>
+
+        <details class="advanced-lookup">
+          <summary>Use a task GUID manually</summary>
+          <form class="lookup-form" (ngSubmit)="loadComments()">
+            <input
+              type="text"
+              name="commentTaskId"
+              placeholder="Task GUID"
+              [(ngModel)]="commentTaskId"
+            />
+            <button type="submit" class="action-button">Load comments</button>
+          </form>
+        </details>
 
         <p class="loading-note" *ngIf="commentsLoading">Loading comments…</p>
 
