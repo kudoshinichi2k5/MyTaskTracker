@@ -1,86 +1,87 @@
 <div class="dashboard">
-  <!-- Sidebar -->
   <aside class="sidebar">
-    <h2 class="sidebar-title">Admin Portal</h2>
+    <div class="sidebar-brand">
+      <span class="eyebrow">Admin Portal</span>
+      <h2>Workspace</h2>
+      <p>Reports, access, projects, and comments in one place.</p>
+    </div>
+
     <nav>
       <ul>
         <li [class.active]="activeSection === 'reports'" (click)="setSection('reports')">Reports</li>
         <li [class.active]="activeSection === 'users'" (click)="setSection('users')">Users</li>
         <li [class.active]="activeSection === 'roles'" (click)="setSection('roles')">Roles</li>
+        <li [class.active]="activeSection === 'projects'" (click)="setSection('projects')">Projects</li>
+        <li [class.active]="activeSection === 'comments'" (click)="setSection('comments')">Comments</li>
       </ul>
     </nav>
+
     <button class="sign-out-button" (click)="logout()">Sign out</button>
   </aside>
 
-  <!-- Main Content -->
   <main class="main-content">
-    <!-- Reports -->
     <ng-container *ngIf="activeSection === 'reports'">
+      <section class="hero-card">
+        <div>
+          <span class="section-kicker">Overview</span>
+          <h3>Team activity</h3>
+          <p>Track progress without the page feeling like a spreadsheet dump.</p>
+        </div>
+        <div class="summary-strip">
+          <div class="summary-pill">Members {{ isLoading ? '—' : summary.length }}</div>
+          <div class="summary-pill">Tasks {{ isLoading ? '—' : totalTasks }}</div>
+          <div class="summary-pill">Done {{ isLoading ? '—' : totalCompleted }}</div>
+        </div>
+      </section>
+
       <p class="error-banner" *ngIf="loadError">
         Couldn't load the team report. Please refresh the page or try again later.
       </p>
 
-      <ng-container *ngIf="!loadError">
-        <section class="stat-cards">
-          <div class="stat-card">
-            <h3>Team Members</h3>
-            <p>{{ isLoading ? '—' : summary.length }}</p>
-          </div>
-          <div class="stat-card">
-            <h3>Total Tasks</h3>
-            <p>{{ isLoading ? '—' : totalTasks }}</p>
-          </div>
-          <div class="stat-card">
-            <h3>Completed</h3>
-            <p>{{ isLoading ? '—' : totalCompleted }}</p>
-          </div>
-        </section>
+      <section class="content-card" *ngIf="!loadError">
+        <h3>Task report by team member</h3>
+        <p class="loading-note" *ngIf="isLoading">Loading team report…</p>
 
-        <section class="report-table">
-          <h3>Task Report by Team Member</h3>
+        <table *ngIf="!isLoading && summary.length > 0">
+          <thead>
+            <tr>
+              <th>User ID</th>
+              <th>Total</th>
+              <th>Completed</th>
+              <th>Pending</th>
+              <th>Completion</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let row of summary">
+              <td class="user-id">{{ row.userId }}</td>
+              <td>{{ row.totalTasks }}</td>
+              <td>{{ row.completedTasks }}</td>
+              <td>{{ row.totalTasks - row.completedTasks }}</td>
+              <td><span class="completion-badge">{{ completionRate(row) }}%</span></td>
+            </tr>
+          </tbody>
+        </table>
 
-          <p class="loading-note" *ngIf="isLoading">Loading team report…</p>
-
-          <table *ngIf="!isLoading && summary.length > 0">
-            <thead>
-              <tr>
-                <th>User ID</th>
-                <th>Total</th>
-                <th>Completed</th>
-                <th>Pending</th>
-                <th>Completion</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let row of summary">
-                <td class="user-id">{{ row.userId }}</td>
-                <td>{{ row.totalTasks }}</td>
-                <td>{{ row.completedTasks }}</td>
-                <td>{{ row.totalTasks - row.completedTasks }}</td>
-                <td>
-                  <span class="completion-badge">{{ completionRate(row) }}%</span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-
-          <p class="empty-note" *ngIf="!isLoading && summary.length === 0">
-            No team activity yet - nobody has signed into the Customer App.
-          </p>
-        </section>
-      </ng-container>
+        <p class="empty-note" *ngIf="!isLoading && summary.length === 0">
+          No team activity yet - nobody has signed into the Customer App.
+        </p>
+      </section>
     </ng-container>
 
-    <!-- Users -->
     <ng-container *ngIf="activeSection === 'users'">
       <p class="error-banner" *ngIf="usersError">{{ usersError }}</p>
 
-      <section class="report-table">
-        <h3>Users</h3>
-        <p class="section-hint">
-          Toggle the "admin" role to grant or revoke Admin Portal access. The next login will use the
-          updated JWT claims from the AuthService.
-        </p>
+      <section class="content-card">
+        <div class="section-head">
+          <div>
+            <span class="section-kicker">Access</span>
+            <h3>Users</h3>
+          </div>
+          <p class="section-hint">
+            Toggle the <strong>{{ assignableRole }}</strong> role to grant or revoke Admin Portal access.
+          </p>
+        </div>
 
         <p class="loading-note" *ngIf="usersLoading">Loading users…</p>
 
@@ -118,16 +119,19 @@
       </section>
     </ng-container>
 
-    <!-- Roles -->
     <ng-container *ngIf="activeSection === 'roles'">
       <p class="error-banner" *ngIf="rolesError">{{ rolesError }}</p>
 
-      <section class="report-table">
-        <h3>Realm Roles</h3>
-        <p class="section-hint">
-          Read-only list of every role defined by the AuthService. Assign the
-          <strong>{{ assignableRole }}</strong> role to a user from the Users tab.
-        </p>
+      <section class="content-card">
+        <div class="section-head">
+          <div>
+            <span class="section-kicker">Identity</span>
+            <h3>Realm roles</h3>
+          </div>
+          <p class="section-hint">
+            Read-only list of every role defined by the AuthService.
+          </p>
+        </div>
 
         <p class="loading-note" *ngIf="rolesLoading">Loading roles…</p>
 
@@ -140,6 +144,91 @@
 
         <p class="empty-note" *ngIf="!rolesLoading && !rolesError && roles.length === 0">
           No custom roles defined in this realm yet.
+        </p>
+      </section>
+    </ng-container>
+
+    <ng-container *ngIf="activeSection === 'projects'">
+      <p class="error-banner" *ngIf="projectsError">{{ projectsError }}</p>
+
+      <section class="content-card">
+        <div class="section-head">
+          <div>
+            <span class="section-kicker">Project Service</span>
+            <h3>Projects</h3>
+          </div>
+          <button type="button" class="action-button" (click)="loadProjects()">Refresh</button>
+        </div>
+
+        <p class="loading-note" *ngIf="projectsLoading">Loading projects…</p>
+
+        <div class="project-grid" *ngIf="!projectsLoading && projects.length > 0">
+          <article class="project-card" *ngFor="let project of projects">
+            <div class="project-card-head">
+              <div>
+                <h4>{{ project.name }}</h4>
+                <p>{{ project.description || 'No description yet.' }}</p>
+              </div>
+              <span class="project-owner">{{ project.ownerUserId }}</span>
+            </div>
+
+            <div class="project-stats">
+              <span>{{ project.taskIds.length }} linked task GUIDs</span>
+              <span>{{ project.updatedAt | date:'short' }}</span>
+            </div>
+
+            <div class="chip-row" *ngIf="project.taskIds.length > 0">
+              <span class="chip" *ngFor="let taskId of project.taskIds">{{ taskId }}</span>
+            </div>
+          </article>
+        </div>
+
+        <p class="empty-note" *ngIf="!projectsLoading && !projectsError && projects.length === 0">
+          No projects found yet.
+        </p>
+      </section>
+    </ng-container>
+
+    <ng-container *ngIf="activeSection === 'comments'">
+      <p class="error-banner" *ngIf="commentsError">{{ commentsError }}</p>
+
+      <section class="content-card">
+        <div class="section-head">
+          <div>
+            <span class="section-kicker">Comment Service</span>
+            <h3>Comments</h3>
+          </div>
+          <span class="summary-pill">Loaded {{ commentsLoaded && loadedCommentTaskId ? comments.length : 0 }}</span>
+        </div>
+
+        <form class="lookup-form" (ngSubmit)="loadComments()">
+          <input
+            type="text"
+            name="commentTaskId"
+            placeholder="Task GUID"
+            [(ngModel)]="commentTaskId"
+          />
+          <button type="submit" class="action-button">Load comments</button>
+        </form>
+
+        <p class="section-hint">
+          Enter the task GUID you want to inspect. The service returns the comment thread for that task.
+        </p>
+
+        <p class="loading-note" *ngIf="commentsLoading">Loading comments…</p>
+
+        <div class="comment-list" *ngIf="!commentsLoading && loadedCommentTaskId">
+          <article class="comment-card" *ngFor="let comment of comments">
+            <p class="comment-body">{{ comment.body }}</p>
+            <div class="project-stats">
+              <span>{{ comment.authorUserId }}</span>
+              <span>{{ comment.createdAt | date:'short' }}</span>
+            </div>
+          </article>
+        </div>
+
+        <p class="empty-note" *ngIf="!commentsLoading && loadedCommentTaskId && comments.length === 0">
+          No comments found for that task.
         </p>
       </section>
     </ng-container>

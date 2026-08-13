@@ -1,18 +1,20 @@
 import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { ReportService, UserTaskSummary } from '../../services/report.service';
 import { UserAdminService, AdminUser } from '../../services/user-admin.service';
+import { ProjectService, ProjectItem } from '../../services/project.service';
+import { CommentService, CommentItem } from '../../services/comment.service';
 import { AuthService } from '../../services/auth.service';
 
-type NavSection = 'reports' | 'users' | 'roles';
+type NavSection = 'reports' | 'users' | 'roles' | 'projects' | 'comments';
 
-// The only role this screen lets an admin toggle from the Users table.
 const ASSIGNABLE_ROLE = 'admin';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.css'
 })
@@ -20,26 +22,37 @@ export class DashboardComponent implements OnInit {
   activeSection: NavSection = 'reports';
   readonly assignableRole = ASSIGNABLE_ROLE;
 
-  // Reports
   summary: UserTaskSummary[] = [];
   loadError = false;
   isLoading = true;
 
-  // Users
   users: AdminUser[] = [];
   usersLoading = false;
   usersLoaded = false;
   usersError: string | null = null;
   pendingUserIds = new Set<string>();
 
-  // Roles
   roles: string[] = [];
   rolesLoading = false;
   rolesLoaded = false;
   rolesError: string | null = null;
 
+  projects: ProjectItem[] = [];
+  projectsLoading = false;
+  projectsLoaded = false;
+  projectsError: string | null = null;
+
+  commentTaskId = '';
+  comments: CommentItem[] = [];
+  commentsLoading = false;
+  commentsLoaded = false;
+  commentsError: string | null = null;
+  loadedCommentTaskId: string | null = null;
+
   reportService = inject(ReportService);
   userAdminService = inject(UserAdminService);
+  projectService = inject(ProjectService);
+  commentService = inject(CommentService);
   authService = inject(AuthService);
 
   get totalTasks(): number {
@@ -48,6 +61,10 @@ export class DashboardComponent implements OnInit {
 
   get totalCompleted(): number {
     return this.summary.reduce((sum, row) => sum + row.completedTasks, 0);
+  }
+
+  get projectTaskLinks(): number {
+    return this.projects.reduce((sum, project) => sum + project.taskIds.length, 0);
   }
 
   ngOnInit() {
@@ -71,6 +88,12 @@ export class DashboardComponent implements OnInit {
     }
     if (section === 'roles' && !this.rolesLoaded) {
       this.loadRoles();
+    }
+    if (section === 'projects' && !this.projectsLoaded) {
+      this.loadProjects();
+    }
+    if (section === 'comments' && !this.commentsLoaded && this.loadedCommentTaskId) {
+      this.loadComments();
     }
   }
 
@@ -107,6 +130,48 @@ export class DashboardComponent implements OnInit {
     });
   }
 
+  loadProjects() {
+    this.projectsLoading = true;
+    this.projectsError = null;
+    this.projectService.getProjects().subscribe({
+      next: (data) => {
+        this.projects = data;
+        this.projectsLoaded = true;
+        this.projectsLoading = false;
+      },
+      error: () => {
+        this.projectsError = "Couldn't load projects.";
+        this.projectsLoading = false;
+      }
+    });
+  }
+
+  loadComments() {
+    const taskId = this.commentTaskId.trim();
+    if (!taskId) {
+      this.commentsError = 'Enter a task GUID first.';
+      this.comments = [];
+      this.loadedCommentTaskId = null;
+      this.commentsLoaded = false;
+      return;
+    }
+
+    this.commentsLoading = true;
+    this.commentsError = null;
+    this.loadedCommentTaskId = taskId;
+    this.commentService.getComments(taskId).subscribe({
+      next: (data) => {
+        this.comments = data;
+        this.commentsLoaded = true;
+        this.commentsLoading = false;
+      },
+      error: () => {
+        this.commentsError = "Couldn't load comments for that task.";
+        this.commentsLoading = false;
+      }
+    });
+  }
+
   hasAdminRole(user: AdminUser): boolean {
     return user.roles.includes(this.assignableRole);
   }
@@ -117,7 +182,6 @@ export class DashboardComponent implements OnInit {
     const hadRole = this.hasAdminRole(user);
     this.pendingUserIds.add(user.id);
 
-    // Optimistic update, rolled back on failure.
     user.roles = hadRole
       ? user.roles.filter((r) => r !== this.assignableRole)
       : [...user.roles, this.assignableRole];
