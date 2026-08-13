@@ -7,24 +7,17 @@ import { inject } from '@angular/core';
 
 import {
   catchError,
-  throwError
+  throwError,
+  switchMap
 } from 'rxjs';
 
 import { environment } from '../environments/environment';
 import { AuthService } from './services/auth.service';
 
-export const authInterceptor: HttpInterceptorFn = (
-  req,
-  next
-) => {
-  const authService =
-    inject(AuthService);
+export const authInterceptor: HttpInterceptorFn = (req, next) => {
+  const authService = inject(AuthService);
 
-  const authBaseUrl =
-    environment.authApi.replace(
-      /\/api\/v1$/,
-      ''
-    );
+  const authBaseUrl = environment.authApi.replace(/\/api\/v1$/, '');
 
   const authBypassPaths = [
     '/token',
@@ -35,34 +28,21 @@ export const authInterceptor: HttpInterceptorFn = (
 
   const isAuthEndpoint =
     req.url.startsWith(authBaseUrl) &&
-    authBypassPaths.some(
-      path => req.url.endsWith(path)
-    );
+    authBypassPaths.some(path => req.url.endsWith(path));
 
   /*
-   * /token, refresh and logout don't need
-   * an access token.
+   * /token, refresh and logout don't need an access token.
    */
-  if (
-    isAuthEndpoint &&
-    !req.url.endsWith('/verify')
-  ) {
+  if (isAuthEndpoint && !req.url.endsWith('/verify')) {
     return next(req);
   }
 
   /*
-   * /verify is called by AuthService while
-   * initialLoadPromise is being resolved.
-   *
-   * Therefore it must NEVER wait for
-   * initialLoadPromise.
+   * /verify is called by AuthService while initialLoadPromise is being resolved.
+   * Therefore it must NEVER wait for initialLoadPromise.
    */
-  if (
-    isAuthEndpoint &&
-    req.url.endsWith('/verify')
-  ) {
-    const token =
-      authService.accessToken;
+  if (isAuthEndpoint && req.url.endsWith('/verify')) {
+    const token = authService.accessToken;
 
     if (!token) {
       return next(req);
@@ -71,8 +51,7 @@ export const authInterceptor: HttpInterceptorFn = (
     return next(
       req.clone({
         setHeaders: {
-          Authorization:
-            `Bearer ${token}`
+          Authorization: `Bearer ${token}`
         }
       })
     );
@@ -80,72 +59,42 @@ export const authInterceptor: HttpInterceptorFn = (
 
   /*
    * Normal protected API requests.
-   *
-   * At this point AuthService has already
-   * completed its initial session validation.
+   * At this point AuthService has already completed its initial session validation.
    */
-  const token =
-    authService.accessToken;
+  const token = authService.accessToken;
 
-  const authenticatedRequest =
-    token
-      ? req.clone({
-          setHeaders: {
-            Authorization:
-              `Bearer ${token}`
-          }
-        })
-      : req;
-
-  return next(
-    authenticatedRequest
-  ).pipe(
-    catchError(
-      (error: HttpErrorResponse) => {
-        if (
-          error.status !== 401 ||
-          !token
-        ) {
-          return throwError(
-            () => error
-          );
+  const authenticatedRequest = token
+    ? req.clone({
+        setHeaders: {
+          Authorization: `Bearer ${token}`
         }
+      })
+    : req;
 
-        return authService
-          .tryRefresh()
-          .pipe(
-            catchError(() =>
-              throwError(
-                () => error
-              )
-            ),
-            switchMap(success => {
-              const refreshedToken =
-                authService.accessToken;
-
-              if (
-                !success ||
-                !refreshedToken
-              ) {
-                return throwError(
-                  () => error
-                );
-              }
-
-              const retryRequest =
-                req.clone({
-                  setHeaders: {
-                    Authorization:
-                      `Bearer ${refreshedToken}`
-                  }
-                });
-
-              return next(
-                retryRequest
-              );
-            })
-          );
+  return next(authenticatedRequest).pipe(
+    catchError((error: HttpErrorResponse) => {
+      if (error.status !== 401 || !token) {
+        return throwError(() => error);
       }
-    )
+
+      return authService.tryRefresh().pipe(
+        catchError(() => throwError(() => error)),
+        switchMap((success: boolean) => {
+          const refreshedToken = authService.accessToken;
+
+          if (!success || !refreshedToken) {
+            return throwError(() => error);
+          }
+
+          const retryRequest = req.clone({
+            setHeaders: {
+              Authorization: `Bearer ${refreshedToken}`
+            }
+          });
+
+          return next(retryRequest);
+        })
+      );
+    })
   );
 };
