@@ -1,0 +1,125 @@
+<section class="page">
+  <header class="page-header">
+    <div>
+      <span class="eyebrow">Administration</span>
+      <h1>Overview</h1>
+      <p>
+        Monitor task activity across the platform.
+      </p>
+    </div>
+
+    <button
+      type="button"
+      class="secondary-button"
+      (click)="loadReport()"
+      [disabled]="isLoading"
+    >
+      Refresh
+    </button>
+  </header>
+
+  <section class="stats">
+    <div class="stat-card">
+      <span>Members</span>
+      <strong>{{ isLoading ? '—' : summary.length }}</strong>
+    </div>
+
+    <div class="stat-card">
+      <span>Total tasks</span>
+      <strong>{{ isLoading ? '—' : totalTasks }}</strong>
+    </div>
+
+    <div class="stat-card">
+      <span>Completed</span>
+      <strong>{{ isLoading ? '—' : totalCompleted }}</strong>
+    </div>
+
+    <div class="stat-card">
+      <span>Completion</span>
+      <strong>{{ isLoading ? '—' : completionRate }}%</strong>
+    </div>
+  </section>
+
+  <section
+    class="content-card"
+    *ngIf="loadError"
+  >
+    <div class="error-state">
+      <strong>Unable to load the report.</strong>
+      <button
+        type="button"
+        class="secondary-button"
+        (click)="loadReport()"
+      >
+        Try again
+      </button>
+    </div>
+  </section>
+
+  <section
+    class="content-card"
+    *ngIf="!loadError"
+  >
+    <div class="section-title">
+      <div>
+        <h2>Task activity</h2>
+        <p>
+          Completion status by team member.
+        </p>
+      </div>
+    </div>
+
+    <div
+      class="loading"
+      *ngIf="isLoading"
+    >
+      Loading report...
+    </div>
+
+    <div
+      class="table-wrapper"
+      *ngIf="
+        !isLoading &&
+        summary.length > 0
+      "
+    >
+      <table>
+        <thead>
+          <tr>
+            <th>User</th>
+            <th>Total</th>
+            <th>Completed</th>
+            <th>Pending</th>
+            <th>Completion</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          <tr *ngFor="let row of summary">
+            <td>{{ row.userId }}</td>
+            <td>{{ row.totalTasks }}</td>
+            <td>{{ row.completedTasks }}</td>
+            <td>
+              {{ row.totalTasks - row.completedTasks }}
+            </td>
+            <td>
+              <span class="badge">
+                {{ rowCompletion(row) }}%
+              </span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div
+      class="empty"
+      *ngIf="
+        !isLoading &&
+        summary.length === 0
+      "
+    >
+      No task activity yet.
+    </div>
+  </section>
+</section>
