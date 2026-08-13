@@ -66,7 +66,14 @@ public sealed class OwinStyleAuthHandler : AuthenticationHandler<AuthenticationS
 
         try
         {
-            using var response = await _httpClient.GetAsync($"verify?token={Uri.EscapeDataString(token)}", Context.RequestAborted);
+            // Token travels in the Authorization header, not a query string -
+            // IIS logs full request URLs (including query strings) by
+            // default, which would have written every access token used
+            // anywhere in the system into Tracker.AuthService's own access
+            // logs.
+            using var request = new HttpRequestMessage(HttpMethod.Get, "verify");
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            using var response = await _httpClient.SendAsync(request, Context.RequestAborted);
             if (!response.IsSuccessStatusCode)
                 return AuthenticateResult.Fail("Auth service token verification failed.");
 
