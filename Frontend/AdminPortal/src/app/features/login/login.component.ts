@@ -16,7 +16,7 @@ export class LoginComponent {
   private router = inject(Router);
 
   username = 'admin';
-  password = 'admin';
+  password = '123456';
   errorMessage = '';
   isSubmitting = false;
 
