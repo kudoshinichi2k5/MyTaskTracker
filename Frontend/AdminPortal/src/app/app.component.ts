@@ -4,9 +4,7 @@ import {
   inject
 } from '@angular/core';
 
-import {
-  CommonModule
-} from '@angular/common';
+import { CommonModule } from '@angular/common';
 
 import {
   Router,
@@ -80,11 +78,5 @@ export class AppComponent implements OnInit {
 
   logout(): void {
     this.authService.logout();
-  }
-
-  isLoginPage(): boolean {
-    return this.currentUrl.startsWith(
-      '/login'
-    );
   }
 }

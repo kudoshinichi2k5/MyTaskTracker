@@ -1,17 +1,3 @@
-<!--
-  Login / public pages
-  --------------------
-  Do not display the Admin shell here.
--->
-<router-outlet
-  *ngIf="isReady && !isAuthenticated"
-></router-outlet>
-
-
-<!--
-  Authenticated Admin Portal
-  --------------------------
--->
 <div
   class="admin-shell"
   *ngIf="isReady && isAuthenticated"
@@ -116,9 +102,7 @@
             {{ username || 'Administrator' }}
           </strong>
 
-          <span>
-            Administrator
-          </span>
+          <span>Administrator</span>
         </div>
 
       </div>
@@ -174,5 +158,10 @@
     </section>
 
   </main>
-
 </div>
+
+
+<!-- Public pages -->
+<router-outlet
+  *ngIf="isReady && !isAuthenticated"
+></router-outlet>
