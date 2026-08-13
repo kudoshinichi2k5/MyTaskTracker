@@ -79,20 +79,23 @@ public sealed class OpaqueTokenAuthenticationHandler : AuthenticationHandler<Opa
             return AuthenticateResult.Fail("Malformed verification response.");
         }
 
-        if (verified is null || string.IsNullOrEmpty(verified.UserId))
+        if (verified is null || !verified.Active || string.IsNullOrWhiteSpace(verified.Username))
         {
             return AuthenticateResult.Fail("Token did not resolve to a user.");
         }
 
         var claims = new List<Claim>
         {
-            new(ClaimTypes.NameIdentifier, verified.UserId),
-            new(ClaimTypes.Name, verified.Username ?? verified.UserId)
+            new(ClaimTypes.NameIdentifier, verified.Username),
+            new(ClaimTypes.Name, verified.Username)
         };
 
-        if (!string.IsNullOrEmpty(verified.Role))
+        foreach (var role in verified.Roles ?? Array.Empty<string>())
         {
-            claims.Add(new Claim(ClaimTypes.Role, verified.Role));
+            if (!string.IsNullOrWhiteSpace(role))
+            {
+                claims.Add(new Claim(ClaimTypes.Role, role));
+            }
         }
 
         var identity = new ClaimsIdentity(claims, Scheme.Name);
@@ -104,8 +107,8 @@ public sealed class OpaqueTokenAuthenticationHandler : AuthenticationHandler<Opa
 
     private sealed class VerifyResponse
     {
-        public string? UserId { get; set; }
+        public bool Active { get; set; }
         public string? Username { get; set; }
-        public string? Role { get; set; }
+        public string[]? Roles { get; set; }
     }
 }
