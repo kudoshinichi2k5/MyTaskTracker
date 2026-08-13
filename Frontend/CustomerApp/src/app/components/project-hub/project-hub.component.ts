@@ -5,8 +5,6 @@ import { CommentItem, CommentService } from '../../services/comment.service';
 import { ProjectItem, ProjectService } from '../../services/project.service';
 import { ToastService } from '../../services/toast.service';
 
-const GUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
 @Component({
   selector: 'app-project-hub',
   standalone: true,
@@ -24,7 +22,6 @@ export class ProjectHubComponent implements OnInit {
   editingProjectId: string | null = null;
   editingProjectName = '';
   editingProjectDescription = '';
-  taskIdsToAttach: Record<string, string> = {};
 
   commentTaskId = '';
   comments: CommentItem[] = [];
@@ -39,6 +36,18 @@ export class ProjectHubComponent implements OnInit {
   private readonly commentService = inject(CommentService);
   private readonly toast = inject(ToastService);
   private readonly cdr = inject(ChangeDetectorRef);
+
+  get projectCount(): number {
+    return this.projects.length;
+  }
+
+  get attachedTaskCount(): number {
+    return this.projects.reduce((sum, project) => sum + project.taskIds.length, 0);
+  }
+
+  get visibleCommentCount(): number {
+    return this.loadedCommentTaskId ? this.comments.length : 0;
+  }
 
   ngOnInit(): void {
     this.loadProjects();
@@ -122,37 +131,10 @@ export class ProjectHubComponent implements OnInit {
     });
   }
 
-  attachTask(project: ProjectItem) {
-    const taskId = (this.taskIdsToAttach[project.id] ?? '').trim();
-    if (!this.isGuid(taskId)) {
-      this.toast.error('Enter a valid task GUID first.');
-      return;
-    }
-
-    this.projectService.attachTask(project.id, taskId).subscribe({
-      next: (updated) => {
-        this.projects = this.projects.map((item) => (item.id === updated.id ? updated : item));
-        this.taskIdsToAttach[project.id] = '';
-        this.cdr.markForCheck();
-      },
-      error: () => this.toast.error("Couldn't attach that task to the project.")
-    });
-  }
-
-  detachTask(project: ProjectItem, taskId: string) {
-    this.projectService.detachTask(project.id, taskId).subscribe({
-      next: (updated) => {
-        this.projects = this.projects.map((item) => (item.id === updated.id ? updated : item));
-        this.cdr.markForCheck();
-      },
-      error: () => this.toast.error("Couldn't detach that task from the project.")
-    });
-  }
-
   loadComments() {
     const taskId = this.commentTaskId.trim();
-    if (!this.isGuid(taskId)) {
-      this.commentsError = 'Enter a valid task GUID.';
+    if (!taskId) {
+      this.commentsError = 'Enter a task GUID first.';
       this.comments = [];
       this.loadedCommentTaskId = null;
       this.cdr.markForCheck();
@@ -224,9 +206,5 @@ export class ProjectHubComponent implements OnInit {
       },
       error: () => this.toast.error("Couldn't delete that comment.")
     });
-  }
-
-  private isGuid(value: string): boolean {
-    return GUID_PATTERN.test(value);
   }
 }

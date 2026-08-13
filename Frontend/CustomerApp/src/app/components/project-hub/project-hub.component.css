@@ -1,15 +1,45 @@
 .project-hub {
   display: grid;
-  gap: 24px;
+  gap: 18px;
   margin-top: 28px;
+}
+
+.hub-intro {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 24px 24px 0;
+}
+
+.hub-intro h2 {
+  margin: 4px 0 8px;
+  font-family: var(--font-display);
+  font-size: 28px;
+  color: var(--color-ink);
+}
+
+.hub-intro p {
+  margin: 0;
+  max-width: 60ch;
+  color: var(--color-muted);
+  line-height: 1.6;
+}
+
+.hub-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
 }
 
 .hub-panel {
   border: 1px solid var(--color-line);
-  border-radius: 20px;
+  border-radius: 24px;
   padding: 22px;
-  background: rgba(255, 255, 255, 0.72);
-  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.05);
+  background:
+    radial-gradient(circle at top right, rgba(186, 201, 172, 0.18), transparent 36%),
+    rgba(255, 255, 255, 0.88);
+  box-shadow: 0 14px 44px rgba(15, 23, 42, 0.06);
 }
 
 .panel-head {
@@ -20,14 +50,7 @@
   margin-bottom: 18px;
 }
 
-.panel-head h2 {
-  margin: 4px 0 0;
-  font-family: var(--font-display);
-  font-size: 22px;
-  color: var(--color-ink);
-}
-
-.eyebrow {
+.panel-kicker {
   display: block;
   font-family: var(--font-mono);
   font-size: 11px;
@@ -36,10 +59,15 @@
   color: var(--color-accent);
 }
 
+.panel-meta {
+  margin-top: 6px;
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
 .ghost-button,
 .danger-button,
-.stacked-form button,
-.attach-form button {
+.stacked-form button {
   border-radius: 12px;
   padding: 10px 14px;
   border: 1px solid var(--color-line);
@@ -48,12 +76,16 @@
   cursor: pointer;
 }
 
+.ghost-button:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
 .danger-button {
   color: var(--color-danger);
 }
 
-.stacked-form,
-.attach-form {
+.stacked-form {
   display: grid;
   gap: 10px;
   margin-bottom: 18px;
@@ -61,24 +93,37 @@
 
 .stacked-form input,
 .stacked-form textarea,
-.attach-form input,
 .project-edit input,
 .project-edit textarea,
 .comment-body textarea {
   width: 100%;
   border: 1px solid var(--color-line);
-  border-radius: 12px;
+  border-radius: 14px;
   padding: 11px 12px;
   font: inherit;
   color: var(--color-ink);
   background: var(--color-surface);
 }
 
-.stacked-form button,
-.attach-form button {
+.stacked-form input:focus,
+.stacked-form textarea:focus,
+.project-edit input:focus,
+.project-edit textarea:focus,
+.comment-body textarea:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(103, 128, 105, 0.15);
+}
+
+.stacked-form button {
   background: var(--color-ink);
   color: #fff;
   border-color: var(--color-ink);
+}
+
+.stacked-form button:hover:not(:disabled) {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
 }
 
 .project-list,
@@ -90,17 +135,16 @@
 .project-card,
 .comment-card {
   border: 1px solid var(--color-line);
-  border-radius: 16px;
+  border-radius: 18px;
   padding: 16px;
   background: #fff;
 }
 
 .project-card-head,
-.comment-actions,
-.chip-row {
+.comment-actions {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
 }
@@ -119,6 +163,11 @@
   font-size: 13px;
 }
 
+.helper-text {
+  margin: -8px 0 14px;
+  line-height: 1.5;
+}
+
 .project-edit {
   display: grid;
   gap: 10px;
@@ -129,7 +178,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin: 14px 0;
+  margin: 14px 0 0;
 }
 
 .chip {
@@ -141,15 +190,6 @@
   padding: 6px 10px;
   font-size: 12px;
   word-break: break-all;
-}
-
-.link-button {
-  border: 0;
-  background: transparent;
-  color: var(--color-accent);
-  cursor: pointer;
-  padding: 0;
-  font-size: 12.5px;
 }
 
 .error-banner {
@@ -172,4 +212,17 @@
 @keyframes shimmer {
   0% { background-position: 0 0; }
   100% { background-position: 240% 0; }
+}
+
+@media (max-width: 960px) {
+  .hub-intro,
+  .hub-grid {
+    grid-template-columns: 1fr;
+    display: grid;
+  }
+
+  .hub-intro {
+    align-items: start;
+    padding: 0 0 4px;
+  }
 }

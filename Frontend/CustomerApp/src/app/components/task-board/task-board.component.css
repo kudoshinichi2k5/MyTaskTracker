@@ -1,14 +1,30 @@
 .board-page {
-  max-width: 640px;
+  max-width: 1120px;
   margin: 0 auto;
-  padding: 56px 24px;
+  padding: 46px 20px 64px;
+  display: grid;
+  gap: 24px;
 }
 
 .board-header {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  margin-bottom: 28px;
+  gap: 20px;
+  padding: 26px 28px;
+  border: 1px solid var(--color-line);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at top left, rgba(186, 201, 172, 0.16), transparent 38%),
+    rgba(255, 255, 255, 0.9);
+  box-shadow: 0 12px 38px rgba(15, 23, 42, 0.05);
+}
+
+.board-subtitle {
+  max-width: 60ch;
+  margin: 10px 0 0;
+  color: var(--color-muted);
+  line-height: 1.6;
 }
 
 .header-actions {
@@ -29,10 +45,18 @@
 
 h1 {
   font-family: var(--font-display);
-  font-size: 30px;
+  font-size: 34px;
   font-weight: 600;
   margin: 0;
   color: var(--color-ink);
+}
+
+.board-card {
+  border: 1px solid var(--color-line);
+  border-radius: 24px;
+  padding: 24px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 12px 38px rgba(15, 23, 42, 0.05);
 }
 
 .logout-button {
@@ -59,9 +83,9 @@ h1 {
 
 .add-task-form input {
   flex: 1;
-  padding: 11px 14px;
+  padding: 12px 14px;
   border: 1px solid var(--color-line);
-  border-radius: var(--radius-md);
+  border-radius: 14px;
   font-size: 14.5px;
   font-family: var(--font-body);
   color: var(--color-ink);
@@ -74,10 +98,10 @@ h1 {
 
 .add-task-form button {
   padding: 0 20px;
-  background: var(--color-ink);
+  background: linear-gradient(135deg, var(--color-ink), #4b5f4d);
   color: #fff;
   border: none;
-  border-radius: var(--radius-md);
+  border-radius: 14px;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -129,6 +153,7 @@ h1 {
   margin: 0;
   padding: 0;
   border-top: 1px solid var(--color-line);
+  margin-top: 18px;
 }
 
 .task-row {
@@ -146,13 +171,12 @@ h1 {
   cursor: pointer;
   flex: 1;
 }
-
 .edit-input {
   flex: 1;
   margin: 8px 4px;
   padding: 8px 10px;
   border: 1px solid var(--color-accent);
-  border-radius: var(--radius-md);
+  border-radius: 12px;
   font-size: 15px;
   font-family: var(--font-body);
   color: var(--color-ink);
@@ -261,6 +285,17 @@ h1 {
   width: 60%;
 }
 
+@media (max-width: 900px) {
+  .board-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .header-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
 @keyframes skeleton-pulse {
   0%, 100% { opacity: 0.5; }
   50% { opacity: 1; }
