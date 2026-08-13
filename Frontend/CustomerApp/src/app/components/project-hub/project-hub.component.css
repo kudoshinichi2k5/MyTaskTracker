@@ -192,6 +192,42 @@
   word-break: break-all;
 }
 
+.task-quick-picks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 0 14px;
+}
+
+.task-chip {
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.task-chip:hover {
+  border-color: var(--color-accent);
+  transform: translateY(-1px);
+}
+
+.advanced-lookup {
+  margin-bottom: 14px;
+  border: 1px dashed var(--color-line);
+  border-radius: 16px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.advanced-lookup summary {
+  cursor: pointer;
+  color: var(--color-muted);
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+
+.advanced-lookup[open] summary {
+  margin-bottom: 12px;
+}
+
 .error-banner {
   background: #fbeae2;
   color: var(--color-danger);

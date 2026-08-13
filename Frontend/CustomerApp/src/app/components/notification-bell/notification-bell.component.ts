@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, HostListener, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { NotificationService, NotificationItem } from '../../services/notification.service';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-notification-bell',
@@ -17,6 +18,7 @@ export class NotificationBellComponent implements OnInit {
   private listLoaded = false;
 
   private notificationService = inject(NotificationService);
+  private authService = inject(AuthService);
   private elementRef = inject(ElementRef);
   private cdr = inject(ChangeDetectorRef);
 
@@ -29,15 +31,23 @@ export class NotificationBellComponent implements OnInit {
     // dedicated /unread-count endpoint instead of pulling the full list
     // on every page load - the full list is only fetched once the
     // dropdown is actually opened (see toggle()).
-    this.notificationService.getUnreadCount().subscribe({
-      next: (count) => {
-        this.unreadCount = count;
-        this.cdr.markForCheck();
-      },
-      error: () => {
+    void this.authService.initialLoadPromise.finally(() => {
+      if (!this.authService.accessToken) {
         this.unreadCount = 0;
         this.cdr.markForCheck();
+        return;
       }
+
+      this.notificationService.getUnreadCount().subscribe({
+        next: (count) => {
+          this.unreadCount = count;
+          this.cdr.markForCheck();
+        },
+        error: () => {
+          this.unreadCount = 0;
+          this.cdr.markForCheck();
+        }
+      });
     });
   }
 

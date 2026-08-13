@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, inject }
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CommentItem, CommentService } from '../../services/comment.service';
+import { AuthService } from '../../services/auth.service';
 import { ProjectItem, ProjectService } from '../../services/project.service';
 import { ToastService } from '../../services/toast.service';
 
@@ -31,9 +32,11 @@ export class ProjectHubComponent implements OnInit {
   editingCommentId: string | null = null;
   editingCommentBody = '';
   loadedCommentTaskId: string | null = null;
+  commentTaskPreview = '';
 
   private readonly projectService = inject(ProjectService);
   private readonly commentService = inject(CommentService);
+  private readonly authService = inject(AuthService);
   private readonly toast = inject(ToastService);
   private readonly cdr = inject(ChangeDetectorRef);
 
@@ -50,7 +53,7 @@ export class ProjectHubComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.loadProjects();
+    void this.authService.initialLoadPromise.finally(() => this.loadProjects());
   }
 
   trackByProjectId(_: number, project: ProjectItem) {
@@ -65,13 +68,34 @@ export class ProjectHubComponent implements OnInit {
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
   }
 
-  loadProjects() {
+  get taskChoices(): string[] {
+    const taskIds = this.projects.flatMap((project) => project.taskIds);
+    return Array.from(new Set(taskIds));
+  }
+
+  selectTask(taskId: string) {
+    this.commentTaskId = taskId;
+    this.commentTaskPreview = taskId;
+    this.loadComments();
+  }
+
+  async loadProjects() {
+    await this.authService.initialLoadPromise;
+    if (!this.authService.accessToken) {
+      this.projectsLoading = false;
+      this.projectsError = 'Please sign in again to load projects.';
+      this.cdr.markForCheck();
+      return;
+    }
     this.projectsLoading = true;
     this.projectsError = null;
     this.projectService.getProjects().subscribe({
       next: (projects) => {
         this.projects = projects;
         this.projectsLoading = false;
+        if (!this.commentTaskId && this.taskChoices.length > 0) {
+          this.commentTaskPreview = this.taskChoices[0];
+        }
         this.cdr.markForCheck();
       },
       error: () => {
@@ -82,7 +106,12 @@ export class ProjectHubComponent implements OnInit {
     });
   }
 
-  createProject() {
+  async createProject() {
+    await this.authService.initialLoadPromise;
+    if (!this.authService.accessToken) {
+      this.toast.error('Please sign in again before creating a project.');
+      return;
+    }
     const name = this.newProjectName.trim();
     const description = this.newProjectDescription.trim() || null;
     if (!name) return;
@@ -110,7 +139,12 @@ export class ProjectHubComponent implements OnInit {
     this.editingProjectDescription = '';
   }
 
-  saveProject(project: ProjectItem) {
+  async saveProject(project: ProjectItem) {
+    await this.authService.initialLoadPromise;
+    if (!this.authService.accessToken) {
+      this.toast.error('Please sign in again before updating a project.');
+      return;
+    }
     const name = this.editingProjectName.trim();
     if (!name) return;
 
@@ -125,7 +159,12 @@ export class ProjectHubComponent implements OnInit {
     });
   }
 
-  deleteProject(project: ProjectItem) {
+  async deleteProject(project: ProjectItem) {
+    await this.authService.initialLoadPromise;
+    if (!this.authService.accessToken) {
+      this.toast.error('Please sign in again before deleting a project.');
+      return;
+    }
     this.projectService.deleteProject(project.id).subscribe({
       next: () => {
         this.projects = this.projects.filter((item) => item.id !== project.id);
@@ -135,7 +174,13 @@ export class ProjectHubComponent implements OnInit {
     });
   }
 
-  loadComments() {
+  async loadComments() {
+    await this.authService.initialLoadPromise;
+    if (!this.authService.accessToken) {
+      this.commentsError = 'Please sign in again to load comments.';
+      this.cdr.markForCheck();
+      return;
+    }
     const taskId = this.commentTaskId.trim();
     if (!taskId || !this.isValidGuid(taskId)) {
       this.commentsError = 'Enter a valid task GUID first.';
@@ -149,6 +194,7 @@ export class ProjectHubComponent implements OnInit {
     this.commentsLoading = true;
     this.commentsError = null;
     this.loadedCommentTaskId = taskId;
+    this.commentTaskPreview = taskId;
     this.commentService.getComments(taskId).subscribe({
       next: (comments) => {
         this.comments = comments;
@@ -164,7 +210,12 @@ export class ProjectHubComponent implements OnInit {
     });
   }
 
-  addComment() {
+  async addComment() {
+    await this.authService.initialLoadPromise;
+    if (!this.authService.accessToken) {
+      this.toast.error('Please sign in again before adding a comment.');
+      return;
+    }
     const taskId = this.loadedCommentTaskId;
     const body = this.newCommentBody.trim();
     if (!taskId || !body) return;
@@ -189,7 +240,12 @@ export class ProjectHubComponent implements OnInit {
     this.editingCommentBody = '';
   }
 
-  saveComment(comment: CommentItem) {
+  async saveComment(comment: CommentItem) {
+    await this.authService.initialLoadPromise;
+    if (!this.authService.accessToken) {
+      this.toast.error('Please sign in again before editing a comment.');
+      return;
+    }
     const body = this.editingCommentBody.trim();
     if (!body) return;
 
@@ -203,7 +259,12 @@ export class ProjectHubComponent implements OnInit {
     });
   }
 
-  deleteComment(comment: CommentItem) {
+  async deleteComment(comment: CommentItem) {
+    await this.authService.initialLoadPromise;
+    if (!this.authService.accessToken) {
+      this.toast.error('Please sign in again before deleting a comment.');
+      return;
+    }
     this.commentService.deleteComment(comment.id).subscribe({
       next: () => {
         this.comments = this.comments.filter((item) => item.id !== comment.id);

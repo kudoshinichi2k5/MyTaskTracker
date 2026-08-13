@@ -92,17 +92,35 @@
         </div>
       </div>
 
-      <form class="stacked-form" (ngSubmit)="loadComments()">
-        <input
-          type="text"
-          name="commentTaskId"
-          placeholder="Task GUID"
-          [(ngModel)]="commentTaskId"
-        />
-        <button type="submit">Load comments</button>
-      </form>
+      <p class="helper-text">
+        Pick a task from the project list to open its comment thread. If you already know the GUID, you
+        can still paste it below.
+      </p>
 
-      <p class="helper-text">Use the task GUID here. That keeps comments tied to the exact task record.</p>
+      <div class="task-quick-picks" *ngIf="taskChoices.length > 0">
+        <button
+          type="button"
+          class="chip task-chip"
+          *ngFor="let taskId of taskChoices"
+          (click)="selectTask(taskId)"
+        >
+          {{ taskId }}
+        </button>
+      </div>
+
+      <details class="advanced-lookup">
+        <summary>Use a task GUID manually</summary>
+        <form class="stacked-form" (ngSubmit)="loadComments()">
+          <input
+            type="text"
+            name="commentTaskId"
+            placeholder="Task GUID"
+            [(ngModel)]="commentTaskId"
+          />
+          <button type="submit">Load comments</button>
+        </form>
+      </details>
+
       <p class="error-banner" *ngIf="commentsError">{{ commentsError }}</p>
 
       <form class="stacked-form" *ngIf="loadedCommentTaskId" (ngSubmit)="addComment()">
