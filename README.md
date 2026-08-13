@@ -5,7 +5,7 @@ TaskTracker is a .NET 8 microservices sample with two Angular 18 applications:
 - **CustomerApp** (`http://localhost:4200`) manages a signed-in user's tasks and notifications.
 - **AdminPortal** (`http://localhost:4300`) provides task summaries and role administration.
 
-Authentication preserves an OWIN-style password-grant contract while using ASP.NET Core middleware. It issues opaque access tokens rather than JWTs.
+Authentication preserves an OWIN-style password-grant contract while using ASP.NET Core middleware. The system utilizes a centralized authentication model where tokens are simply random, opaque strings. These strings are stored in a database/memory and must be explicitly looked up and validated on every single request, completely bypassing JWTs.
 
 ## Architecture
 
