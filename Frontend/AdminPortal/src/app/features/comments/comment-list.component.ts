@@ -3,6 +3,10 @@ import {
 } from '@angular/common';
 
 import {
+  forkJoin
+} from 'rxjs';
+
+import {
   Component,
   OnInit,
   inject
@@ -104,41 +108,38 @@ export class CommentListComponent
     this.isLoading = true;
     this.error = null;
 
-    this.projectService
-      .getProjects()
-      .subscribe({
-        next: projects => {
-          this.projects = projects;
+    forkJoin({
+      projects:
+        this.projectService.getProjects(),
 
-          this.taskService
-            .getTasks()
-            .subscribe({
-              next: tasks => {
-                this.tasks = tasks;
-                this.isLoading = false;
+      tasks:
+        this.taskService.getTasks()
+    }).subscribe({
+      next: ({ projects, tasks }) => {
+        this.projects = projects;
+        this.tasks = tasks;
 
-                if (
-                  this.selectedTaskId !==
-                  null
-                ) {
-                  void this.loadComments();
-                }
-              },
+        this.isLoading = false;
 
-              error: () => {
-                this.error =
-                  'Unable to load tasks.';
-                this.isLoading = false;
-              }
-            });
-        },
-
-        error: () => {
-          this.error =
-            'Unable to load projects.';
-          this.isLoading = false;
+        if (
+          this.selectedTaskId !== null
+        ) {
+          void this.loadComments();
         }
-      });
+      },
+
+      error: (error) => {
+        console.error(
+          'Failed to load comment context.',
+          error
+        );
+
+        this.error =
+          'Unable to load projects or tasks.';
+
+        this.isLoading = false;
+      }
+    });
   }
 
   changeProject(
