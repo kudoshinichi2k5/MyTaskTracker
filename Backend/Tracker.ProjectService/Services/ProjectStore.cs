@@ -4,14 +4,18 @@ using Tracker.ProjectService.Models;
 namespace Tracker.ProjectService.Services;
 
 /// <summary>
-/// In-memory project store, mirroring the "no database persistence yet"
-/// limitation documented for the other services in this repo.
+/// In-memory project store.
+/// Projects belong to users and contain references
+/// to TaskService task IDs.
 /// </summary>
 public sealed class ProjectStore
 {
     private readonly ConcurrentDictionary<Guid, ProjectItem> _projects = new();
 
-    public ProjectItem Create(string ownerUserId, string name, string? description)
+    public ProjectItem Create(
+        string ownerUserId,
+        string name,
+        string? description)
     {
         var project = new ProjectItem
         {
@@ -21,18 +25,33 @@ public sealed class ProjectStore
         };
 
         _projects[project.Id] = project;
+
         return project;
     }
 
-    public IReadOnlyCollection<ProjectItem> GetAllForUser(string userId) =>
-        _projects.Values.Where(p => p.OwnerUserId == userId).ToList();
+    public IReadOnlyCollection<ProjectItem> GetAllForUser(
+        string userId) =>
+        _projects.Values
+            .Where(p => p.OwnerUserId == userId)
+            .ToList();
 
     public ProjectItem? GetById(Guid id) =>
-        _projects.TryGetValue(id, out var project) ? project : null;
+        _projects.TryGetValue(
+            id,
+            out var project)
+            ? project
+            : null;
 
-    public ProjectItem? Update(Guid id, string ownerUserId, string name, string? description)
+    public ProjectItem? Update(
+        Guid id,
+        string ownerUserId,
+        string name,
+        string? description)
     {
-        if (!_projects.TryGetValue(id, out var project) || project.OwnerUserId != ownerUserId)
+        if (!_projects.TryGetValue(
+                id,
+                out var project)
+            || project.OwnerUserId != ownerUserId)
         {
             return null;
         }
@@ -40,22 +59,36 @@ public sealed class ProjectStore
         project.Name = name;
         project.Description = description;
         project.UpdatedAt = DateTimeOffset.UtcNow;
+
         return project;
     }
 
-    public bool Delete(Guid id, string ownerUserId)
+    public bool Delete(
+        Guid id,
+        string ownerUserId)
     {
-        if (!_projects.TryGetValue(id, out var project) || project.OwnerUserId != ownerUserId)
+        if (!_projects.TryGetValue(
+                id,
+                out var project)
+            || project.OwnerUserId != ownerUserId)
         {
             return false;
         }
 
-        return _projects.TryRemove(id, out _);
+        return _projects.TryRemove(
+            id,
+            out _);
     }
 
-    public ProjectItem? AttachTask(Guid projectId, string ownerUserId, Guid taskId)
+    public ProjectItem? AttachTask(
+        Guid projectId,
+        string ownerUserId,
+        int taskId)
     {
-        if (!_projects.TryGetValue(projectId, out var project) || project.OwnerUserId != ownerUserId)
+        if (!_projects.TryGetValue(
+                projectId,
+                out var project)
+            || project.OwnerUserId != ownerUserId)
         {
             return null;
         }
@@ -63,22 +96,30 @@ public sealed class ProjectStore
         if (!project.TaskIds.Contains(taskId))
         {
             project.TaskIds.Add(taskId);
-            project.UpdatedAt = DateTimeOffset.UtcNow;
+            project.UpdatedAt =
+                DateTimeOffset.UtcNow;
         }
 
         return project;
     }
 
-    public ProjectItem? DetachTask(Guid projectId, string ownerUserId, Guid taskId)
+    public ProjectItem? DetachTask(
+        Guid projectId,
+        string ownerUserId,
+        int taskId)
     {
-        if (!_projects.TryGetValue(projectId, out var project) || project.OwnerUserId != ownerUserId)
+        if (!_projects.TryGetValue(
+                projectId,
+                out var project)
+            || project.OwnerUserId != ownerUserId)
         {
             return null;
         }
 
         if (project.TaskIds.Remove(taskId))
         {
-            project.UpdatedAt = DateTimeOffset.UtcNow;
+            project.UpdatedAt =
+                DateTimeOffset.UtcNow;
         }
 
         return project;

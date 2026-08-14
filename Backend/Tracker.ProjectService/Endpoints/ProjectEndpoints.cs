@@ -103,38 +103,46 @@ public static class ProjectEndpoints
                 : Results.NotFound();
         });
 
-        projects.MapPost("/{id:guid}/tasks/{taskId:guid}", (
+        projects.MapPost(
+        "/{id:guid}/tasks/{taskId:int}",
+        (
             Guid id,
-            Guid taskId,
+            int taskId,
             HttpContext ctx,
             ProjectStore store) =>
         {
-            var updated = store.AttachTask(
-                id,
-                ctx.User.GetUserId(),
-                taskId);
+            var updated =
+                store.AttachTask(
+                    id,
+                    ctx.User.GetUserId(),
+                    taskId);
 
             return updated is null
                 ? Results.NotFound()
                 : Results.Ok(
-                    ProjectResponse.FromEntity(updated));
+                    ProjectResponse.FromEntity(
+                        updated));
         });
 
-        projects.MapDelete("/{id:guid}/tasks/{taskId:guid}", (
+        projects.MapDelete(
+        "/{id:guid}/tasks/{taskId:int}",
+        (
             Guid id,
-            Guid taskId,
+            int taskId,
             HttpContext ctx,
             ProjectStore store) =>
         {
-            var updated = store.DetachTask(
-                id,
-                ctx.User.GetUserId(),
-                taskId);
+            var updated =
+                store.DetachTask(
+                    id,
+                    ctx.User.GetUserId(),
+                    taskId);
 
             return updated is null
                 ? Results.NotFound()
                 : Results.Ok(
-                    ProjectResponse.FromEntity(updated));
+                    ProjectResponse.FromEntity(
+                        updated));
         });
     }
 
