@@ -1,75 +1,59 @@
 import {
   Component,
-  OnInit,
-  inject
+  OnInit
 } from '@angular/core';
-
-import { CommonModule } from '@angular/common';
 
 import {
   Router,
-  RouterLink,
-  RouterLinkActive,
-  RouterOutlet,
-  NavigationEnd
+  RouterOutlet
 } from '@angular/router';
 
-import { filter } from 'rxjs';
+import { CommonModule } from '@angular/common';
 
 import { AuthService } from './services/auth.service';
 
 @Component({
   selector: 'app-root',
   standalone: true,
+
   imports: [
     CommonModule,
-    RouterOutlet,
-    RouterLink,
-    RouterLinkActive
+    RouterOutlet
   ],
+
   templateUrl: './app.component.html',
   styleUrl: './app.component.css'
 })
 export class AppComponent implements OnInit {
-  private readonly authService =
-    inject(AuthService);
 
-  private readonly router =
-    inject(Router);
+  title = 'AdminPortal';
 
-  isAuthenticated = false;
   isReady = false;
 
-  currentUrl = '';
+  isAuthenticated = false;
 
-  ngOnInit(): void {
-    this.currentUrl =
-      this.router.url;
+  constructor(
+    private readonly authService: AuthService,
+    private readonly router: Router
+  ) {}
 
-    this.router.events
-      .pipe(
-        filter(
-          event =>
-            event instanceof NavigationEnd
-        )
-      )
-      .subscribe(
-        (event: NavigationEnd) => {
-          this.currentUrl =
-            event.urlAfterRedirects;
-        }
-      );
+  async ngOnInit(): Promise<void> {
 
-    void this.initialize();
-  }
-
-  private async initialize(): Promise<void> {
+    /*
+     * Wait for persisted authentication to be restored.
+     */
     await this.authService.initialLoadPromise;
 
     this.isAuthenticated =
       this.authService.hasValidToken;
 
     this.isReady = true;
+
+    /*
+     * Do not redirect here.
+     *
+     * authGuard is responsible for authorization.
+     */
   }
 
   get username(): string {
