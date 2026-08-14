@@ -37,6 +37,7 @@ export class AppComponent {
   readonly authService = inject(AuthService);
 
   isAuthenticated = false;
+  isReady = false;
 
   /*
    * Current browser URL.
@@ -55,6 +56,8 @@ export class AppComponent {
 
       this.isAuthenticated =
         this.authService.hasValidToken;
+
+      this.isReady = true;
 
       this.currentUrl =
         this.router.url;
@@ -86,5 +89,9 @@ export class AppComponent {
 
   logout(): void {
     this.authService.logout();
+  }
+
+  get username(): string {
+    return this.authService.username;
   }
 }
