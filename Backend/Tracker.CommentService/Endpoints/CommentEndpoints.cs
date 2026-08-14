@@ -12,37 +12,54 @@ public static class CommentEndpoints
         var taskComments = app.MapGroup("/api/v1/tasks/{taskId:guid}/comments")
             .RequireAuthorization();
 
-        taskComments.MapGet("/", (Guid taskId, CommentStore store) =>
-        {
-            var result = store
-                .GetForTask(taskId)
-                .Select(CommentResponse.FromEntity);
-
-            return Results.Ok(result);
-        });
-
-        taskComments.MapPost("/", (
-            Guid taskId,
-            CreateCommentRequest request,
-            HttpContext ctx,
-            CommentStore store) =>
-        {
-            if (string.IsNullOrWhiteSpace(request.Body))
+        // Comments scoped to a TaskService task.
+        app.MapGet(
+            "/api/v1/tasks/{taskId:int}/comments",
+            (
+                int taskId,
+                CommentStore store) =>
             {
-                return Results.BadRequest(new { error = "Body is required." });
-            }
+                var result =
+                    store.GetForTask(taskId)
+                        .Select(CommentResponse.FromEntity);
 
-            var userId = ctx.User.GetUserId();
+                return Results.Ok(result);
+            })
+            .RequireAuthorization();
 
-            var created = store.Add(
-                taskId,
-                userId,
-                request.Body.Trim());
+        app.MapPost(
+            "/api/v1/tasks/{taskId:int}/comments",
+            (
+                int taskId,
+                CreateCommentRequest request,
+                HttpContext ctx,
+                CommentStore store) =>
+            {
+                if (string.IsNullOrWhiteSpace(
+                        request.Body))
+                {
+                    return Results.BadRequest(
+                        new
+                        {
+                            error = "Body is required."
+                        });
+                }
 
-            return Results.Created(
-                $"/api/v1/tasks/{taskId}/comments/{created.Id}",
-                CommentResponse.FromEntity(created));
-        });
+                var userId =
+                    ctx.User.GetUserId();
+
+                var created =
+                    store.Add(
+                        taskId,
+                        userId,
+                        request.Body.Trim());
+
+                return Results.Created(
+                    $"/api/v1/tasks/{taskId}/comments/{created.Id}",
+                    CommentResponse.FromEntity(
+                        created));
+            })
+            .RequireAuthorization();
 
         // Direct comment operations
         // Edit/delete by the comment's own id.

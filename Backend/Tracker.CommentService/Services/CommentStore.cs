@@ -11,7 +11,21 @@ public sealed class CommentStore
 {
     private readonly ConcurrentDictionary<Guid, CommentItem> _comments = new();
 
-    public CommentItem Add(Guid taskId, string authorUserId, string body)
+    public IReadOnlyCollection<CommentItem> GetForTask(
+        int taskId)
+    {
+        return _comments.Values
+            .Where(comment =>
+                comment.TaskId == taskId)
+            .OrderBy(comment =>
+                comment.CreatedAt)
+            .ToList();
+    }
+
+    public CommentItem Add(
+        int taskId,
+        string authorUserId,
+        string body)
     {
         var comment = new CommentItem
         {
@@ -21,14 +35,9 @@ public sealed class CommentStore
         };
 
         _comments[comment.Id] = comment;
+
         return comment;
     }
-
-    public IReadOnlyCollection<CommentItem> GetForTask(Guid taskId) =>
-        _comments.Values
-            .Where(c => c.TaskId == taskId)
-            .OrderBy(c => c.CreatedAt)
-            .ToList();
 
     public CommentItem? GetById(Guid id) =>
         _comments.TryGetValue(id, out var comment) ? comment : null;
