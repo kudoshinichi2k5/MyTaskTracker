@@ -57,7 +57,7 @@ export const routes: Routes = [
   },
 
   {
-  path: 'tasks',
+    path: 'tasks',
     canActivate: [authGuard],
     loadComponent: () =>
       import(
