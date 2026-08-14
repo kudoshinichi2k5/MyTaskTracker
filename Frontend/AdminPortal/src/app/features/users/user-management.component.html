@@ -1,10 +1,19 @@
 <section class="page">
+
   <header class="page-header">
+
     <div>
-      <span class="eyebrow">Access</span>
-      <h1>Users</h1>
+      <span class="eyebrow">
+        Administration
+      </span>
+
+      <h1>
+        User Management
+      </h1>
+
       <p>
-        Manage accounts and Admin Portal access.
+        Monitor user accounts and control
+        Admin Portal access.
       </p>
     </div>
 
@@ -14,19 +23,169 @@
       (click)="loadUsers()"
       [disabled]="isLoading"
     >
-      Refresh
+      {{ isLoading ? 'Refreshing...' : 'Refresh' }}
     </button>
+
   </header>
 
+
+  <!-- Summary -->
+
+  <section class="stats-grid">
+
+    <article class="stat-card">
+
+      <span>
+        Total Users
+      </span>
+
+      <strong>
+        {{ isLoading ? '—' : totalUsers }}
+      </strong>
+
+      <small>
+        Registered accounts
+      </small>
+
+    </article>
+
+
+    <article class="stat-card">
+
+      <span>
+        Enabled
+      </span>
+
+      <strong>
+        {{ isLoading ? '—' : enabledUsers }}
+      </strong>
+
+      <small>
+        Active accounts
+      </small>
+
+    </article>
+
+
+    <article class="stat-card">
+
+      <span>
+        Disabled
+      </span>
+
+      <strong>
+        {{ isLoading ? '—' : disabledUsers }}
+      </strong>
+
+      <small>
+        Accounts without access
+      </small>
+
+    </article>
+
+
+    <article class="stat-card">
+
+      <span>
+        Admins
+      </span>
+
+      <strong>
+        {{ isLoading ? '—' : adminUsers }}
+      </strong>
+
+      <small>
+        Portal administrators
+      </small>
+
+    </article>
+
+  </section>
+
+
+  <!-- Filters -->
+
   <section class="content-card">
+
     <div class="section-title">
+
       <div>
-        <h2>User accounts</h2>
+
+        <span class="eyebrow">
+          Directory
+        </span>
+
+        <h2>
+          User Accounts
+        </h2>
+
         <p>
-          Assign the admin role to grant portal access.
+          Search accounts and review their
+          current access level.
         </p>
+
       </div>
+
     </div>
+
+
+    <div class="filters">
+
+      <input
+        type="search"
+        placeholder="Search username or email..."
+        [(ngModel)]="searchTerm"
+      />
+
+
+      <select
+        [(ngModel)]="statusFilter"
+      >
+
+        <option value="all">
+          All statuses
+        </option>
+
+        <option value="enabled">
+          Enabled
+        </option>
+
+        <option value="disabled">
+          Disabled
+        </option>
+
+      </select>
+
+
+      <select
+        [(ngModel)]="accessFilter"
+      >
+
+        <option value="all">
+          All access levels
+        </option>
+
+        <option value="admin">
+          Admin
+        </option>
+
+        <option value="standard">
+          Standard
+        </option>
+
+      </select>
+
+
+      <button
+        type="button"
+        class="secondary-button"
+        (click)="clearFilters()"
+      >
+        Clear
+      </button>
+
+    </div>
+
 
     <div
       class="error"
@@ -35,6 +194,7 @@
       {{ error }}
     </div>
 
+
     <div
       class="loading"
       *ngIf="isLoading"
@@ -42,68 +202,162 @@
       Loading users...
     </div>
 
+
     <div
       class="table-wrapper"
       *ngIf="
         !isLoading &&
-        users.length > 0
+        filteredUsers.length > 0
       "
     >
+
       <table>
+
         <thead>
+
           <tr>
-            <th>Username</th>
-            <th>Email</th>
-            <th>Status</th>
-            <th>Admin access</th>
+
+            <th>
+              User
+            </th>
+
+            <th>
+              Email
+            </th>
+
+            <th>
+              Status
+            </th>
+
+            <th>
+              Roles
+            </th>
+
+            <th>
+              Admin Access
+            </th>
+
           </tr>
+
         </thead>
 
+
         <tbody>
-          <tr *ngFor="let user of users">
-            <td>
-              <strong>{{ user.username }}</strong>
-            </td>
+
+          <tr
+            *ngFor="
+              let user of filteredUsers
+            "
+          >
 
             <td>
-              {{ user.email || '—' }}
+
+              <strong>
+                {{ user.username }}
+              </strong>
+
+              <small>
+                {{ user.id }}
+              </small>
+
             </td>
 
+
             <td>
+              {{ user.email || 'No email' }}
+            </td>
+
+
+            <td>
+
               <span
                 class="status"
-                [class.disabled]="!user.enabled"
+                [class.disabled]="
+                  !user.enabled
+                "
               >
-                {{ user.enabled ? 'Enabled' : 'Disabled' }}
+                {{
+                  user.enabled
+                    ? 'Enabled'
+                    : 'Disabled'
+                }}
               </span>
+
             </td>
 
+
             <td>
+
+              <span
+                *ngIf="
+                  user.roles.length === 0
+                "
+              >
+                Standard
+              </span>
+
+              <span
+                *ngFor="
+                  let role of user.roles
+                "
+              >
+                {{ role }}
+              </span>
+
+            </td>
+
+
+            <td>
+
               <label class="toggle">
+
                 <input
                   type="checkbox"
-                  [checked]="hasAdminRole(user)"
-                  [disabled]="pendingUserIds.has(user.id)"
-                  (change)="toggleAdminRole(user)"
+                  [checked]="
+                    hasAdminRole(user)
+                  "
+                  [disabled]="
+                    pendingUserIds.has(user.id)
+                  "
+                  (change)="
+                    toggleAdminRole(user)
+                  "
                 />
 
                 <span></span>
+
               </label>
+
             </td>
+
           </tr>
+
         </tbody>
+
       </table>
+
     </div>
+
 
     <div
       class="empty"
       *ngIf="
         !isLoading &&
         !error &&
-        users.length === 0
+        filteredUsers.length === 0
       "
     >
-      No users found.
+
+      <h3>
+        No matching users
+      </h3>
+
+      <p>
+        Try changing your search or filters.
+      </p>
+
     </div>
+
   </section>
+
 </section>
