@@ -2,6 +2,10 @@ import {
   CommonModule
 } from '@angular/common';
 
+import {
+  HttpErrorResponse
+} from '@angular/common/http';
+
 import { forkJoin } from 'rxjs';
 
 import {
@@ -76,9 +80,26 @@ export class ProjectListComponent
           this.isLoading = false;
         },
 
-        error: () => {
-          this.error =
-            'Unable to load projects.';
+        error: (error: HttpErrorResponse) => {
+          console.error(
+            'Failed to load projects.',
+            error
+          );
+
+          if (error.status === 401) {
+            this.error =
+              'Your session has expired. Please sign in again.';
+          } else if (error.status === 403) {
+            this.error =
+              'You do not have permission to view projects.';
+          } else if (error.status === 404) {
+            this.error =
+              'Project API endpoint was not found.';
+          } else {
+            this.error =
+              'Unable to load projects.';
+          }
+
           this.isLoading = false;
         }
       });
