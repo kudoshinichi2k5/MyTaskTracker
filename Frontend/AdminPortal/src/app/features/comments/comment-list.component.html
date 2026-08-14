@@ -1,28 +1,36 @@
 <section class="page">
 
   <header class="page-header">
+
     <div>
-      <span class="eyebrow">Workspace</span>
+      <span class="eyebrow">
+        Workspace
+      </span>
+
       <h1>Comments</h1>
     </div>
 
     <span
-      class="result-count"
-      *ngIf="selectedTaskId"
+      class="comment-count"
+      *ngIf="loadedTaskId !== null"
     >
       {{ comments.length }}
     </span>
+
   </header>
 
   <section class="comment-layout">
 
-    <!-- Context -->
+    <!-- CONTEXT -->
 
     <aside class="context-card">
 
-      <div class="context-title">
-        <span>Browse</span>
-        <strong>Task discussions</strong>
+      <div class="context-heading">
+        <span>Context</span>
+
+        <strong>
+          Task discussion
+        </strong>
       </div>
 
       <label>
@@ -30,11 +38,14 @@
       </label>
 
       <select
-        [(ngModel)]="selectedProjectId"
-        (ngModelChange)="selectProject($event)"
+        [ngModel]="selectedProjectId"
+        (ngModelChange)="
+          changeProject($event)
+        "
       >
+
         <option value="">
-          Select project
+          All projects
         </option>
 
         <option
@@ -43,6 +54,7 @@
         >
           {{ project.name }}
         </option>
+
       </select>
 
       <label>
@@ -50,62 +62,92 @@
       </label>
 
       <select
-        [(ngModel)]="selectedTaskId"
-        (ngModelChange)="selectTask($event)"
-        [disabled]="!selectedProjectId"
+        [ngModel]="selectedTaskId"
+        (ngModelChange)="
+          selectTask($event)
+        "
+        [disabled]="
+          availableTasks.length === 0
+        "
       >
-        <option value="">
+
+        <option [ngValue]="null">
           Select task
         </option>
 
         <option
-          *ngFor="let taskId of selectedTaskIds"
-          [value]="taskId"
+          *ngFor="
+            let task of availableTasks
+          "
+          [ngValue]="task.id"
         >
-          {{ taskId }}
+          #{{ task.id }}
+          {{ task.title }}
         </option>
+
       </select>
 
       <div
-        class="context-summary"
-        *ngIf="selectedProject"
+        class="selected-task"
+        *ngIf="selectedTask"
       >
-        <span>Project</span>
+
+        <span>
+          Task #{{ selectedTask.id }}
+        </span>
+
         <strong>
-          {{ selectedProject.name }}
+          {{ selectedTask.title }}
         </strong>
 
-        <small>
-          {{ selectedTaskIds.length }}
-          tasks
+        <small
+          [class.completed]="
+            selectedTask.completed
+          "
+        >
+          {{
+            selectedTask.completed
+              ? 'Completed'
+              : 'Pending'
+          }}
         </small>
+
       </div>
 
     </aside>
 
-    <!-- Comments -->
+    <!-- COMMENTS -->
 
     <main class="comments-card">
 
       <div
-        class="error-card"
-        *ngIf="projectsError"
+        class="error-banner"
+        *ngIf="error"
       >
-        {{ projectsError }}
+        {{ error }}
       </div>
 
       <div
         class="comments-header"
-        *ngIf="selectedTaskId"
+        *ngIf="selectedTask"
       >
+
         <div>
+
           <span class="eyebrow">
-            Task discussion
+            Task #{{ selectedTask.id }}
           </span>
 
           <h2>
-            {{ selectedTaskId }}
+            {{ selectedTask.title }}
           </h2>
+
+          <small
+            *ngIf="selectedProject"
+          >
+            {{ selectedProject.name }}
+          </small>
+
         </div>
 
         <button
@@ -116,22 +158,27 @@
         >
           ↻
         </button>
+
       </div>
 
       <div
-        class="comments-placeholder"
-        *ngIf="!selectedTaskId"
+        class="placeholder"
+        *ngIf="!selectedTask"
       >
+
         <div class="placeholder-icon">
           💬
         </div>
 
-        <h2>Select a task</h2>
+        <h2>
+          Select a task
+        </h2>
 
         <p>
-          Choose a project and task to inspect
-          its discussion.
+          Choose a project and task to
+          view its comments.
         </p>
+
       </div>
 
       <div
@@ -142,24 +189,26 @@
       </div>
 
       <div
-        class="error-card"
+        class="error-banner"
         *ngIf="commentsError"
       >
         {{ commentsError }}
       </div>
 
-      <div
-        class="comments-list"
+      <section
+        class="comment-list"
         *ngIf="
-          selectedTaskId &&
+          selectedTask &&
           !isLoadingComments &&
           !commentsError
         "
       >
 
         <article
-          class="comment"
-          *ngFor="let comment of comments"
+          class="comment-card"
+          *ngFor="
+            let comment of comments
+          "
         >
 
           <div class="comment-avatar">
@@ -172,14 +221,19 @@
 
           <div class="comment-content">
 
-            <div class="comment-meta">
+            <div class="comment-header">
+
               <strong>
                 {{ comment.authorUserId }}
               </strong>
 
               <time>
-                {{ comment.createdAt | date:'medium' }}
+                {{
+                  comment.createdAt
+                    | date:'medium'
+                }}
               </time>
+
             </div>
 
             <p>
@@ -190,7 +244,10 @@
               *ngIf="comment.editedAt"
             >
               Edited
-              {{ comment.editedAt | date:'medium' }}
+              {{
+                comment.editedAt
+                  | date:'medium'
+              }}
             </small>
 
           </div>
@@ -198,13 +255,19 @@
         </article>
 
         <div
-          class="empty-comments"
+          class="empty-state"
           *ngIf="comments.length === 0"
         >
-          No comments for this task.
+          <strong>
+            No comments
+          </strong>
+
+          <span>
+            This task has no discussion yet.
+          </span>
         </div>
 
-      </div>
+      </section>
 
     </main>
 

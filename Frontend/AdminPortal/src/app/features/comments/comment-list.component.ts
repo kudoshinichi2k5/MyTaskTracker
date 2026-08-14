@@ -26,6 +26,11 @@ import {
   ProjectService
 } from '../../services/project.service';
 
+import {
+  TaskItem,
+  TaskService
+} from '../../services/task.service';
+
 @Component({
   selector: 'app-comment-list',
   standalone: true,
@@ -44,6 +49,9 @@ export class CommentListComponent
   private readonly route =
     inject(ActivatedRoute);
 
+  private readonly taskService =
+    inject(TaskService);
+
   private readonly projectService =
     inject(ProjectService);
 
@@ -52,71 +60,115 @@ export class CommentListComponent
 
   projects: ProjectItem[] = [];
 
+  tasks: TaskItem[] = [];
+
   comments: CommentItem[] = [];
 
   selectedProjectId = '';
-  selectedTaskId = '';
 
-  isLoadingProjects = false;
+  selectedTaskId: number | null = null;
+
+  loadedTaskId: number | null = null;
+
+  isLoading = false;
+
   isLoadingComments = false;
 
-  projectsError: string | null = null;
+  error: string | null = null;
+
   commentsError: string | null = null;
 
   ngOnInit(): void {
-    void this.loadProjects();
+    this.route.queryParamMap.subscribe(
+      params => {
+        const projectId =
+          params.get('projectId');
 
-    this.route.queryParams.subscribe(params => {
-      const taskId = params['taskId'];
+        const taskId =
+          params.get('taskId');
 
-      if (taskId) {
-        this.selectedTaskId = taskId;
-        void this.loadComments();
+        this.selectedProjectId =
+          projectId ?? '';
+
+        this.selectedTaskId =
+          taskId
+            ? Number(taskId)
+            : null;
+
+        void this.loadData();
       }
-    });
+    );
   }
 
-  async loadProjects(): Promise<void> {
-    this.isLoadingProjects = true;
-    this.projectsError = null;
+  async loadData(): Promise<void> {
+    this.isLoading = true;
+    this.error = null;
 
-    this.projectService.getProjects().subscribe({
-      next: projects => {
-        this.projects = projects;
-        this.isLoadingProjects = false;
+    this.projectService
+      .getProjects()
+      .subscribe({
+        next: projects => {
+          this.projects = projects;
 
-        this.selectProjectFromTask();
-      },
+          this.taskService
+            .getTasks()
+            .subscribe({
+              next: tasks => {
+                this.tasks = tasks;
+                this.isLoading = false;
 
-      error: () => {
-        this.projectsError =
-          'Unable to load projects.';
-        this.isLoadingProjects = false;
-      }
-    });
+                if (
+                  this.selectedTaskId !==
+                  null
+                ) {
+                  void this.loadComments();
+                }
+              },
+
+              error: () => {
+                this.error =
+                  'Unable to load tasks.';
+                this.isLoading = false;
+              }
+            });
+        },
+
+        error: () => {
+          this.error =
+            'Unable to load projects.';
+          this.isLoading = false;
+        }
+      });
   }
 
-  selectProject(projectId: string): void {
-    this.selectedProjectId = projectId;
-    this.selectedTaskId = '';
+  changeProject(
+    projectId: string
+  ): void {
+    this.selectedProjectId =
+      projectId;
+
+    this.selectedTaskId = null;
+
     this.comments = [];
-    this.commentsError = null;
+    this.loadedTaskId = null;
   }
 
-  selectTask(taskId: string): void {
-    this.selectedTaskId = taskId;
+  selectTask(
+    taskId: number
+  ): void {
+    this.selectedTaskId =
+      taskId;
 
-    if (taskId) {
-      void this.loadComments();
-    }
+    void this.loadComments();
   }
 
   async loadComments(): Promise<void> {
     const taskId =
-      this.selectedTaskId.trim();
+      this.selectedTaskId;
 
-    if (!taskId) {
+    if (taskId === null) {
       this.comments = [];
+      this.loadedTaskId = null;
       return;
     }
 
@@ -128,6 +180,7 @@ export class CommentListComponent
       .subscribe({
         next: comments => {
           this.comments = comments;
+          this.loadedTaskId = taskId;
           this.isLoadingComments = false;
         },
 
@@ -135,12 +188,43 @@ export class CommentListComponent
           this.commentsError =
             'Unable to load comments.';
           this.comments = [];
+          this.loadedTaskId = null;
           this.isLoadingComments = false;
         }
       });
   }
 
-  get selectedProject(): ProjectItem | null {
+  get availableTasks(): TaskItem[] {
+    if (!this.selectedProjectId) {
+      return this.tasks;
+    }
+
+    const project =
+      this.projects.find(
+        item =>
+          item.id ===
+          this.selectedProjectId
+      );
+
+    if (!project) {
+      return [];
+    }
+
+    const taskIds =
+      new Set(project.taskIds);
+
+    return this.tasks.filter(task =>
+      taskIds.has(task.id)
+    );
+  }
+
+  get selectedProject():
+    ProjectItem | null {
+
+    if (!this.selectedProjectId) {
+      return null;
+    }
+
     return (
       this.projects.find(
         project =>
@@ -150,28 +234,19 @@ export class CommentListComponent
     );
   }
 
-  get selectedTaskIds(): string[] {
+  get selectedTask():
+    TaskItem | null {
+
+    if (this.selectedTaskId === null) {
+      return null;
+    }
+
     return (
-      this.selectedProject?.taskIds ?? []
+      this.tasks.find(
+        task =>
+          task.id ===
+          this.selectedTaskId
+      ) ?? null
     );
-  }
-
-  private selectProjectFromTask(): void {
-    if (!this.selectedTaskId) {
-      return;
-    }
-
-    const project =
-      this.projects.find(
-        item =>
-          item.taskIds.includes(
-            this.selectedTaskId
-          )
-      );
-
-    if (project) {
-      this.selectedProjectId =
-        project.id;
-    }
   }
 }
