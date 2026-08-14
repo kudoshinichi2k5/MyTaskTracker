@@ -20,19 +20,13 @@ export const routes: Routes = [
   {
     path: 'forbidden',
     loadComponent: () =>
-      import(
-        './components/forbidden/forbidden.component'
-      ).then(
-        m => m.ForbiddenComponent
-      )
+      import('./components/forbidden/forbidden.component')
+        .then((m) => m.ForbiddenComponent)
   },
 
   /*
-   * =========================
    * Dashboard
-   * =========================
    */
-
   {
     path: 'dashboard',
     component: DashboardComponent,
@@ -40,66 +34,52 @@ export const routes: Routes = [
   },
 
   /*
-   * =========================
-   * Workspace
-   * =========================
+   * Projects
    */
-
   {
     path: 'projects',
     canActivate: [authGuard],
     loadComponent: () =>
       import(
         './features/projects/project-list/project-list.component'
-      ).then(
-        m => m.ProjectListComponent
-      )
+      ).then((m) => m.ProjectListComponent)
   },
 
+  /*
+   * Comments
+   */
   {
     path: 'comments',
     canActivate: [authGuard],
     loadComponent: () =>
       import(
         './features/comments/comment-list/comment-list.component'
-      ).then(
-        m => m.CommentListComponent
-      )
+      ).then((m) => m.CommentListComponent)
   },
 
   /*
-   * =========================
-   * Administration
-   * =========================
+   * User management
    */
-
   {
     path: 'users',
     canActivate: [authGuard],
     loadComponent: () =>
       import(
         './features/users/user-management.component'
-      ).then(
-        m => m.UserManagementComponent
-      )
+      ).then((m) => m.UserManagementComponent)
   },
 
+  /*
+   * Role management
+   */
   {
     path: 'roles',
     canActivate: [authGuard],
     loadComponent: () =>
       import(
         './features/roles/role-management.component'
-      ).then(
-        m => m.RoleManagementComponent
-      )
+      ).then((m) => m.RoleManagementComponent)
   },
-
-  /*
-   * =========================
-   * Fallback
-   * =========================
-   */
 
   {
     path: '**',
