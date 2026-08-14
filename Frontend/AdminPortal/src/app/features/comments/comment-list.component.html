@@ -1,137 +1,213 @@
 <section class="page">
+
   <header class="page-header">
     <div>
-      <span class="eyebrow">Comment Service</span>
-
+      <span class="eyebrow">Workspace</span>
       <h1>Comments</h1>
-
-      <p>
-        Inspect task discussions and review comment activity.
-      </p>
     </div>
+
+    <span
+      class="result-count"
+      *ngIf="selectedTaskId"
+    >
+      {{ comments.length }}
+    </span>
   </header>
 
-  <div class="error-banner" *ngIf="projectsError">
-    {{ projectsError }}
-  </div>
+  <section class="comment-layout">
 
-  <section class="content-card">
-    <div class="section-header">
-      <div>
-        <h2>Select a task</h2>
-        <p>
-          Choose a task from the projects available to you.
-        </p>
+    <!-- Context -->
+
+    <aside class="context-card">
+
+      <div class="context-title">
+        <span>Browse</span>
+        <strong>Task discussions</strong>
       </div>
 
-      <button
-        type="button"
-        class="refresh-button"
-        (click)="loadProjects()"
-        [disabled]="isLoadingProjects"
+      <label>
+        Project
+      </label>
+
+      <select
+        [(ngModel)]="selectedProjectId"
+        (ngModelChange)="selectProject($event)"
       >
-        {{ isLoadingProjects ? 'Loading...' : 'Refresh' }}
-      </button>
-    </div>
+        <option value="">
+          Select project
+        </option>
 
-    <div
-      class="loading-state"
-      *ngIf="isLoadingProjects"
-    >
-      Loading task choices...
-    </div>
+        <option
+          *ngFor="let project of projects"
+          [value]="project.id"
+        >
+          {{ project.name }}
+        </option>
+      </select>
 
-    <div
-      class="task-grid"
-      *ngIf="!isLoadingProjects && taskChoices.length > 0"
-    >
-      <button
-        type="button"
-        class="task-card"
-        *ngFor="let taskId of taskChoices"
-        [class.selected]="selectedTaskId === taskId"
-        (click)="selectTask(taskId)"
+      <label>
+        Task
+      </label>
+
+      <select
+        [(ngModel)]="selectedTaskId"
+        (ngModelChange)="selectTask($event)"
+        [disabled]="!selectedProjectId"
       >
-        <span class="task-label">Task</span>
-        <strong>{{ taskId }}</strong>
-      </button>
-    </div>
+        <option value="">
+          Select task
+        </option>
 
-    <p
-      class="empty-note"
-      *ngIf="!isLoadingProjects && taskChoices.length === 0"
-    >
-      No tasks are currently available through the project list.
-    </p>
-  </section>
+        <option
+          *ngFor="let taskId of selectedTaskIds"
+          [value]="taskId"
+        >
+          {{ taskId }}
+        </option>
+      </select>
 
-  <section class="content-card">
-    <div class="section-header">
-      <div>
-        <span class="eyebrow">Task discussion</span>
+      <div
+        class="context-summary"
+        *ngIf="selectedProject"
+      >
+        <span>Project</span>
+        <strong>
+          {{ selectedProject.name }}
+        </strong>
 
-        <h2>
-          {{ loadedTaskId || 'No task selected' }}
-        </h2>
+        <small>
+          {{ selectedTaskIds.length }}
+          tasks
+        </small>
       </div>
 
-      <span class="comment-count" *ngIf="loadedTaskId">
-        {{ comments.length }} comments
-      </span>
-    </div>
+    </aside>
 
-    <div class="error-banner" *ngIf="commentsError">
-      {{ commentsError }}
-    </div>
+    <!-- Comments -->
 
-    <div
-      class="loading-state"
-      *ngIf="isLoadingComments"
-    >
-      Loading comments...
-    </div>
+    <main class="comments-card">
 
-    <div
-      class="comment-list"
-      *ngIf="!isLoadingComments && loadedTaskId"
-    >
-      <article
-        class="comment-card"
-        *ngFor="let comment of comments"
+      <div
+        class="error-card"
+        *ngIf="projectsError"
       >
-        <div class="comment-header">
-          <strong>{{ comment.authorUserId }}</strong>
+        {{ projectsError }}
+      </div>
 
-          <time>
-            {{ comment.createdAt | date:'medium' }}
-          </time>
+      <div
+        class="comments-header"
+        *ngIf="selectedTaskId"
+      >
+        <div>
+          <span class="eyebrow">
+            Task discussion
+          </span>
+
+          <h2>
+            {{ selectedTaskId }}
+          </h2>
         </div>
 
-        <p class="comment-body">
-          {{ comment.body }}
-        </p>
-
-        <span
-          class="edited"
-          *ngIf="comment.editedAt"
+        <button
+          type="button"
+          class="refresh-button"
+          (click)="loadComments()"
+          [disabled]="isLoadingComments"
         >
-          Edited {{ comment.editedAt | date:'medium' }}
-        </span>
-      </article>
-    </div>
+          ↻
+        </button>
+      </div>
 
-    <div
-      class="empty-state"
-      *ngIf="
-        !isLoadingComments &&
-        loadedTaskId &&
-        comments.length === 0
-      "
-    >
-      <h3>No comments</h3>
-      <p>
-        This task does not have any comments yet.
-      </p>
-    </div>
+      <div
+        class="comments-placeholder"
+        *ngIf="!selectedTaskId"
+      >
+        <div class="placeholder-icon">
+          💬
+        </div>
+
+        <h2>Select a task</h2>
+
+        <p>
+          Choose a project and task to inspect
+          its discussion.
+        </p>
+      </div>
+
+      <div
+        class="loading"
+        *ngIf="isLoadingComments"
+      >
+        Loading comments...
+      </div>
+
+      <div
+        class="error-card"
+        *ngIf="commentsError"
+      >
+        {{ commentsError }}
+      </div>
+
+      <div
+        class="comments-list"
+        *ngIf="
+          selectedTaskId &&
+          !isLoadingComments &&
+          !commentsError
+        "
+      >
+
+        <article
+          class="comment"
+          *ngFor="let comment of comments"
+        >
+
+          <div class="comment-avatar">
+            {{
+              comment.authorUserId
+                .slice(0, 1)
+                .toUpperCase()
+            }}
+          </div>
+
+          <div class="comment-content">
+
+            <div class="comment-meta">
+              <strong>
+                {{ comment.authorUserId }}
+              </strong>
+
+              <time>
+                {{ comment.createdAt | date:'medium' }}
+              </time>
+            </div>
+
+            <p>
+              {{ comment.body }}
+            </p>
+
+            <small
+              *ngIf="comment.editedAt"
+            >
+              Edited
+              {{ comment.editedAt | date:'medium' }}
+            </small>
+
+          </div>
+
+        </article>
+
+        <div
+          class="empty-comments"
+          *ngIf="comments.length === 0"
+        >
+          No comments for this task.
+        </div>
+
+      </div>
+
+    </main>
+
   </section>
+
 </section>
