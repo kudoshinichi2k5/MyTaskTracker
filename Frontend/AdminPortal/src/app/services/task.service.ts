@@ -16,7 +16,7 @@ import {
 import { environment } from '../../environments/environment';
 
 export interface TaskItem {
-  id: string;
+  id: number;
   title: string;
   description?: string | null;
   completed: boolean;

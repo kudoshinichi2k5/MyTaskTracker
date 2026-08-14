@@ -18,7 +18,6 @@
   </header>
 
   <section class="stats">
-
     <article class="stat-card">
       <span>Total</span>
       <strong>{{ tasks.length }}</strong>
@@ -33,6 +32,43 @@
       <span>Pending</span>
       <strong>{{ pendingCount }}</strong>
     </article>
+
+  </section>
+
+  <section class="filter-bar">
+
+    <div class="filter-info">
+      <span class="filter-label">
+        Project
+      </span>
+
+      <strong>
+        {{
+          selectedProject?.name ||
+          'All projects'
+        }}
+      </strong>
+    </div>
+
+    <select
+      [value]="selectedProjectId || ''"
+      (change)="
+        changeProject(
+          $any($event.target).value
+        )
+      "
+    >
+      <option value="">
+        All projects
+      </option>
+
+      <option
+        *ngFor="let project of projects"
+        [value]="project.id"
+      >
+        {{ project.name }}
+      </option>
+    </select>
 
   </section>
 
