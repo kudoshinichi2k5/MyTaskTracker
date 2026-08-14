@@ -1,4 +1,5 @@
 import { Injectable, inject } from '@angular/core';
+
 import {
   HttpClient,
   HttpErrorResponse
@@ -17,11 +18,17 @@ import { environment } from '../../environments/environment';
 
 export interface TaskItem {
   id: number;
+
   title: string;
+
   description?: string | null;
+
   completed: boolean;
+
   userId?: string | null;
+
   createdAt?: string;
+
   updatedAt?: string;
 }
 
@@ -29,20 +36,25 @@ export interface TaskItem {
   providedIn: 'root'
 })
 export class TaskService {
-  private readonly http = inject(HttpClient);
+  private readonly http =
+    inject(HttpClient);
 
   private readonly apiUrl =
     `${environment.taskApi}/tasks`;
 
   getTasks(): Observable<TaskItem[]> {
     return this.http
-      .get<TaskItem[]>(this.apiUrl)
+      .get<TaskItem[]>(
+        this.apiUrl
+      )
       .pipe(
         catchError(this.handleError)
       );
   }
 
-  getTask(taskId: string): Observable<TaskItem> {
+  getTask(
+    taskId: number
+  ): Observable<TaskItem> {
     return this.http
       .get<TaskItem>(
         `${this.apiUrl}/${taskId}`
@@ -52,7 +64,11 @@ export class TaskService {
       );
   }
 
-  private handleError(error: HttpErrorResponse) {
-    return throwError(() => error);
+  private handleError(
+    error: HttpErrorResponse
+  ): Observable<never> {
+    return throwError(
+      () => error
+    );
   }
 }
