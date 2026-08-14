@@ -10,7 +10,6 @@ public sealed class ProjectItem
 
     public required string OwnerUserId { get; set; }
 
-    // TaskService uses integer IDs.
     public List<int> TaskIds { get; set; } = [];
 
     public DateTimeOffset CreatedAt { get; init; }
@@ -38,8 +37,9 @@ public sealed record ProjectResponse(
     DateTimeOffset UpdatedAt)
 {
     public static ProjectResponse FromEntity(
-        ProjectItem entity) =>
-        new(
+        ProjectItem entity)
+    {
+        return new ProjectResponse(
             entity.Id,
             entity.Name,
             entity.Description,
@@ -47,4 +47,5 @@ public sealed record ProjectResponse(
             entity.TaskIds,
             entity.CreatedAt,
             entity.UpdatedAt);
+    }
 }

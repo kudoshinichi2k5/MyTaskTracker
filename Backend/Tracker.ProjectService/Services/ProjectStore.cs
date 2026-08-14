@@ -116,11 +116,10 @@ public sealed class ProjectStore
             return null;
         }
 
-        if (project.TaskIds.Remove(taskId))
-        {
-            project.UpdatedAt =
-                DateTimeOffset.UtcNow;
-        }
+        project.TaskIds.Remove(taskId);
+
+        project.UpdatedAt =
+            DateTimeOffset.UtcNow;
 
         return project;
     }

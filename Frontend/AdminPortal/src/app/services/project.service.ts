@@ -40,38 +40,28 @@ export class ProjectService {
     `${environment.projectApi}/projects`;
 
   getProjects(): Observable<ProjectItem[]> {
-    return this.http
-      .get<ProjectItem[]>(this.apiUrl)
-      .pipe(
-        catchError(this.handleError)
-      );
+    return this.http.get<ProjectItem[]>(
+      `${this.apiUrl}/projects`
+    );
   }
 
   attachTask(
     projectId: string,
     taskId: number
   ): Observable<ProjectItem> {
-    return this.http
-      .post<ProjectItem>(
-        `${this.apiUrl}/${projectId}/tasks/${taskId}`,
-        {}
-      )
-      .pipe(
-        catchError(this.handleError)
-      );
+    return this.http.post<ProjectItem>(
+      `${this.apiUrl}/projects/${projectId}/tasks/${taskId}`,
+      {}
+    );
   }
 
   detachTask(
     projectId: string,
     taskId: number
   ): Observable<ProjectItem> {
-    return this.http
-      .delete<ProjectItem>(
-        `${this.apiUrl}/${projectId}/tasks/${taskId}`
-      )
-      .pipe(
-        catchError(this.handleError)
-      );
+    return this.http.delete<ProjectItem>(
+      `${this.apiUrl}/projects/${projectId}/tasks/${taskId}`
+    );
   }
 
   private handleError(

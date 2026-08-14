@@ -2,6 +2,8 @@ import {
   CommonModule
 } from '@angular/common';
 
+import { forkJoin } from 'rxjs';
+
 import {
   Component,
   OnInit,

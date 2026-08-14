@@ -104,46 +104,54 @@ public static class ProjectEndpoints
         });
 
         projects.MapPost(
-        "/{id:guid}/tasks/{taskId:int}",
-        (
-            Guid id,
-            int taskId,
-            HttpContext ctx,
-            ProjectStore store) =>
-        {
-            var updated =
-                store.AttachTask(
-                    id,
-                    ctx.User.GetUserId(),
-                    taskId);
+            "/{id:guid}/tasks/{taskId:int}",
+            (
+                Guid id,
+                int taskId,
+                HttpContext context,
+                ProjectStore store) =>
+            {
+                var userId =
+                    context.User.GetUserId();
 
-            return updated is null
-                ? Results.NotFound()
-                : Results.Ok(
-                    ProjectResponse.FromEntity(
-                        updated));
-        });
+                var project =
+                    store.AttachTask(
+                        id,
+                        userId,
+                        taskId);
+
+                return project is null
+                    ? Results.NotFound()
+                    : Results.Ok(
+                        ProjectResponse.FromEntity(
+                            project));
+            })
+            .RequireAuthorization();
 
         projects.MapDelete(
-        "/{id:guid}/tasks/{taskId:int}",
-        (
-            Guid id,
-            int taskId,
-            HttpContext ctx,
-            ProjectStore store) =>
-        {
-            var updated =
-                store.DetachTask(
-                    id,
-                    ctx.User.GetUserId(),
-                    taskId);
+            "/{id:guid}/tasks/{taskId:int}",
+            (
+                Guid id,
+                int taskId,
+                HttpContext context,
+                ProjectStore store) =>
+            {
+                var userId =
+                    context.User.GetUserId();
 
-            return updated is null
-                ? Results.NotFound()
-                : Results.Ok(
-                    ProjectResponse.FromEntity(
-                        updated));
-        });
+                var project =
+                    store.DetachTask(
+                        id,
+                        userId,
+                        taskId);
+
+                return project is null
+                    ? Results.NotFound()
+                    : Results.Ok(
+                        ProjectResponse.FromEntity(
+                            project));
+            })
+            .RequireAuthorization();
     }
 
     private static string GetUserId(this ClaimsPrincipal user) =>
