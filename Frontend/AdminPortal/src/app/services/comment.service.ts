@@ -38,13 +38,9 @@ export class CommentService {
   getComments(
     taskId: number
   ): Observable<CommentItem[]> {
-    return this.http
-      .get<CommentItem[]>(
-        `${this.apiUrl}/tasks/${taskId}/comments`
-      )
-      .pipe(
-        catchError(this.handleError)
-      );
+    return this.http.get<CommentItem[]>(
+      `${this.apiUrl}/tasks/${taskId}/comments`
+    );
   }
 
   private handleError(

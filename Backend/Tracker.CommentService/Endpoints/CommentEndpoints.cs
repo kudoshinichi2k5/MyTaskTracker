@@ -19,11 +19,12 @@ public static class CommentEndpoints
                 int taskId,
                 CommentStore store) =>
             {
-                var result =
+                var comments =
                     store.GetForTask(taskId)
-                        .Select(CommentResponse.FromEntity);
+                        .Select(
+                            CommentResponse.FromEntity);
 
-                return Results.Ok(result);
+                return Results.Ok(comments);
             })
             .RequireAuthorization();
 
@@ -32,7 +33,7 @@ public static class CommentEndpoints
             (
                 int taskId,
                 CreateCommentRequest request,
-                HttpContext ctx,
+                HttpContext context,
                 CommentStore store) =>
             {
                 if (string.IsNullOrWhiteSpace(
@@ -41,23 +42,21 @@ public static class CommentEndpoints
                     return Results.BadRequest(
                         new
                         {
-                            error = "Body is required."
+                            error =
+                                "Comment body is required."
                         });
                 }
 
-                var userId =
-                    ctx.User.GetUserId();
-
-                var created =
+                var comment =
                     store.Add(
                         taskId,
-                        userId,
+                        context.User.GetUserId(),
                         request.Body.Trim());
 
                 return Results.Created(
-                    $"/api/v1/tasks/{taskId}/comments/{created.Id}",
+                    $"/api/v1/tasks/{taskId}/comments/{comment.Id}",
                     CommentResponse.FromEntity(
-                        created));
+                        comment));
             })
             .RequireAuthorization();
 
