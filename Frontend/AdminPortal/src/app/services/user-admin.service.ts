@@ -27,20 +27,20 @@ export interface AdminUser {
   providedIn: 'root'
 })
 export class UserAdminService {
+
   private readonly http = inject(HttpClient);
 
-  /**
-   * Users and roles are exposed by TaskService's
-   * AdminOnly-protected endpoints.
+  /*
+   * User and role administration belongs to AuthService.
    *
-   * TaskService:
-   *   GET    /api/v1/admin/users
-   *   GET    /api/v1/admin/roles
-   *   POST   /api/v1/admin/users/{userId}/roles/{roleName}
-   *   DELETE /api/v1/admin/users/{userId}/roles/{roleName}
+   * Backend:
+   *   GET    /api/v1/auth/admin/users
+   *   GET    /api/v1/auth/admin/roles
+   *   POST   /api/v1/auth/admin/users/{userId}/roles/{role}
+   *   DELETE /api/v1/auth/admin/users/{userId}/roles/{role}
    */
   private readonly apiUrl =
-    `${environment.taskApi}/admin`;
+    `${environment.authApi}/auth/admin`;
 
   getUsers(): Observable<AdminUser[]> {
     return this.http
@@ -100,8 +100,10 @@ export class UserAdminService {
   private handleError<T>(
     action: string
   ): OperatorFunction<T, T> {
+
     return catchError(
       (error: HttpErrorResponse) => {
+
         console.error(
           `[UserAdminService] Failed to ${action}`,
           {
