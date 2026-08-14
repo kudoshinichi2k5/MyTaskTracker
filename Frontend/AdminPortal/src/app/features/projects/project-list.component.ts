@@ -1,27 +1,51 @@
-import { CommonModule } from '@angular/common';
-import { Component, OnInit, inject } from '@angular/core';
+import {
+  CommonModule
+} from '@angular/common';
+
+import {
+  Component,
+  OnInit,
+  inject
+} from '@angular/core';
+
+import {
+  RouterLink
+} from '@angular/router';
 
 import {
   ProjectItem,
   ProjectService
 } from '../../services/project.service';
 
-import { AuthService } from '../../services/auth.service';
+import {
+  AuthService
+} from '../../services/auth.service';
 
 @Component({
   selector: 'app-project-list',
   standalone: true,
-  imports: [CommonModule],
-  templateUrl: './project-list.component.html',
-  styleUrl: './project-list.component.css'
+  imports: [
+    CommonModule,
+    RouterLink
+  ],
+  templateUrl:
+    './project-list.component.html',
+  styleUrl:
+    './project-list.component.css'
 })
-export class ProjectListComponent implements OnInit {
-  private readonly projectService = inject(ProjectService);
-  private readonly authService = inject(AuthService);
+export class ProjectListComponent
+  implements OnInit {
+
+  private readonly projectService =
+    inject(ProjectService);
+
+  private readonly authService =
+    inject(AuthService);
 
   projects: ProjectItem[] = [];
 
   isLoading = false;
+
   error: string | null = null;
 
   ngOnInit(): void {
@@ -33,27 +57,34 @@ export class ProjectListComponent implements OnInit {
 
     if (!this.authService.accessToken) {
       this.error =
-        'Please sign in again to load projects.';
+        'Please sign in again.';
       return;
     }
 
     this.isLoading = true;
     this.error = null;
 
-    this.projectService.getProjects().subscribe({
-      next: (projects: ProjectItem[]) => {
-        this.projects = projects;
-        this.isLoading = false;
-      },
+    this.projectService
+      .getProjects()
+      .subscribe({
+        next: (
+          projects: ProjectItem[]
+        ) => {
+          this.projects = projects;
+          this.isLoading = false;
+        },
 
-      error: () => {
-        this.error = 'Unable to load projects.';
-        this.isLoading = false;
-      }
-    });
+        error: () => {
+          this.error =
+            'Unable to load projects.';
+          this.isLoading = false;
+        }
+      });
   }
 
-  getTaskCount(project: ProjectItem): number {
+  getTaskCount(
+    project: ProjectItem
+  ): number {
     return project.taskIds?.length ?? 0;
   }
 }

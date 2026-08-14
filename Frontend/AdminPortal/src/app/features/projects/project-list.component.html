@@ -1,11 +1,10 @@
 <section class="page">
+
   <header class="page-header">
+
     <div>
-      <span class="eyebrow">Project Service</span>
+      <span class="eyebrow">Workspace</span>
       <h1>Projects</h1>
-      <p>
-        Review projects and their linked tasks.
-      </p>
     </div>
 
     <button
@@ -14,87 +13,138 @@
       (click)="loadProjects()"
       [disabled]="isLoading"
     >
-      {{ isLoading ? 'Refreshing...' : 'Refresh' }}
+      ↻
+      {{ isLoading ? 'Loading' : 'Refresh' }}
     </button>
+
   </header>
 
-  <div class="error-banner" *ngIf="error">
+  <div
+    class="error-card"
+    *ngIf="error"
+  >
     {{ error }}
   </div>
 
-  <div class="loading-state" *ngIf="isLoading">
+  <div
+    class="loading"
+    *ngIf="isLoading"
+  >
     Loading projects...
   </div>
 
   <section
     class="project-grid"
-    *ngIf="!isLoading && !error && projects.length > 0"
+    *ngIf="
+      !isLoading &&
+      !error &&
+      projects.length > 0
+    "
   >
+
     <article
       class="project-card"
       *ngFor="let project of projects"
     >
-      <div class="project-header">
-        <div>
+
+      <div class="project-top">
+
+        <div class="project-icon">
+          {{ project.name.slice(0, 1).toUpperCase() }}
+        </div>
+
+        <div class="project-title">
           <h2>{{ project.name }}</h2>
 
-          <p>
-            {{ project.description || 'No description provided.' }}
-          </p>
+          <span>
+            {{ project.ownerUserId }}
+          </span>
         </div>
 
-        <span class="project-id">
-          {{ project.id }}
-        </span>
       </div>
 
-      <div class="project-meta">
-        <div>
-          <span class="meta-label">Owner</span>
-          <strong>{{ project.ownerUserId }}</strong>
-        </div>
+      <p class="description">
+        {{
+          project.description ||
+          'No description'
+        }}
+      </p>
+
+      <div class="project-stats">
 
         <div>
-          <span class="meta-label">Tasks</span>
-          <strong>{{ getTaskCount(project) }}</strong>
-        </div>
-
-        <div>
-          <span class="meta-label">Updated</span>
           <strong>
-            {{ project.updatedAt | date:'medium' }}
+            {{ getTaskCount(project) }}
+          </strong>
+
+          <span>Tasks</span>
+        </div>
+
+        <div>
+          <strong>
+            {{ project.taskIds.length }}
+          </strong>
+
+          <span>Linked</span>
+        </div>
+
+      </div>
+
+      <div class="progress">
+
+        <div class="progress-label">
+          <span>Task coverage</span>
+
+          <strong>
+            {{
+              project.taskIds.length > 0
+                ? 100
+                : 0
+            }}%
           </strong>
         </div>
+
+        <div class="progress-track">
+          <div
+            class="progress-value"
+            [style.width.%]="
+              project.taskIds.length > 0
+                ? 100
+                : 0
+            "
+          ></div>
+        </div>
+
       </div>
 
-      <div
-        class="task-list"
-        *ngIf="project.taskIds.length > 0"
-      >
-        <span
-          class="task-chip"
-          *ngFor="let taskId of project.taskIds"
+      <div class="project-footer">
+
+        <small>
+          Updated
+          {{ project.updatedAt | date:'shortDate' }}
+        </small>
+
+        <a
+          routerLink="/comments"
         >
-          {{ taskId }}
-        </span>
+          View discussions →
+        </a>
+
       </div>
 
-      <div
-        class="empty-tasks"
-        *ngIf="project.taskIds.length === 0"
-      >
-        No tasks linked to this project.
-      </div>
     </article>
+
   </section>
 
   <section
-    class="empty-state"
-    *ngIf="!isLoading && !error && projects.length === 0"
+    class="empty"
+    *ngIf="
+      !isLoading &&
+      !error &&
+      projects.length === 0
+    "
   >
-    <h2>No projects found</h2>
-    <p>
-      There are currently no projects available for this account.
-    </p>
+    No projects found.
   </section>
+
 </section>
