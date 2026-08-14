@@ -57,6 +57,17 @@ export const routes: Routes = [
   },
 
   {
+  path: 'tasks',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import(
+        './features/tasks/task-list.component'
+      ).then(
+        m => m.TaskListComponent
+      )
+  },
+
+  {
     path: 'comments',
     canActivate: [authGuard],
     loadComponent: () =>
