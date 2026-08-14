@@ -35,6 +35,39 @@
     </article>
 
     <article class="stat-card">
+
+      <span>
+        Avg Tasks / Member
+      </span>
+
+      <strong>
+        {{ isLoading ? '—' : averageTasksPerMember }}
+      </strong>
+
+      <small>
+        Average workload per team member
+      </small>
+
+    </article>
+
+
+    <article class="stat-card">
+
+      <span>
+        Pending
+      </span>
+
+      <strong>
+        {{ isLoading ? '—' : totalPending }}
+      </strong>
+
+      <small>
+        Tasks still requiring attention
+      </small>
+
+    </article>
+
+    <article class="stat-card">
       <span>Total Tasks</span>
 
       <strong>

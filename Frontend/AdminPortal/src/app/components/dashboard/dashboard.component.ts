@@ -80,4 +80,55 @@ export class DashboardComponent implements OnInit {
   get memberCount(): number {
     return this.summary.length;
   }
+
+  get averageTasksPerMember(): number {
+    if (this.memberCount === 0) {
+      return 0;
+    }
+
+    return Math.round(
+      this.totalTasks / this.memberCount
+    );
+  }
+
+  get highestWorkload(): UserTaskSummary | null {
+    if (this.summary.length === 0) {
+      return null;
+    }
+
+    return this.summary.reduce(
+      (highest, current) =>
+        current.totalTasks > highest.totalTasks
+          ? current
+          : highest
+    );
+  }
+
+  get highestCompletion(): UserTaskSummary | null {
+    const membersWithTasks =
+      this.summary.filter(
+        row => row.totalTasks > 0
+      );
+
+    if (membersWithTasks.length === 0) {
+      return null;
+    }
+
+    return membersWithTasks.reduce(
+      (best, current) => {
+
+        const bestRate =
+          best.completedTasks /
+          best.totalTasks;
+
+        const currentRate =
+          current.completedTasks /
+          current.totalTasks;
+
+        return currentRate > bestRate
+          ? current
+          : best;
+      }
+    );
+  }
 }
