@@ -1,73 +1,65 @@
-<div class="admin-shell">
-  <aside class="sidebar">
-    <div class="brand">
-      <div class="brand-mark">A</div>
+<nav class="navigation">
 
-      <div>
-        <strong>TaskTracker</strong>
-        <span>Admin Portal</span>
-      </div>
-    </div>
+  <span class="navigation-label">
+    Workspace
+  </span>
 
-    <nav class="navigation">
-      <span class="navigation-label">
-        Administration
-      </span>
+  <a
+    routerLink="/dashboard"
+    routerLinkActive="active"
+    class="navigation-item"
+  >
+    <span class="navigation-icon">⌂</span>
+    <span>Overview</span>
+  </a>
 
-      <a
-        *ngFor="let item of navigation"
-        class="navigation-item"
-        [routerLink]="item.path"
-        routerLinkActive="active"
-        [routerLinkActiveOptions]="{ exact: true }"
-      >
-        <span class="navigation-icon">
-          {{ item.icon }}
-        </span>
+  <a
+    routerLink="/projects"
+    routerLinkActive="active"
+    class="navigation-item"
+  >
+    <span class="navigation-icon">▦</span>
+    <span>Projects</span>
+  </a>
 
-        <span>{{ item.label }}</span>
-      </a>
-    </nav>
+  <a
+    routerLink="/tasks"
+    routerLinkActive="active"
+    class="navigation-item"
+  >
+    <span class="navigation-icon">✓</span>
+    <span>Tasks</span>
+  </a>
 
-    <div class="sidebar-bottom">
-      <div class="account">
-        <div class="avatar">
-          {{ username.charAt(0).toUpperCase() }}
-        </div>
+  <a
+    routerLink="/comments"
+    routerLinkActive="active"
+    class="navigation-item"
+  >
+    <span class="navigation-icon">◌</span>
+    <span>Comments</span>
+  </a>
 
-        <div>
-          <strong>{{ username }}</strong>
-          <span>Administrator</span>
-        </div>
-      </div>
+  <span class="navigation-label">
+    Administration
+  </span>
 
-      <button
-        type="button"
-        class="sign-out"
-        (click)="logout()"
-      >
-        Sign out
-      </button>
-    </div>
-  </aside>
+  <a
+    routerLink="/users"
+    routerLinkActive="active"
+    class="navigation-item"
+  >
+    <span class="navigation-icon">♙</span>
+    <span>Users</span>
+  </a>
 
-  <div class="content">
-    <header class="topbar">
-      <div>
-        <strong>Administration</strong>
-      </div>
+  <a
+    routerLink="/roles"
+    routerLinkActive="active"
+    class="navigation-item"
+  >
+    <span class="navigation-icon">◆</span>
+    <span>Roles</span>
+  </a>
 
-      <div class="topbar-user">
-        <div class="avatar small">
-          {{ username.charAt(0).toUpperCase() }}
-        </div>
-
-        <span>{{ username }}</span>
-      </div>
-    </header>
-
-    <main class="page-content">
-      <router-outlet></router-outlet>
-    </main>
-  </div>
-</div>
+</nav>
