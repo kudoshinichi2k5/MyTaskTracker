@@ -18,10 +18,16 @@ import { environment } from '../../environments/environment';
 
 export interface CommentItem {
   id: string;
+
+  // TaskService uses number IDs.
   taskId: number;
+
   authorUserId: string;
+
   body: string;
+
   createdAt: string;
+
   editedAt: string | null;
 }
 
@@ -35,17 +41,27 @@ export class CommentService {
   private readonly apiUrl =
     environment.commentApi;
 
+  /**
+   * GET:
+   * /api/v1/tasks/{taskId}/comments
+   */
   getComments(
     taskId: number
   ): Observable<CommentItem[]> {
-    return this.http.get<CommentItem[]>(
-      `${this.apiUrl}/tasks/${taskId}/comments`
-    );
+    return this.http
+      .get<CommentItem[]>(
+        `${this.apiUrl}/tasks/${taskId}/comments`
+      )
+      .pipe(
+        catchError(this.handleError)
+      );
   }
 
   private handleError(
     error: HttpErrorResponse
-  ) {
-    return throwError(() => error);
+  ): Observable<never> {
+    return throwError(
+      () => error
+    );
   }
 }
