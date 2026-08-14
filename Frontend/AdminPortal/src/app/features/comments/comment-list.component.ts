@@ -5,14 +5,14 @@ import { FormsModule } from '@angular/forms';
 import {
   CommentItem,
   CommentService
-} from '../../../services/comment.service';
+} from '../../services/comment.service';
 
 import {
   ProjectItem,
   ProjectService
-} from '../../../services/project.service';
+} from '../../services/project.service';
 
-import { AuthService } from '../../../services/auth.service';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-comment-list',
@@ -54,10 +54,11 @@ export class CommentListComponent implements OnInit {
     this.projectsError = null;
 
     this.projectService.getProjects().subscribe({
-      next: (projects) => {
+      next: (projects: ProjectItem[]) => {
         this.projects = projects;
         this.isLoadingProjects = false;
       },
+
       error: () => {
         this.projectsError =
           'Unable to load projects for task selection.';
@@ -87,11 +88,12 @@ export class CommentListComponent implements OnInit {
     this.commentsError = null;
 
     this.commentService.getComments(taskId).subscribe({
-      next: (comments) => {
+      next: (comments: CommentItem[]) => {
         this.comments = comments;
         this.loadedTaskId = taskId;
         this.isLoadingComments = false;
       },
+
       error: () => {
         this.commentsError =
           'Unable to load comments for this task.';
@@ -104,7 +106,7 @@ export class CommentListComponent implements OnInit {
 
   get taskChoices(): string[] {
     const ids = this.projects.flatMap(
-      (project) => project.taskIds ?? []
+      (project: ProjectItem) => project.taskIds ?? []
     );
 
     return Array.from(new Set(ids));

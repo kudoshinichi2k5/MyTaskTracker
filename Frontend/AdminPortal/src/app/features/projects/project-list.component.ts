@@ -1,10 +1,12 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
+
 import {
   ProjectItem,
   ProjectService
-} from '../../../services/project.service';
-import { AuthService } from '../../../services/auth.service';
+} from '../../services/project.service';
+
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-project-list',
@@ -30,7 +32,8 @@ export class ProjectListComponent implements OnInit {
     await this.authService.initialLoadPromise;
 
     if (!this.authService.accessToken) {
-      this.error = 'Please sign in again to load projects.';
+      this.error =
+        'Please sign in again to load projects.';
       return;
     }
 
@@ -38,10 +41,11 @@ export class ProjectListComponent implements OnInit {
     this.error = null;
 
     this.projectService.getProjects().subscribe({
-      next: (projects) => {
+      next: (projects: ProjectItem[]) => {
         this.projects = projects;
         this.isLoading = false;
       },
+
       error: () => {
         this.error = 'Unable to load projects.';
         this.isLoading = false;
