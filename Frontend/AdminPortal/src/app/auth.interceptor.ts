@@ -1,127 +1,139 @@
 import {
   HttpErrorResponse,
-  HttpInterceptorFn
+  HttpEvent,
+  HttpHandler,
+  HttpInterceptor,
+  HttpRequest
 } from '@angular/common/http';
 
-import { inject } from '@angular/core';
+import { Injectable } from '@angular/core';
 
-import {
-  catchError,
-  switchMap,
-  throwError
-} from 'rxjs';
+import { Observable, catchError, switchMap, throwError } from 'rxjs';
 
-import { environment } from '../environments/environment';
 import { AuthService } from './services/auth.service';
 
-export const authInterceptor: HttpInterceptorFn = (
-  req,
-  next
-) => {
-  const authService = inject(AuthService);
+@Injectable()
+export class AuthInterceptor implements HttpInterceptor {
 
-  const authBaseUrl =
-    environment.authApi.replace(
-      /\/api\/v1$/,
-      ''
-    );
+  constructor(
+    private readonly authService: AuthService
+  ) {}
 
-  const bypassPaths = [
-    '/token',
-    '/verify',
-    '/auth/refresh',
-    '/auth/logout'
-  ];
+  intercept(
+    request: HttpRequest<unknown>,
+    next: HttpHandler
+  ): Observable<HttpEvent<unknown>> {
 
-  const isAuthEndpoint =
-    req.url.startsWith(authBaseUrl) &&
-    bypassPaths.some(
-      path => req.url.endsWith(path)
-    );
-
-  /*
-   * /verify is used during application startup.
-   * Do not wait for initialLoadPromise here.
-   */
-  if (
-    isAuthEndpoint &&
-    req.url.endsWith('/verify')
-  ) {
-    const token =
-      authService.accessToken;
-
-    if (!token) {
-      return next(req);
-    }
-
-    return next(
-      req.clone({
-        setHeaders: {
-          Authorization:
-            `Bearer ${token}`
-        }
-      })
-    );
+    /*
+     * Wait until AuthService has finished restoring the
+     * persisted session after a browser reload.
+     */
+    return this.waitForSession(request, next);
   }
 
-  if (isAuthEndpoint) {
-    return next(req);
-  }
+  private waitForSession(
+    request: HttpRequest<unknown>,
+    next: HttpHandler
+  ): Observable<HttpEvent<unknown>> {
 
-  const token =
-    authService.accessToken;
+    return new Observable<HttpEvent<unknown>>((subscriber) => {
 
-  const authenticatedRequest =
-    token
-      ? req.clone({
-          setHeaders: {
-            Authorization:
-              `Bearer ${token}`
+      this.authService.initialLoadPromise
+        .then(() => {
+
+          const accessToken =
+            this.authService.accessToken;
+
+          /*
+           * Login / token endpoints must be allowed through
+           * without an Authorization header.
+           */
+          if (
+            !accessToken ||
+            this.isAuthenticationRequest(request)
+          ) {
+            next.handle(request).subscribe({
+              next: (event) => subscriber.next(event),
+              error: (error) => subscriber.error(error),
+              complete: () => subscriber.complete()
+            });
+
+            return;
           }
-        })
-      : req;
 
-  return next(
-    authenticatedRequest
-  ).pipe(
-    catchError(
-      (error: HttpErrorResponse) => {
-        if (
-          error.status !== 401 ||
-          !token
-        ) {
-          return throwError(
-            () => error
-          );
-        }
-
-        return authService
-          .tryRefresh()
-          .pipe(
-            switchMap(success => {
-              const refreshedToken =
-                authService.accessToken;
-
-              if (
-                !success ||
-                !refreshedToken
-              ) {
-                return throwError(
-                  () => error
-                );
+          /*
+           * Attach the current access token.
+           */
+          const authenticatedRequest =
+            request.clone({
+              setHeaders: {
+                Authorization: `Bearer ${accessToken}`
               }
+            });
 
-              return next(
-                req.clone({
-                  setHeaders: {
-                    Authorization:
-                      `Bearer ${refreshedToken}`
-                  }
-                })
-              );
-            })
-          );
-      }
-    )
-  );
-};
+          next.handle(authenticatedRequest)
+            .pipe(
+              catchError((error: HttpErrorResponse) => {
+
+                /*
+                 * If the access token is rejected, try the
+                 * refresh token once.
+                 */
+                if (error.status !== 401) {
+                  return throwError(() => error);
+                }
+
+                return this.authService.tryRefresh()
+                  .pipe(
+                    switchMap((refreshed) => {
+
+                      if (!refreshed) {
+                        return throwError(() => error);
+                      }
+
+                      const newAccessToken =
+                        this.authService.accessToken;
+
+                      if (!newAccessToken) {
+                        return throwError(() => error);
+                      }
+
+                      const retryRequest =
+                        request.clone({
+                          setHeaders: {
+                            Authorization:
+                              `Bearer ${newAccessToken}`
+                          }
+                        });
+
+                      return next.handle(retryRequest);
+                    })
+                  );
+              })
+            )
+            .subscribe({
+              next: (event) => subscriber.next(event),
+              error: (error) => subscriber.error(error),
+              complete: () => subscriber.complete()
+            });
+
+        })
+        .catch((error) => {
+          subscriber.error(error);
+        });
+    });
+  }
+
+  private isAuthenticationRequest(
+    request: HttpRequest<unknown>
+  ): boolean {
+
+    const url = request.url.toLowerCase();
+
+    return (
+      url.includes('/token') ||
+      url.includes('/auth/refresh') ||
+      url.includes('/auth/logout')
+    );
+  }
+}
