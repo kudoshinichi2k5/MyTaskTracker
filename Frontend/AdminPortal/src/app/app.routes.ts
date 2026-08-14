@@ -41,7 +41,7 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadComponent: () =>
       import(
-        './features/projects/project-list/project-list.component'
+        './features/projects/project-list.component'
       ).then((m) => m.ProjectListComponent)
   },
 
@@ -53,7 +53,7 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadComponent: () =>
       import(
-        './features/comments/comment-list/comment-list.component'
+        './features/comments/comment-list.component'
       ).then((m) => m.CommentListComponent)
   },
 
