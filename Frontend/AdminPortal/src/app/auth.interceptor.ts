@@ -1,139 +1,157 @@
 import {
   HttpErrorResponse,
-  HttpEvent,
-  HttpHandler,
-  HttpInterceptor,
-  HttpRequest
+  HttpInterceptorFn
 } from '@angular/common/http';
 
-import { Injectable } from '@angular/core';
+import { inject } from '@angular/core';
 
-import { Observable, catchError, switchMap, throwError } from 'rxjs';
+import { environment } from '../environments/environment';
 
 import { AuthService } from './services/auth.service';
 
-@Injectable()
-export class AuthInterceptor implements HttpInterceptor {
+import {
+  catchError,
+  from,
+  switchMap,
+  throwError
+} from 'rxjs';
 
-  constructor(
-    private readonly authService: AuthService
-  ) {}
+export const authInterceptor: HttpInterceptorFn = (
+  req,
+  next
+) => {
 
-  intercept(
-    request: HttpRequest<unknown>,
-    next: HttpHandler
-  ): Observable<HttpEvent<unknown>> {
+  const authService =
+    inject(AuthService);
 
-    /*
-     * Wait until AuthService has finished restoring the
-     * persisted session after a browser reload.
-     */
-    return this.waitForSession(request, next);
+  const authBaseUrl =
+    environment.authApi.replace(
+      /\/api\/v1$/,
+      ''
+    );
+
+  /*
+   * Authentication endpoints must bypass the interceptor.
+   *
+   * IMPORTANT:
+   * /auth/refresh must bypass initialLoadPromise.
+   *
+   * Otherwise:
+   *
+   * initialLoadPromise
+   *      ↓
+   * restoreSession()
+   *      ↓
+   * refresh()
+   *      ↓
+   * HttpClient
+   *      ↓
+   * interceptor
+   *      ↓
+   * waits for initialLoadPromise
+   *      ↓
+   * DEADLOCK
+   */
+  const authBypassPaths = [
+    '/token',
+    '/auth/refresh',
+    '/auth/logout'
+  ];
+
+  const isAuthRequest =
+    req.url.startsWith(authBaseUrl) &&
+    authBypassPaths.some(
+      (path) => req.url.endsWith(path)
+    );
+
+  if (isAuthRequest) {
+    return next(req);
   }
 
-  private waitForSession(
-    request: HttpRequest<unknown>,
-    next: HttpHandler
-  ): Observable<HttpEvent<unknown>> {
+  /*
+   * Wait until AuthService has finished restoring
+   * the persisted session after a browser reload.
+   */
+  return from(
+    authService.initialLoadPromise
+  ).pipe(
 
-    return new Observable<HttpEvent<unknown>>((subscriber) => {
+    switchMap(() => {
 
-      this.authService.initialLoadPromise
-        .then(() => {
+      const token =
+        authService.accessToken;
 
-          const accessToken =
-            this.authService.accessToken;
+      /*
+       * No token.
+       *
+       * Let the request continue normally.
+       * The route guard is responsible for preventing
+       * unauthenticated access to protected pages.
+       */
+      if (!token) {
+        return next(req);
+      }
 
-          /*
-           * Login / token endpoints must be allowed through
-           * without an Authorization header.
-           */
-          if (
-            !accessToken ||
-            this.isAuthenticationRequest(request)
-          ) {
-            next.handle(request).subscribe({
-              next: (event) => subscriber.next(event),
-              error: (error) => subscriber.error(error),
-              complete: () => subscriber.complete()
-            });
-
-            return;
+      /*
+       * Attach the current access token.
+       */
+      const authReq =
+        req.clone({
+          setHeaders: {
+            Authorization:
+              `Bearer ${token}`
           }
+        });
 
-          /*
-           * Attach the current access token.
-           */
-          const authenticatedRequest =
-            request.clone({
-              setHeaders: {
-                Authorization: `Bearer ${accessToken}`
-              }
-            });
+      return next(authReq).pipe(
 
-          next.handle(authenticatedRequest)
-            .pipe(
-              catchError((error: HttpErrorResponse) => {
+        catchError(
+          (error: HttpErrorResponse) => {
 
-                /*
-                 * If the access token is rejected, try the
-                 * refresh token once.
-                 */
-                if (error.status !== 401) {
-                  return throwError(() => error);
+            /*
+             * Only attempt refresh when the backend
+             * explicitly returns 401.
+             */
+            if (error.status !== 401) {
+              return throwError(
+                () => error
+              );
+            }
+
+            /*
+             * Try to obtain a new access token.
+             */
+            return authService.tryRefresh().pipe(
+
+              switchMap((success) => {
+
+                if (
+                  !success ||
+                  !authService.accessToken
+                ) {
+                  return throwError(
+                    () => error
+                  );
                 }
 
-                return this.authService.tryRefresh()
-                  .pipe(
-                    switchMap((refreshed) => {
+                /*
+                 * Retry the original request using
+                 * the newly refreshed access token.
+                 */
+                const retryReq =
+                  req.clone({
+                    setHeaders: {
+                      Authorization:
+                        `Bearer ${authService.accessToken}`
+                    }
+                  });
 
-                      if (!refreshed) {
-                        return throwError(() => error);
-                      }
-
-                      const newAccessToken =
-                        this.authService.accessToken;
-
-                      if (!newAccessToken) {
-                        return throwError(() => error);
-                      }
-
-                      const retryRequest =
-                        request.clone({
-                          setHeaders: {
-                            Authorization:
-                              `Bearer ${newAccessToken}`
-                          }
-                        });
-
-                      return next.handle(retryRequest);
-                    })
-                  );
+                return next(retryReq);
               })
-            )
-            .subscribe({
-              next: (event) => subscriber.next(event),
-              error: (error) => subscriber.error(error),
-              complete: () => subscriber.complete()
-            });
-
-        })
-        .catch((error) => {
-          subscriber.error(error);
-        });
-    });
-  }
-
-  private isAuthenticationRequest(
-    request: HttpRequest<unknown>
-  ): boolean {
-
-    const url = request.url.toLowerCase();
-
-    return (
-      url.includes('/token') ||
-      url.includes('/auth/refresh') ||
-      url.includes('/auth/logout')
-    );
-  }
-}
+            );
+          }
+        )
+      );
+    })
+  );
+};
