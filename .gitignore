@@ -10,6 +10,12 @@
 Thumbs.db
 
 # =========================
+# Docker / local secrets
+# =========================
+.env
+infra/mariadb/data/
+
+# =========================
 # Node / Angular (Frontend)
 # =========================
 Frontend/node_modules/

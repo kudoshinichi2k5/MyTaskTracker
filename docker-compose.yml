@@ -1,0 +1,25 @@
+services:
+  mariadb:
+    image: mariadb:11.4
+    container_name: tracker-mariadb
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
+      AUTH_DB_PASSWORD: ${AUTH_DB_PASSWORD}
+      TASK_DB_PASSWORD: ${TASK_DB_PASSWORD}
+      NOTIFICATION_DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD}
+      PROJECT_DB_PASSWORD: ${PROJECT_DB_PASSWORD}
+      COMMENT_DB_PASSWORD: ${COMMENT_DB_PASSWORD}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+      - ./infra/mariadb/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+volumes:
+  mariadb_data:
