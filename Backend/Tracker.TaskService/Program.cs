@@ -70,19 +70,31 @@ builder.Services.AddCors(options =>
         });
 });
 
-builder.Services.AddSingleton<
-    ITaskStore,
-    InMemoryTaskStore>();
+var taskDbConnectionString =
+    builder.Configuration.GetConnectionString("TaskDb")
+    ?? throw new InvalidOperationException(
+        "Missing ConnectionStrings:TaskDb. Set it via dotnet user-secrets (dev) " +
+        "or the ConnectionStrings__TaskDb environment variable (staging/production).");
+
+builder.Services.AddDbContext<TaskDbContext>(options =>
+    options.UseMySql(
+        taskDbConnectionString,
+        ServerVersion.AutoDetect(taskDbConnectionString)));
+
+builder.Services.AddScoped<ITaskStore, EfTaskStore>();
+
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
+// Áp migration tự động khi KHÔNG phải Production — Production chạy migration
+// tường minh qua CI/CD (mục 8), không để app tự ALTER TABLE lúc khởi động.
 if (!app.Environment.IsProduction())
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
+    using var scope = app.Services.CreateScope();
+    scope.ServiceProvider.GetRequiredService<TaskDbContext>().Database.Migrate();
 }
 
 app.UseCors("AllowFrontend");
