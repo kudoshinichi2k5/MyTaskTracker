@@ -1,4 +1,6 @@
+using Microsoft.EntityFrameworkCore;
 using Tracker.NotificationService.Auth;
+using Tracker.NotificationService.Data;
 using Tracker.NotificationService.Endpoints;
 using Tracker.NotificationService.Services;
 
@@ -16,64 +18,56 @@ builder.Services.AddHttpClient(
     "AuthServiceVerify",
     client =>
     {
-        client.BaseAddress =
-            new Uri(authServiceBaseUrl);
+        client.BaseAddress = new Uri(authServiceBaseUrl);
     });
 
 builder.Services
-    .AddAuthentication(
-        OpaqueTokenAuthOptions.SchemeName)
-    .AddScheme<
-        OpaqueTokenAuthOptions,
-        OpaqueTokenAuthenticationHandler>(
+    .AddAuthentication(OpaqueTokenAuthOptions.SchemeName)
+    .AddScheme<OpaqueTokenAuthOptions, OpaqueTokenAuthenticationHandler>(
         OpaqueTokenAuthOptions.SchemeName,
         options =>
         {
-            options.AuthServiceBaseUrl =
-                authServiceBaseUrl;
-
-            options.VerifyPath =
-                verifyPath;
+            options.AuthServiceBaseUrl = authServiceBaseUrl;
+            options.VerifyPath = verifyPath;
         });
 
 builder.Services.AddAuthorization();
 
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy(
-        "AllowFrontend",
-        policy =>
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        var configuredOrigins =
+            (builder.Configuration["AllowedFrontendOrigins"] ?? "")
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(origin => origin.TrimEnd('/'));
+
+        var localOrigins = new[]
         {
-            var configuredOrigins =
-                (builder.Configuration[
-                    "AllowedFrontendOrigins"] ?? "")
-                    .Split(
-                        ',',
-                        StringSplitOptions.RemoveEmptyEntries |
-                        StringSplitOptions.TrimEntries)
-                    .Select(origin => origin.TrimEnd('/'));
+            "http://localhost:4200",
+            "http://localhost:4300",
+            "http://app.testing.local"
+        };
 
-            var localOrigins = new[]
-            {
-                "http://localhost:4200",
-                "http://localhost:4300",
-                "http://app.testing.local"
-            };
-
-            policy
-                .WithOrigins(
-                    configuredOrigins
-                        .Concat(localOrigins)
-                        .Distinct()
-                        .ToArray())
-                .AllowAnyHeader()
-                .AllowAnyMethod();
-        });
+        policy
+            .WithOrigins(configuredOrigins.Concat(localOrigins).Distinct().ToArray())
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
 });
 
-builder.Services.AddSingleton<
-    INotificationStore,
-    InMemoryNotificationStore>();
+var notificationDbConnectionString =
+    builder.Configuration.GetConnectionString("NotificationDb")
+    ?? throw new InvalidOperationException(
+        "Missing ConnectionStrings:NotificationDb. Set it via dotnet user-secrets (dev) " +
+        "or the ConnectionStrings__NotificationDb environment variable (staging/production).");
+
+builder.Services.AddDbContext<NotificationDbContext>(options =>
+    options.UseMySql(
+        notificationDbConnectionString,
+        ServerVersion.AutoDetect(notificationDbConnectionString)));
+
+builder.Services.AddScoped<INotificationStore, EfNotificationStore>();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -84,6 +78,9 @@ if (!app.Environment.IsProduction())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+
+    using var scope = app.Services.CreateScope();
+    scope.ServiceProvider.GetRequiredService<NotificationDbContext>().Database.Migrate();
 }
 
 app.UseCors("AllowFrontend");
@@ -96,8 +93,7 @@ app.MapGet(
         new
         {
             status = "healthy",
-            environment =
-                app.Environment.EnvironmentName
+            environment = app.Environment.EnvironmentName
         }));
 
 app.MapNotificationEndpoints();
