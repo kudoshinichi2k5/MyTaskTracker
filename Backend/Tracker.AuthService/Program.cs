@@ -3,23 +3,36 @@ using System.Security.Claims;
 using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Tracker.AuthService.Data;
 using Tracker.AuthService.Models;
 using Tracker.AuthService.Services;
-using Tracker.AuthService.Endpoints; // Import namespace mới
+using Tracker.AuthService.Endpoints;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddSingleton<ConcurrentDictionary<string, TokenInfo>>();
 builder.Services.AddSingleton<ConcurrentDictionary<string, RefreshSession>>();
 builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
-builder.Services.AddSingleton<IUserStore, InMemoryUserStore>();
+
+var authDbConnectionString =
+    builder.Configuration.GetConnectionString("AuthDb")
+    ?? throw new InvalidOperationException(
+        "Missing ConnectionStrings:AuthDb. Set it via dotnet user-secrets (dev) " +
+        "or the ConnectionStrings__AuthDb environment variable (staging/production).");
+
+builder.Services.AddDbContext<AuthDbContext>(options =>
+    options.UseMySql(
+        authDbConnectionString,
+        ServerVersion.AutoDetect(authDbConnectionString)));
+
+builder.Services.AddScoped<IUserStore, EfUserStore>();
 
 builder.Services.AddAuthentication("Bearer")
     .AddScheme<AuthenticationSchemeOptions, InternalAuthHandler>("Bearer", null);
 builder.Services.AddAuthorization(options =>
 {
-    // Protects this service's own /api/v1/auth/admin/* endpoints
     options.AddPolicy("AdminOnly", policy => policy.RequireRole("admin"));
 });
 
@@ -43,16 +56,24 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+// Migration + seed tài khoản demo — chỉ chạy ngoài Production (mục 9 của kế hoạch).
+if (!app.Environment.IsProduction())
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
+    db.Database.Migrate();
+    AuthDbSeeder.Seed(db, scope.ServiceProvider.GetRequiredService<IPasswordHasher<User>>());
+}
+
 app.UseCors("AllowFrontend");
 app.UseAuthentication();
 app.UseAuthorization();
 
-// --- ĐĂNG KÝ ENDPOINTS TỪ KẾT CẤU BÊN NGOÀI ---
 app.MapAuthEndpoints();
 
 app.Run();
 
-// --- AUTH HANDLER & SHARED STATE MODELS ---
+// --- AUTH HANDLER & SHARED STATE MODELS --- (giữ nguyên toàn bộ phần dưới, không đổi)
 
 public sealed class InternalAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions>
 {
