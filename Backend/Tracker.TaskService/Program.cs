@@ -1,4 +1,6 @@
+using Microsoft.EntityFrameworkCore;
 using Tracker.TaskService.Auth;
+using Tracker.TaskService.Data;
 using Tracker.TaskService.Endpoints;
 using Tracker.TaskService.Services;
 
