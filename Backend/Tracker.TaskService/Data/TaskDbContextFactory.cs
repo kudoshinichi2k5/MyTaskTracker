@@ -17,8 +17,12 @@ public class TaskDbContextFactory : IDesignTimeDbContextFactory<TaskDbContext>
             .Build();
 
         var connectionString =
-            configuration.GetConnectionString("TaskDb")
-            ?? "Server=localhost;Port=3306;Database=tracker_tasks;User=task_service;Password=change_me_task;";
+            configuration.GetConnectionString("TaskDb");
+
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            connectionString = "Server=localhost;Port=3306;Database=tracker_tasks;User=task_service;Password=change_me_task;";
+        }
 
         var optionsBuilder = new DbContextOptionsBuilder<TaskDbContext>();
         optionsBuilder.UseMySql(

@@ -17,10 +17,14 @@ builder.Services.AddSingleton<ConcurrentDictionary<string, RefreshSession>>();
 builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
 
 var authDbConnectionString =
-    builder.Configuration.GetConnectionString("AuthDb")
-    ?? throw new InvalidOperationException(
+    builder.Configuration.GetConnectionString("AuthDb");
+
+if (string.IsNullOrWhiteSpace(authDbConnectionString))
+{
+    throw new InvalidOperationException(
         "Missing ConnectionStrings:AuthDb. Set it via dotnet user-secrets (dev) " +
         "or the ConnectionStrings__AuthDb environment variable (staging/production).");
+}
 
 builder.Services.AddDbContext<AuthDbContext>(options =>
     options.UseMySql(

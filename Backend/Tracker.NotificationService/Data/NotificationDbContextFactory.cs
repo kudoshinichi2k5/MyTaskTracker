@@ -28,13 +28,12 @@ public class NotificationDbContextFactory
                 .Build();
 
         var connectionString =
-            configuration.GetConnectionString(
-                "NotificationDb")
-            ?? "Server=localhost;" +
-               "Port=3306;" +
-               "Database=tracker_notifications;" +
-               "User=notification_service;" +
-               "Password=change_me_notification;";
+            configuration.GetConnectionString("NotificationDb");
+
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            connectionString = "Server=localhost;Port=3306;Database=tracker_notifications;User=notification_service;Password=change_me_notification;";
+        }
 
         var optionsBuilder =
             new DbContextOptionsBuilder<

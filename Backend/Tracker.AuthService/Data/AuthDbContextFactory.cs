@@ -21,11 +21,12 @@ public class AuthDbContextFactory
             .Build();
 
         var connectionString =
-            configuration.GetConnectionString("AuthDb")
-            ?? "Server=localhost;Port=3306;" +
-               "Database=tracker_auth;" +
-               "User=auth_service;" +
-               "Password=change_me_auth;";
+            configuration.GetConnectionString("AuthDb");
+
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            connectionString = "Server=localhost;Port=3306;Database=tracker_auth;User=auth_service;Password=change_me_auth;";
+        }
 
         var optionsBuilder =
             new DbContextOptionsBuilder<AuthDbContext>();

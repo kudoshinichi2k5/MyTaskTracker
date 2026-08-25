@@ -73,10 +73,14 @@ builder.Services.AddCors(options =>
 });
 
 var taskDbConnectionString =
-    builder.Configuration.GetConnectionString("TaskDb")
-    ?? throw new InvalidOperationException(
+    builder.Configuration.GetConnectionString("TaskDb");
+
+if (string.IsNullOrWhiteSpace(taskDbConnectionString))
+{
+    throw new InvalidOperationException(
         "Missing ConnectionStrings:TaskDb. Set it via dotnet user-secrets (dev) " +
         "or the ConnectionStrings__TaskDb environment variable (staging/production).");
+}
 
 builder.Services.AddDbContext<TaskDbContext>(options =>
     options.UseMySql(

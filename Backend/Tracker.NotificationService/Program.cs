@@ -57,10 +57,14 @@ builder.Services.AddCors(options =>
 });
 
 var notificationDbConnectionString =
-    builder.Configuration.GetConnectionString("NotificationDb")
-    ?? throw new InvalidOperationException(
+    builder.Configuration.GetConnectionString("NotificationDb");
+
+if (string.IsNullOrWhiteSpace(notificationDbConnectionString))
+{
+    throw new InvalidOperationException(
         "Missing ConnectionStrings:NotificationDb. Set it via dotnet user-secrets (dev) " +
         "or the ConnectionStrings__NotificationDb environment variable (staging/production).");
+}
 
 builder.Services.AddDbContext<NotificationDbContext>(options =>
     options.UseMySql(

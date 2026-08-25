@@ -26,10 +26,14 @@ builder.Services
 builder.Services.AddAuthorization();
 
 var projectDbConnectionString =
-    builder.Configuration.GetConnectionString("ProjectDb")
-    ?? throw new InvalidOperationException(
+    builder.Configuration.GetConnectionString("ProjectDb");
+
+if (string.IsNullOrWhiteSpace(projectDbConnectionString))
+{
+    throw new InvalidOperationException(
         "Missing ConnectionStrings:ProjectDb. Set it via dotnet user-secrets (dev) " +
         "or the ConnectionStrings__ProjectDb environment variable (staging/production).");
+}
 
 builder.Services.AddDbContext<ProjectDbContext>(options =>
     options.UseMySql(

@@ -26,10 +26,14 @@ builder.Services
 builder.Services.AddAuthorization();
 
 var commentDbConnectionString =
-    builder.Configuration.GetConnectionString("CommentDb")
-    ?? throw new InvalidOperationException(
+    builder.Configuration.GetConnectionString("CommentDb");
+
+if (string.IsNullOrWhiteSpace(commentDbConnectionString))
+{
+    throw new InvalidOperationException(
         "Missing ConnectionStrings:CommentDb. Set it via dotnet user-secrets (dev) " +
         "or the ConnectionStrings__CommentDb environment variable (staging/production).");
+}
 
 builder.Services.AddDbContext<CommentDbContext>(options =>
     options.UseMySql(

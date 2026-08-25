@@ -36,6 +36,14 @@ public class ProjectDbContextFactory
                "User=project_service;" +
                "Password=change_me_project;";
 
+        var connectionString =
+            configuration.GetConnectionString("ProjectDb");
+
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            connectionString = "Server=localhost;Port=3306;Database=tracker_projects;User=project_service;Password=change_me_project;";
+        }
+
         var optionsBuilder =
             new DbContextOptionsBuilder<
                 ProjectDbContext>();

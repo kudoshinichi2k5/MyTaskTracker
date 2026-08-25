@@ -28,13 +28,12 @@ public class CommentDbContextFactory
                 .Build();
 
         var connectionString =
-            configuration.GetConnectionString(
-                "CommentDb")
-            ?? "Server=localhost;" +
-               "Port=3306;" +
-               "Database=tracker_comments;" +
-               "User=comment_service;" +
-               "Password=change_me_comment;";
+            configuration.GetConnectionString("CommentDb");
+
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            connectionString = "Server=localhost;Port=3306;Database=tracker_comments;User=comment_service;Password=change_me_comment;";
+        }
 
         var optionsBuilder =
             new DbContextOptionsBuilder<
