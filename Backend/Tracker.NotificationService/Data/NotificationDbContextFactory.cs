@@ -4,45 +4,42 @@ using Microsoft.Extensions.Configuration;
 
 namespace Tracker.NotificationService.Data;
 
-public class NotificationDbContextFactory
-    : IDesignTimeDbContextFactory<
-        NotificationDbContext>
+public sealed class NotificationDbContextFactory
+    : IDesignTimeDbContextFactory<NotificationDbContext>
 {
-    public NotificationDbContext CreateDbContext(
-        string[] args)
+    public NotificationDbContext CreateDbContext(string[] args)
     {
-        var configuration =
-            new ConfigurationBuilder()
-                .SetBasePath(
-                    Directory.GetCurrentDirectory())
-                .AddJsonFile(
-                    "appsettings.json",
-                    optional: true)
-                .AddJsonFile(
-                    "appsettings.Development.json",
-                    optional: true)
-                .AddUserSecrets<
-                    NotificationDbContextFactory>(
-                    optional: true)
-                .AddEnvironmentVariables()
-                .Build();
+        var configuration = new ConfigurationBuilder()
+            .SetBasePath(Directory.GetCurrentDirectory())
+            .AddJsonFile(
+                "appsettings.json",
+                optional: true)
+            .AddJsonFile(
+                "appsettings.Development.json",
+                optional: true)
+            .AddUserSecrets<NotificationDbContextFactory>(
+                optional: true)
+            .AddEnvironmentVariables()
+            .Build();
 
         var connectionString =
-            configuration.GetConnectionString("NotificationDb");
+            configuration.GetConnectionString(
+                "NotificationDb");
 
         if (string.IsNullOrWhiteSpace(connectionString))
         {
-            connectionString = "Server=localhost;Port=3306;Database=tracker_notifications;User=notification_service;Password=change_me_notification;";
+            throw new InvalidOperationException(
+                "Missing ConnectionStrings:NotificationDb. " +
+                "Configure it with dotnet user-secrets.");
         }
 
         var optionsBuilder =
-            new DbContextOptionsBuilder<
-                NotificationDbContext>();
+            new DbContextOptionsBuilder<NotificationDbContext>();
 
         optionsBuilder.UseMySql(
             connectionString,
-            ServerVersion.AutoDetect(
-                connectionString));
+            new MariaDbServerVersion(
+                new Version(11, 4, 0)));
 
         return new NotificationDbContext(
             optionsBuilder.Options);

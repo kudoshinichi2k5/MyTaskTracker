@@ -29,7 +29,8 @@ if (string.IsNullOrWhiteSpace(authDbConnectionString))
 builder.Services.AddDbContext<AuthDbContext>(options =>
     options.UseMySql(
         authDbConnectionString,
-        ServerVersion.AutoDetect(authDbConnectionString)));
+        new MariaDbServerVersion(
+            new Version(11, 4, 0))));
 
 builder.Services.AddScoped<IUserStore, EfUserStore>();
 

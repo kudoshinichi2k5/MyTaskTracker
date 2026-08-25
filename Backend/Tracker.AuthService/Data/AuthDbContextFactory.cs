@@ -28,6 +28,8 @@ public class AuthDbContextFactory
             connectionString = "Server=localhost;Port=3306;Database=tracker_auth;User=auth_service;Password=change_me_auth;";
         }
 
+        Console.WriteLine($"[DEBUG] connectionString = '{connectionString}'");
+
         var optionsBuilder =
             new DbContextOptionsBuilder<AuthDbContext>();
 

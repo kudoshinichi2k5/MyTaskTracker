@@ -4,54 +4,41 @@ using Microsoft.Extensions.Configuration;
 
 namespace Tracker.ProjectService.Data;
 
-public class ProjectDbContextFactory
-    : IDesignTimeDbContextFactory<
-        ProjectDbContext>
+public sealed class ProjectDbContextFactory
+    : IDesignTimeDbContextFactory<ProjectDbContext>
 {
-    public ProjectDbContext CreateDbContext(
-        string[] args)
+    public ProjectDbContext CreateDbContext(string[] args)
     {
-        var configuration =
-            new ConfigurationBuilder()
-                .SetBasePath(
-                    Directory.GetCurrentDirectory())
-                .AddJsonFile(
-                    "appsettings.json",
-                    optional: true)
-                .AddJsonFile(
-                    "appsettings.Development.json",
-                    optional: true)
-                .AddUserSecrets<
-                    ProjectDbContextFactory>(
-                    optional: true)
-                .AddEnvironmentVariables()
-                .Build();
-
-        var connectionString =
-            configuration.GetConnectionString(
-                "ProjectDb")
-            ?? "Server=localhost;" +
-               "Port=3306;" +
-               "Database=tracker_projects;" +
-               "User=project_service;" +
-               "Password=change_me_project;";
+        var configuration = new ConfigurationBuilder()
+            .SetBasePath(Directory.GetCurrentDirectory())
+            .AddJsonFile(
+                "appsettings.json",
+                optional: true)
+            .AddJsonFile(
+                "appsettings.Development.json",
+                optional: true)
+            .AddUserSecrets<ProjectDbContextFactory>(
+                optional: true)
+            .AddEnvironmentVariables()
+            .Build();
 
         var connectionString =
             configuration.GetConnectionString("ProjectDb");
 
         if (string.IsNullOrWhiteSpace(connectionString))
         {
-            connectionString = "Server=localhost;Port=3306;Database=tracker_projects;User=project_service;Password=change_me_project;";
+            throw new InvalidOperationException(
+                "Missing ConnectionStrings:ProjectDb. " +
+                "Configure it with dotnet user-secrets.");
         }
 
         var optionsBuilder =
-            new DbContextOptionsBuilder<
-                ProjectDbContext>();
+            new DbContextOptionsBuilder<ProjectDbContext>();
 
         optionsBuilder.UseMySql(
             connectionString,
-            ServerVersion.AutoDetect(
-                connectionString));
+            new MariaDbServerVersion(
+                new Version(11, 4, 0)));
 
         return new ProjectDbContext(
             optionsBuilder.Options);

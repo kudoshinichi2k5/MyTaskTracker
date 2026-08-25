@@ -4,15 +4,21 @@ using Microsoft.Extensions.Configuration;
 
 namespace Tracker.TaskService.Data;
 
-public class TaskDbContextFactory : IDesignTimeDbContextFactory<TaskDbContext>
+public sealed class TaskDbContextFactory
+    : IDesignTimeDbContextFactory<TaskDbContext>
 {
     public TaskDbContext CreateDbContext(string[] args)
     {
         var configuration = new ConfigurationBuilder()
             .SetBasePath(Directory.GetCurrentDirectory())
-            .AddJsonFile("appsettings.json", optional: true)
-            .AddJsonFile("appsettings.Development.json", optional: true)
-            .AddUserSecrets<TaskDbContextFactory>(optional: true)
+            .AddJsonFile(
+                "appsettings.json",
+                optional: true)
+            .AddJsonFile(
+                "appsettings.Development.json",
+                optional: true)
+            .AddUserSecrets<TaskDbContextFactory>(
+                optional: true)
             .AddEnvironmentVariables()
             .Build();
 
@@ -21,14 +27,20 @@ public class TaskDbContextFactory : IDesignTimeDbContextFactory<TaskDbContext>
 
         if (string.IsNullOrWhiteSpace(connectionString))
         {
-            connectionString = "Server=localhost;Port=3306;Database=tracker_tasks;User=task_service;Password=change_me_task;";
+            throw new InvalidOperationException(
+                "Missing ConnectionStrings:TaskDb. " +
+                "Configure it with dotnet user-secrets.");
         }
 
-        var optionsBuilder = new DbContextOptionsBuilder<TaskDbContext>();
+        var optionsBuilder =
+            new DbContextOptionsBuilder<TaskDbContext>();
+
         optionsBuilder.UseMySql(
             connectionString,
-            ServerVersion.AutoDetect(connectionString));
+            new MariaDbServerVersion(
+                new Version(11, 4, 0)));
 
-        return new TaskDbContext(optionsBuilder.Options);
+        return new TaskDbContext(
+            optionsBuilder.Options);
     }
 }

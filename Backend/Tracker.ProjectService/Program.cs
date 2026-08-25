@@ -38,7 +38,8 @@ if (string.IsNullOrWhiteSpace(projectDbConnectionString))
 builder.Services.AddDbContext<ProjectDbContext>(options =>
     options.UseMySql(
         projectDbConnectionString,
-        ServerVersion.AutoDetect(projectDbConnectionString)));
+        new MariaDbServerVersion(
+            new Version(11, 4, 0))));
 
 builder.Services.AddScoped<ProjectStore>();
 
