@@ -1,21 +1,24 @@
-using System.Collections.Concurrent;
+using Microsoft.EntityFrameworkCore;
+using Tracker.ProjectService.Data;
 using Tracker.ProjectService.Models;
 
 namespace Tracker.ProjectService.Services;
 
 /// <summary>
-/// In-memory project store.
-/// Projects belong to users and contain references
-/// to TaskService task IDs.
+/// EF Core / MariaDB-backed project store. Thay thế bản in-memory cũ,
+/// giữ nguyên tên class "ProjectStore" và toàn bộ public API để
+/// ProjectEndpoints.cs không phải sửa gì.
 /// </summary>
 public sealed class ProjectStore
 {
-    private readonly ConcurrentDictionary<Guid, ProjectItem> _projects = new();
+    private readonly ProjectDbContext _db;
 
-    public ProjectItem Create(
-        string ownerUserId,
-        string name,
-        string? description)
+    public ProjectStore(ProjectDbContext db)
+    {
+        _db = db;
+    }
+
+    public ProjectItem Create(string ownerUserId, string name, string? description)
     {
         var project = new ProjectItem
         {
@@ -24,34 +27,32 @@ public sealed class ProjectStore
             OwnerUserId = ownerUserId
         };
 
-        _projects[project.Id] = project;
+        _db.Projects.Add(project);
+        _db.SaveChanges();
 
         return project;
     }
 
-    public IReadOnlyCollection<ProjectItem> GetAllForUser(
-        string userId) =>
-        _projects.Values
-            .Where(p => p.OwnerUserId == userId)
-            .ToList();
-
-    public ProjectItem? GetById(Guid id) =>
-        _projects.TryGetValue(
-            id,
-            out var project)
-            ? project
-            : null;
-
-    public ProjectItem? Update(
-        Guid id,
-        string ownerUserId,
-        string name,
-        string? description)
+    public IReadOnlyCollection<ProjectItem> GetAllForUser(string userId)
     {
-        if (!_projects.TryGetValue(
-                id,
-                out var project)
-            || project.OwnerUserId != ownerUserId)
+        return _db.Projects
+            .AsNoTracking()
+            .Where(p => p.OwnerUserId == userId)
+            .OrderBy(p => p.CreatedAt)
+            .ToList();
+    }
+
+    public ProjectItem? GetById(Guid id)
+    {
+        return _db.Projects
+            .AsNoTracking()
+            .FirstOrDefault(p => p.Id == id);
+    }
+
+    public ProjectItem? Update(Guid id, string ownerUserId, string name, string? description)
+    {
+        var project = _db.Projects.FirstOrDefault(p => p.Id == id && p.OwnerUserId == ownerUserId);
+        if (project is null)
         {
             return null;
         }
@@ -60,35 +61,29 @@ public sealed class ProjectStore
         project.Description = description;
         project.UpdatedAt = DateTimeOffset.UtcNow;
 
+        _db.SaveChanges();
+
         return project;
     }
 
-    public bool Delete(
-        Guid id,
-        string ownerUserId)
+    public bool Delete(Guid id, string ownerUserId)
     {
-        if (!_projects.TryGetValue(
-                id,
-                out var project)
-            || project.OwnerUserId != ownerUserId)
+        var project = _db.Projects.FirstOrDefault(p => p.Id == id && p.OwnerUserId == ownerUserId);
+        if (project is null)
         {
             return false;
         }
 
-        return _projects.TryRemove(
-            id,
-            out _);
+        _db.Projects.Remove(project);
+        _db.SaveChanges();
+
+        return true;
     }
 
-    public ProjectItem? AttachTask(
-        Guid projectId,
-        string ownerUserId,
-        int taskId)
+    public ProjectItem? AttachTask(Guid projectId, string ownerUserId, int taskId)
     {
-        if (!_projects.TryGetValue(
-                projectId,
-                out var project)
-            || project.OwnerUserId != ownerUserId)
+        var project = _db.Projects.FirstOrDefault(p => p.Id == projectId && p.OwnerUserId == ownerUserId);
+        if (project is null)
         {
             return null;
         }
@@ -96,30 +91,24 @@ public sealed class ProjectStore
         if (!project.TaskIds.Contains(taskId))
         {
             project.TaskIds.Add(taskId);
-            project.UpdatedAt =
-                DateTimeOffset.UtcNow;
+            project.UpdatedAt = DateTimeOffset.UtcNow;
+            _db.SaveChanges();
         }
 
         return project;
     }
 
-    public ProjectItem? DetachTask(
-        Guid projectId,
-        string ownerUserId,
-        int taskId)
+    public ProjectItem? DetachTask(Guid projectId, string ownerUserId, int taskId)
     {
-        if (!_projects.TryGetValue(
-                projectId,
-                out var project)
-            || project.OwnerUserId != ownerUserId)
+        var project = _db.Projects.FirstOrDefault(p => p.Id == projectId && p.OwnerUserId == ownerUserId);
+        if (project is null)
         {
             return null;
         }
 
         project.TaskIds.Remove(taskId);
-
-        project.UpdatedAt =
-            DateTimeOffset.UtcNow;
+        project.UpdatedAt = DateTimeOffset.UtcNow;
+        _db.SaveChanges();
 
         return project;
     }
