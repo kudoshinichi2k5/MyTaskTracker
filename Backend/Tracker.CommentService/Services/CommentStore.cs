@@ -1,31 +1,32 @@
-using System.Collections.Concurrent;
+using Microsoft.EntityFrameworkCore;
+using Tracker.CommentService.Data;
 using Tracker.CommentService.Models;
 
 namespace Tracker.CommentService.Services;
 
 /// <summary>
-/// In-memory comment store, mirroring the "no database persistence yet"
-/// limitation documented for the other services in this repo.
+/// EF Core / MariaDB-backed comment store. Thay bản in-memory cũ, giữ
+/// nguyên tên class + API để CommentEndpoints.cs không phải sửa gì.
 /// </summary>
 public sealed class CommentStore
 {
-    private readonly ConcurrentDictionary<Guid, CommentItem> _comments = new();
+    private readonly CommentDbContext _db;
 
-    public IReadOnlyCollection<CommentItem> GetForTask(
-        int taskId)
+    public CommentStore(CommentDbContext db)
     {
-        return _comments.Values
-            .Where(comment =>
-                comment.TaskId == taskId)
-            .OrderBy(comment =>
-                comment.CreatedAt)
+        _db = db;
+    }
+
+    public IReadOnlyCollection<CommentItem> GetForTask(int taskId)
+    {
+        return _db.Comments
+            .AsNoTracking()
+            .Where(c => c.TaskId == taskId)
+            .OrderBy(c => c.CreatedAt)
             .ToList();
     }
 
-    public CommentItem Add(
-        int taskId,
-        string authorUserId,
-        string body)
+    public CommentItem Add(int taskId, string authorUserId, string body)
     {
         var comment = new CommentItem
         {
@@ -34,33 +35,43 @@ public sealed class CommentStore
             Body = body
         };
 
-        _comments[comment.Id] = comment;
+        _db.Comments.Add(comment);
+        _db.SaveChanges();
 
         return comment;
     }
 
-    public CommentItem? GetById(Guid id) =>
-        _comments.TryGetValue(id, out var comment) ? comment : null;
+    public CommentItem? GetById(Guid id)
+    {
+        return _db.Comments.AsNoTracking().FirstOrDefault(c => c.Id == id);
+    }
 
     public CommentItem? Update(Guid id, string authorUserId, string body)
     {
-        if (!_comments.TryGetValue(id, out var comment) || comment.AuthorUserId != authorUserId)
+        var comment = _db.Comments.FirstOrDefault(c => c.Id == id && c.AuthorUserId == authorUserId);
+        if (comment is null)
         {
             return null;
         }
 
         comment.Body = body;
         comment.EditedAt = DateTimeOffset.UtcNow;
+        _db.SaveChanges();
+
         return comment;
     }
 
     public bool Delete(Guid id, string authorUserId)
     {
-        if (!_comments.TryGetValue(id, out var comment) || comment.AuthorUserId != authorUserId)
+        var comment = _db.Comments.FirstOrDefault(c => c.Id == id && c.AuthorUserId == authorUserId);
+        if (comment is null)
         {
             return false;
         }
 
-        return _comments.TryRemove(id, out _);
+        _db.Comments.Remove(comment);
+        _db.SaveChanges();
+
+        return true;
     }
 }

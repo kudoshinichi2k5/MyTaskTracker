@@ -1,11 +1,10 @@
+using Microsoft.EntityFrameworkCore;
 using Tracker.CommentService.Auth;
+using Tracker.CommentService.Data;
 using Tracker.CommentService.Endpoints;
 using Tracker.CommentService.Services;
 
 var builder = WebApplication.CreateBuilder(args);
-
-// --- Auth: opaque bearer token validated against Tracker.AuthService /verify.
-// No JWT is issued or parsed anywhere in this service.
 
 builder.Services.AddHttpClient("AuthServiceVerify");
 
@@ -26,7 +25,18 @@ builder.Services
 
 builder.Services.AddAuthorization();
 
-builder.Services.AddSingleton<CommentStore>();
+var commentDbConnectionString =
+    builder.Configuration.GetConnectionString("CommentDb")
+    ?? throw new InvalidOperationException(
+        "Missing ConnectionStrings:CommentDb. Set it via dotnet user-secrets (dev) " +
+        "or the ConnectionStrings__CommentDb environment variable (staging/production).");
+
+builder.Services.AddDbContext<CommentDbContext>(options =>
+    options.UseMySql(
+        commentDbConnectionString,
+        ServerVersion.AutoDetect(commentDbConnectionString)));
+
+builder.Services.AddScoped<CommentStore>();
 
 builder.Services.AddCors(o => o.AddDefaultPolicy(p => p
     .AllowAnyHeader()
@@ -38,17 +48,19 @@ builder.Services.AddEndpointsApiExplorer();
 
 var app = builder.Build();
 
+if (!app.Environment.IsProduction())
+{
+    using var scope = app.Services.CreateScope();
+    scope.ServiceProvider.GetRequiredService<CommentDbContext>().Database.Migrate();
+}
+
 app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapGet(
     "/health",
-    () => Results.Ok(new
-    {
-        status = "healthy",
-        service = "Tracker.CommentService"
-    }))
+    () => Results.Ok(new { status = "healthy", service = "Tracker.CommentService" }))
     .AllowAnonymous();
 
 app.MapCommentEndpoints();
