@@ -5,7 +5,7 @@ TaskTracker is a .NET 8 microservices sample with two Angular 18 applications an
 - **CustomerApp** (`http://localhost:4200`) for tasks, projects, comments, and notifications.
 - **AdminPortal** (`http://localhost:4300`) for task summaries, user access, projects, and comments.
 
-Authentication preserves an OWIN-style password-grant contract while using ASP.NET Core middleware. The system uses opaque bearer tokens: they are random strings stored in memory and validated server-side on every protected request. No JWT is used for the runtime auth flow.
+Authentication preserves an OWIN-style password-grant contract while using ASP.NET Core middleware. The system uses opaque bearer tokens: they are random strings validated server-side on every protected request. No JWT is used for the runtime auth flow.
 
 ## Architecture
 
@@ -32,7 +32,7 @@ All protected resource services validate bearer tokens against AuthService. Noti
 
 | Project | Responsibility | Local URL |
 | --- | --- | --- |
-| `Backend/Tracker.AuthService` | Login, refresh, logout, and token verification | `http://localhost:5001` |
+| `Backend/Tracker.AuthService` | Login, refresh, logout, register, and token verification | `http://localhost:5001` |
 | `Backend/Tracker.TaskService` | User tasks and admin task/user endpoints | `http://localhost:5002` |
 | `Backend/Tracker.NotificationService` | User notifications | `http://localhost:5003` |
 | `Backend/Tracker.ProjectService` | Lightweight project grouping for tasks | `http://localhost:5004` |
@@ -42,7 +42,7 @@ All protected resource services validate bearer tokens against AuthService. Noti
 
 ## Authentication flow
 
-1. An Angular app sends form-encoded credentials to `POST /token` on AuthService.
+1. An Angular app sends form-encoded credentials to `POST /token` on AuthService (or JSON to `POST /api/v1/auth/login` / `POST /api/v1/auth/register`).
 2. AuthService returns a camelCase response containing `accessToken`, `refreshToken`, `expiresIn`, `username`, and `roles`.
 3. The app stores its session locally and adds `Authorization: Bearer <token>` to API requests.
 4. TaskService, NotificationService, ProjectService, and CommentService call AuthService's `GET /verify` endpoint to validate the opaque token and create user claims.
@@ -59,16 +59,13 @@ grant_type=password&username=admin&password=123456
 
 ## Run locally
 
-Prerequisites: .NET 8 SDK, Node.js, and npm.
+Prerequisites: .NET 8 SDK, Node.js, npm, and Docker (for MariaDB via `docker-compose.yml`).
 
-Start the local MariaDB instance and configure the ignored development secrets before starting the backend services:
+Start MariaDB:
 
 ```powershell
 docker compose up -d mariadb
-Push-Location Backend; .\setup-local-secrets.ps1; Pop-Location
 ```
-
-This writes the five connection strings to .NET user secrets rather than committing them to `appsettings.Development.json`. See [CONTRIBUTING.md](CONTRIBUTING.md) for a custom local password and the Git conventions.
 
 Start each backend service in a separate terminal:
 
@@ -114,13 +111,15 @@ Before any production build, replace the `*.yourdomain.com` placeholders in both
 
 This repository is a demonstration, not production-ready identity or data infrastructure:
 
-- AuthService currently contains the demo account `admin` / `123456`.
-- Tokens, refresh sessions, tasks, notifications, users, and roles are in memory only.
-- Restarting a service or recycling an IIS application pool invalidates sessions and loses data.
-- Replace the demo credential lookup and in-memory stores with persistent, securely managed implementations before exposing the application publicly.
+- AuthService seeds a demo account (`admin` / `123456`) the first time it runs against an empty database.
+- Users, tasks, notifications, projects, and comments are persisted in MariaDB (see `docker-compose.yml` and each service's `Data/Migrations` folder). This is a change from earlier revisions — nothing here is in-memory anymore *except* the item below.
+- Access tokens and refresh sessions are still held in an in-process `ConcurrentDictionary` inside AuthService, not in MariaDB. Restarting AuthService, or running more than one AuthService instance behind a load balancer, invalidates every active session. Keep AuthService to a single instance until token storage moves to a shared store (MariaDB table or Redis) — this matters as soon as you containerize and consider scaling replicas.
+- Recycling any other service no longer loses data (it's in MariaDB), but in-flight requests will still 401 until the client's token is re-verified.
+- Replace the demo credential lookup with your own account-provisioning process before exposing the application publicly.
 
 ## Current local UI notes
 
 - CustomerApp now shows a project hub alongside task work, and its comment area lets you pick a task from the visible project list instead of forcing manual GUID entry.
+- CustomerApp has a `/register` page (`POST /api/v1/auth/register`) alongside `/login`.
 - AdminPortal includes project and comment inspection panels in the main dashboard.
-- If you restart AuthService or any protected backend, sign out and sign in again. The apps now validate the stored token on startup, but a fresh login is still the fastest recovery path because the services keep auth state in memory.
+- If you restart AuthService or any protected backend, sign out and sign in again. The apps now validate the stored token on startup, but a fresh login is still the fastest recovery path because AuthService keeps token/refresh-session state in memory.
