@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Identity;
 using Tracker.AuthService.Models;
 using Tracker.AuthService.Services;
@@ -7,6 +8,9 @@ namespace Tracker.AuthService.Endpoints;
 
 public static class AuthEndpoints
 {
+    private static readonly Regex EmailPattern =
+        new(@"^[^@\s]+@[^@\s]+\.[^@\s]+$", RegexOptions.Compiled);
+
     public static void MapAuthEndpoints(this IEndpointRouteBuilder app)
     {
         // Lấy các Stores từ Dependency Injection để dùng chung cho các endpoints
@@ -50,8 +54,12 @@ public static class AuthEndpoints
                 return Results.ValidationProblem(new Dictionary<string, string[]> { ["username"] = ["Username must be at least 3 characters."] });
             if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < 6)
                 return Results.ValidationProblem(new Dictionary<string, string[]> { ["password"] = ["Password must be at least 6 characters."] });
+            if (string.IsNullOrWhiteSpace(email) || !EmailPattern.IsMatch(email))
+                return Results.ValidationProblem(new Dictionary<string, string[]> { ["email"] = ["A valid email address is required."] });
             if (users.UsernameExists(username))
                 return Results.ValidationProblem(new Dictionary<string, string[]> { ["username"] = ["That username is already taken."] });
+            if (users.EmailExists(email))
+                return Results.ValidationProblem(new Dictionary<string, string[]> { ["email"] = ["That email is already registered."] });
 
             var user = new User { Username = username, Email = email, PasswordHash = "" };
             user.PasswordHash = hasher.HashPassword(user, request.Password);
@@ -129,7 +137,7 @@ public static class AuthEndpoints
         var adminGroup = app.MapGroup("/api/v1/auth/admin").RequireAuthorization("AdminOnly");
 
         adminGroup.MapGet("/users", IResult (IUserStore users) =>
-            Results.Ok(users.GetAll().Select(u => new AdminUserSummary(u.Id, u.Username, u.Email, u.Enabled, u.Roles.ToArray())).ToList()));
+            Results.Ok(users.GetAll().Select(u => new AdminUserSummary(u.Id, u.Username, u.Email, u.Enabled, u.Roles)).ToList()));
 
         adminGroup.MapGet("/roles", IResult () => Results.Ok(new[] { "admin" }));
 
@@ -211,6 +219,3 @@ public static class AuthEndpoints
 public record LoginRequest(string Username, string Password);
 public record RefreshRequest(string RefreshToken);
 public record LogoutRequest(string RefreshToken);
-// Các Record/Model được sử dụng thêm trong code của bạn:
-public record RegisterRequest(string Username, string Email, string Password);
-public record AdminUserSummary(string Id, string Username, string Email, bool Enabled, string[] Roles);

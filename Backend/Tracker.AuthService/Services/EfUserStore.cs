@@ -31,6 +31,12 @@ public class EfUserStore : IUserStore
             .Any(u => u.Username == username);
     }
 
+    public bool EmailExists(string email)
+    {
+        return _db.Users
+            .Any(u => u.Email == email);
+    }
+
     public User Create(User user)
     {
         _db.Users.Add(user);
