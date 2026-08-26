@@ -1,6 +1,6 @@
 import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, NgForm } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 
@@ -21,14 +21,17 @@ export class RegisterComponent {
   confirmPassword = '';
   errorMessage = '';
   isSubmitting = false;
+  submitAttempted = false;
 
-  onRegister(): void {
+  onRegister(form: NgForm): void {
+    this.submitAttempted = true;
+
     const username = this.username.trim();
     const email = this.email.trim();
     const password = this.password;
 
-    if (!username || !email || !password) {
-      this.errorMessage = 'Please fill in every field.';
+    if (form.invalid) {
+      this.errorMessage = 'Please fix the highlighted fields.';
       return;
     }
 
