@@ -25,17 +25,18 @@ public class AuthDbContextFactory
 
         if (string.IsNullOrWhiteSpace(connectionString))
         {
-            connectionString = "Server=localhost;Port=3306;Database=tracker_auth;User=auth_service;Password=change_me_auth;";
+            throw new InvalidOperationException(
+                "Missing ConnectionStrings:AuthDb. " +
+                "Configure it with dotnet user-secrets.");
         }
-
-        Console.WriteLine($"[DEBUG] connectionString = '{connectionString}'");
 
         var optionsBuilder =
             new DbContextOptionsBuilder<AuthDbContext>();
 
         optionsBuilder.UseMySql(
             connectionString,
-            ServerVersion.AutoDetect(connectionString));
+            new MariaDbServerVersion(
+                new Version(11, 4, 0)));
 
         return new AuthDbContext(optionsBuilder.Options);
     }
