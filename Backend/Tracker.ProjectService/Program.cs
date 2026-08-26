@@ -43,11 +43,32 @@ builder.Services.AddDbContext<ProjectDbContext>(options =>
 
 builder.Services.AddScoped<ProjectStore>();
 
-builder.Services.AddCors(o => o.AddDefaultPolicy(p => p
-    .AllowAnyHeader()
-    .AllowAnyMethod()
-    .SetIsOriginAllowed(_ => true)
-    .AllowCredentials()));
+// Only known frontend origins may send credentialed requests. The previous
+// SetIsOriginAllowed(_ => true) + AllowCredentials() combination accepted
+// credentialed requests from *any* origin - fixed to match the allow-list
+// pattern already used by AuthService/TaskService/NotificationService.
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        var configuredOrigins =
+            (builder.Configuration["AllowedFrontendOrigins"] ?? "")
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(origin => origin.TrimEnd('/'));
+
+        var localOrigins = new[]
+        {
+            "http://localhost:4200",
+            "http://localhost:4300"
+        };
+
+        policy
+            .WithOrigins(configuredOrigins.Concat(localOrigins).Distinct().ToArray())
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
+    });
+});
 
 builder.Services.AddEndpointsApiExplorer();
 
@@ -59,7 +80,7 @@ if (!app.Environment.IsProduction())
     scope.ServiceProvider.GetRequiredService<ProjectDbContext>().Database.Migrate();
 }
 
-app.UseCors();
+app.UseCors("AllowFrontend");
 app.UseAuthentication();
 app.UseAuthorization();
 
