@@ -213,6 +213,69 @@ export class AuthService {
   }
 
   /*
+   * Create a new account, then sign the user straight in.
+   * AuthService's /api/v1/auth/register issues a session on success,
+   * same shape as /token, so we reuse saveSession() here too.
+   */
+  register(
+    username: string,
+    email: string,
+    password: string
+  ): Observable<void> {
+    this.lastError = null;
+
+    return this.http.post<{
+      accessToken: string;
+      refreshToken: string;
+      tokenType: string;
+      expiresIn: number;
+      username: string;
+      roles: string[];
+    }>(
+      `${environment.authApi}/auth/register`,
+      { username, email, password }
+    ).pipe(
+      tap((res) => {
+        this.saveSession({
+          accessToken: res.accessToken,
+          refreshToken: res.refreshToken,
+          expiresAt: new Date(
+            Date.now() + res.expiresIn * 1000
+          ).toISOString(),
+          username: res.username,
+          roles: res.roles
+        });
+      }),
+
+      map(() => void 0),
+
+      catchError((err: HttpErrorResponse) => {
+        this.lastError =
+          err.status === 400
+            ? this.extractValidationError(err) ??
+              'Please check your details and try again.'
+            : 'Lỗi kết nối máy chủ.';
+
+        return throwError(() => err);
+      })
+    );
+  }
+
+  /*
+   * Pulls the first field-level message out of an ASP.NET Core
+   * ValidationProblem response (`{ errors: { field: ["msg"] } }`).
+   */
+  private extractValidationError(err: HttpErrorResponse): string | null {
+    const errors = err.error?.errors as Record<string, string[]> | undefined;
+    if (!errors) {
+      return null;
+    }
+
+    const firstKey = Object.keys(errors)[0];
+    return firstKey ? errors[firstKey]?.[0] ?? null : null;
+  }
+
+  /*
    * Exchange the refresh token for a new access token.
    */
   refresh(): Observable<AuthResponse> {
