@@ -61,6 +61,15 @@ grant_type=password&username=admin&password=123456
 
 Prerequisites: .NET 8 SDK, Node.js, and npm.
 
+Start the local MariaDB instance and configure the ignored development secrets before starting the backend services:
+
+```powershell
+docker compose up -d mariadb
+Push-Location Backend; .\setup-local-secrets.ps1; Pop-Location
+```
+
+This writes the five connection strings to .NET user secrets rather than committing them to `appsettings.Development.json`. See [CONTRIBUTING.md](CONTRIBUTING.md) for a custom local password and the Git conventions.
+
 Start each backend service in a separate terminal:
 
 ```powershell
