@@ -21,65 +21,42 @@ export interface ProjectItem {
   name: string;
   description: string | null;
   ownerUserId: string;
-
-  // TaskService uses numeric task IDs.
   taskIds: number[];
-
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ProjectRequest {
+  name: string;
+  description: string | null;
 }
 
 @Injectable({
   providedIn: 'root'
 })
 export class ProjectService {
+
   private readonly http =
     inject(HttpClient);
 
-  /**
-   * environment.projectApi:
-   * http://localhost:5004/api/v1
-   *
-   * ProjectService endpoints:
-   * /api/v1/projects
-   */
   private readonly apiUrl =
     `${environment.projectApi}/projects`;
 
   getProjects(): Observable<ProjectItem[]> {
     return this.http
-      .get<ProjectItem[]>(
-        this.apiUrl
-      )
-      .pipe(
-        catchError(this.handleError)
-      );
-  }
-
-  getProject(
-    projectId: string
-  ): Observable<ProjectItem> {
-    return this.http
-      .get<ProjectItem>(
-        `${this.apiUrl}/${projectId}`
-      )
+      .get<ProjectItem[]>(this.apiUrl)
       .pipe(
         catchError(this.handleError)
       );
   }
 
   createProject(
-    name: string,
-    description?: string | null
+    request: ProjectRequest
   ): Observable<ProjectItem> {
     return this.http
       .post<ProjectItem>(
         this.apiUrl,
-        {
-          name,
-          description:
-            description ?? null
-        }
+        request
       )
       .pipe(
         catchError(this.handleError)
@@ -87,18 +64,13 @@ export class ProjectService {
   }
 
   updateProject(
-    projectId: string,
-    name: string,
-    description?: string | null
+    id: string,
+    request: ProjectRequest
   ): Observable<ProjectItem> {
     return this.http
       .put<ProjectItem>(
-        `${this.apiUrl}/${projectId}`,
-        {
-          name,
-          description:
-            description ?? null
-        }
+        `${this.apiUrl}/${id}`,
+        request
       )
       .pipe(
         catchError(this.handleError)
@@ -106,11 +78,11 @@ export class ProjectService {
   }
 
   deleteProject(
-    projectId: string
+    id: string
   ): Observable<void> {
     return this.http
       .delete<void>(
-        `${this.apiUrl}/${projectId}`
+        `${this.apiUrl}/${id}`
       )
       .pipe(
         catchError(this.handleError)
@@ -146,9 +118,7 @@ export class ProjectService {
 
   private handleError(
     error: HttpErrorResponse
-  ): Observable<never> {
-    return throwError(
-      () => error
-    );
+  ) {
+    return throwError(() => error);
   }
 }
