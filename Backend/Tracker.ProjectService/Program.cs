@@ -74,8 +74,14 @@ builder.Services.AddEndpointsApiExplorer();
 
 var app = builder.Build();
 
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
 if (!app.Environment.IsProduction())
 {
+    app.UseSwagger();
+    app.UseSwaggerUI();
+
     using var scope = app.Services.CreateScope();
     scope.ServiceProvider.GetRequiredService<ProjectDbContext>().Database.Migrate();
 }

@@ -4,9 +4,13 @@ using Tracker.CommentService.Data;
 using Tracker.CommentService.Endpoints;
 using Tracker.CommentService.Services;
 
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddHttpClient("AuthServiceVerify");
+
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
 builder.Services
     .AddAuthentication(OpaqueTokenAuthOptions.SchemeName)
@@ -75,6 +79,9 @@ var app = builder.Build();
 
 if (!app.Environment.IsProduction())
 {
+    app.UseSwagger();
+    app.UseSwaggerUI();
+    
     using var scope = app.Services.CreateScope();
     scope.ServiceProvider.GetRequiredService<CommentDbContext>().Database.Migrate();
 }
