@@ -35,11 +35,20 @@ if (string.IsNullOrWhiteSpace(projectDbConnectionString))
         "or the ConnectionStrings__ProjectDb environment variable (staging/production).");
 }
 
+// builder.Services.AddDbContext<ProjectDbContext>(options =>
+//     options.UseMySql(
+//         projectDbConnectionString,
+//         new MariaDbServerVersion(
+//             new Version(11, 4, 0))));
+
 builder.Services.AddDbContext<ProjectDbContext>(options =>
     options.UseMySql(
         projectDbConnectionString,
-        new MariaDbServerVersion(
-            new Version(11, 4, 0))));
+        new MariaDbServerVersion(new Version(11, 4, 0)),
+        mySqlOptions => mySqlOptions.EnableRetryOnFailure(
+            maxRetryCount: 10,
+            maxRetryDelay: TimeSpan.FromSeconds(5),
+            errorNumbersToAdd: null)));
 
 builder.Services.AddScoped<ProjectStore>();
 

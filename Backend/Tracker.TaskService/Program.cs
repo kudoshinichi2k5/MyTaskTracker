@@ -82,10 +82,19 @@ if (string.IsNullOrWhiteSpace(taskDbConnectionString))
         "or the ConnectionStrings__TaskDb environment variable (staging/production).");
 }
 
+// builder.Services.AddDbContext<TaskDbContext>(options =>
+//     options.UseMySql(
+//         taskDbConnectionString,
+//         ServerVersion.AutoDetect(taskDbConnectionString)));
+
 builder.Services.AddDbContext<TaskDbContext>(options =>
     options.UseMySql(
         taskDbConnectionString,
-        ServerVersion.AutoDetect(taskDbConnectionString)));
+        new MariaDbServerVersion(new Version(11, 4, 0)),
+        mySqlOptions => mySqlOptions.EnableRetryOnFailure(
+            maxRetryCount: 10,
+            maxRetryDelay: TimeSpan.FromSeconds(5),
+            errorNumbersToAdd: null)));
 
 builder.Services.AddScoped<ITaskStore, EfTaskStore>();
 

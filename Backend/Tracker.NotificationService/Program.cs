@@ -66,10 +66,19 @@ if (string.IsNullOrWhiteSpace(notificationDbConnectionString))
         "or the ConnectionStrings__NotificationDb environment variable (staging/production).");
 }
 
+// builder.Services.AddDbContext<NotificationDbContext>(options =>
+//     options.UseMySql(
+//         notificationDbConnectionString,
+//         ServerVersion.AutoDetect(notificationDbConnectionString)));
+
 builder.Services.AddDbContext<NotificationDbContext>(options =>
     options.UseMySql(
         notificationDbConnectionString,
-        ServerVersion.AutoDetect(notificationDbConnectionString)));
+        new MariaDbServerVersion(new Version(11, 4, 0)),
+        mySqlOptions => mySqlOptions.EnableRetryOnFailure(
+            maxRetryCount: 10,
+            maxRetryDelay: TimeSpan.FromSeconds(5),
+            errorNumbersToAdd: null)));
 
 builder.Services.AddScoped<INotificationStore, EfNotificationStore>();
 
