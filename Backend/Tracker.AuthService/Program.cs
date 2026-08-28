@@ -29,8 +29,11 @@ if (string.IsNullOrWhiteSpace(authDbConnectionString))
 builder.Services.AddDbContext<AuthDbContext>(options =>
     options.UseMySql(
         authDbConnectionString,
-        new MariaDbServerVersion(
-            new Version(11, 4, 0))));
+        new MariaDbServerVersion(new Version(11, 4, 0)),
+        mySqlOptions => mySqlOptions.EnableRetryOnFailure(
+            maxRetryCount: 10,
+            maxRetryDelay: TimeSpan.FromSeconds(5),
+            errorNumbersToAdd: null)));
 
 builder.Services.AddScoped<IUserStore, EfUserStore>();
 
