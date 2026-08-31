@@ -1,0 +1,78 @@
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">T</div>
+
+      <div>
+        <strong>TaskTracker</strong>
+        <span>Workspace</span>
+      </div>
+    </div>
+
+    <nav class="navigation" aria-label="Main navigation">
+      <span class="navigation-label">Workspace</span>
+
+      <a
+        *ngFor="let item of navigation"
+        class="navigation-item"
+        [routerLink]="item.path"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: true }"
+      >
+        <span class="navigation-icon">{{ item.icon }}</span>
+        <span>{{ item.label }}</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-bottom">
+      <div class="account">
+        <div class="avatar">
+          {{ username.charAt(0).toUpperCase() }}
+        </div>
+
+        <div class="account-info">
+          <strong>{{ username }}</strong>
+          <span>Signed in</span>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        class="sign-out"
+        (click)="logout()"
+      >
+        Sign out
+      </button>
+    </div>
+  </aside>
+
+  <div class="shell-content">
+    <header class="topbar">
+      <div class="mobile-brand">
+        <div class="brand-mark">T</div>
+        <strong>TaskTracker</strong>
+      </div>
+
+      <div class="topbar-actions">
+        <app-notification-bell></app-notification-bell>
+
+        <button
+          type="button"
+          class="topbar-user"
+          (click)="logout()"
+          title="Sign out"
+        >
+          <span class="avatar small">
+            {{ username.charAt(0).toUpperCase() }}
+          </span>
+
+          <span>{{ username }}</span>
+        </button>
+      </div>
+    </header>
+
+    <main class="page-content">
+      <router-outlet></router-outlet>
+    </main>
+  </div>
+</div>

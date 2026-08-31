@@ -1,0 +1,168 @@
+<section class="page">
+
+  <header class="page-header">
+    <div>
+      <span class="eyebrow">Workspace</span>
+      <h1>Tasks</h1>
+    </div>
+
+    <button
+      type="button"
+      class="refresh-button"
+      (click)="loadTasks()"
+      [disabled]="isLoading"
+    >
+      ↻
+      {{ isLoading ? 'Loading' : 'Refresh' }}
+    </button>
+  </header>
+
+  <section class="stats">
+    <article class="stat-card">
+      <span>Total</span>
+      <strong>{{ tasks.length }}</strong>
+    </article>
+
+    <article class="stat-card success">
+      <span>Completed</span>
+      <strong>{{ completedCount }}</strong>
+    </article>
+
+    <article class="stat-card warning">
+      <span>Pending</span>
+      <strong>{{ pendingCount }}</strong>
+    </article>
+
+  </section>
+
+  <section class="filter-bar">
+
+    <div class="filter-info">
+      <span class="filter-label">
+        Project
+      </span>
+
+      <strong>
+        {{
+          selectedProject?.name ||
+          'All projects'
+        }}
+      </strong>
+    </div>
+
+    <select
+      [value]="selectedProjectId || ''"
+      (change)="
+        changeProject(
+          $any($event.target).value
+        )
+      "
+    >
+      <option value="">
+        All projects
+      </option>
+
+      <option
+        *ngFor="let project of projects"
+        [value]="project.id"
+      >
+        {{ project.name }}
+      </option>
+    </select>
+
+  </section>
+
+  <section
+    class="error-card"
+    *ngIf="error"
+  >
+    <strong>{{ error }}</strong>
+
+    <button
+      type="button"
+      class="secondary-button"
+      (click)="loadTasks()"
+    >
+      Try again
+    </button>
+  </section>
+
+  <section class="content-card">
+
+    <div
+      class="loading"
+      *ngIf="isLoading"
+    >
+      Loading tasks...
+    </div>
+
+    <div
+      class="task-table"
+      *ngIf="
+        !isLoading &&
+        tasks.length > 0
+      "
+    >
+
+      <div class="table-header">
+        <span>Task</span>
+        <span>Status</span>
+        <span>Owner</span>
+        <span></span>
+      </div>
+
+      <article
+        class="task-row"
+        *ngFor="let task of tasks"
+      >
+
+        <div class="task-info">
+          <strong>
+            {{ task.title }}
+          </strong>
+
+          <small>
+            {{ task.id }}
+          </small>
+        </div>
+
+        <span
+          class="status"
+          [class.completed]="task.completed"
+          [class.pending]="!task.completed"
+        >
+          {{ task.completed
+            ? 'Completed'
+            : 'Pending'
+          }}
+        </span>
+
+        <span class="owner">
+          {{ task.userId || '—' }}
+        </span>
+
+        <button
+          type="button"
+          class="comment-button"
+          (click)="openComments(task)"
+        >
+          Comments →
+        </button>
+
+      </article>
+
+    </div>
+
+    <div
+      class="empty"
+      *ngIf="
+        !isLoading &&
+        tasks.length === 0
+      "
+    >
+      No tasks found.
+    </div>
+
+  </section>
+
+</section>

@@ -1,0 +1,18 @@
+@Tracker.NotificationService_HostAddress = http://localhost:5003
+
+GET {{Tracker.NotificationService_HostAddress}}/health
+Accept: application/json
+
+###
+
+GET {{Tracker.NotificationService_HostAddress}}/api/v1/notifications
+Accept: application/json
+Authorization: Bearer {{$dotenv ACCESS_TOKEN}}
+
+###
+
+POST {{Tracker.NotificationService_HostAddress}}/api/v1/notifications/1/read
+Accept: application/json
+Authorization: Bearer {{$dotenv ACCESS_TOKEN}}
+
+###

@@ -1,0 +1,183 @@
+# version: '3.8'
+
+services:
+  mariadb:
+    image: mariadb:11.4
+    container_name: tracker-mariadb
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
+      AUTH_DB_PASSWORD: ${AUTH_DB_PASSWORD}
+      TASK_DB_PASSWORD: ${TASK_DB_PASSWORD}
+      NOTIFICATION_DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD}
+      PROJECT_DB_PASSWORD: ${PROJECT_DB_PASSWORD}
+      COMMENT_DB_PASSWORD: ${COMMENT_DB_PASSWORD}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+      - ./infra/mariadb/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  auth-service:
+    build:
+      context: ./Backend/Tracker.AuthService
+      args:
+        SERVICE_NAME: Tracker.AuthService
+    container_name: tracker-auth-service
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__AuthDb: "Server=mariadb;Port=3306;Database=tracker_auth;User=auth_service;Password=${AUTH_DB_PASSWORD};"
+      AllowedFrontendOrigins: "http://localhost:4200,http://localhost:4300"
+    ports:
+      - "5001:8080"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  task-service:
+    build:
+      context: ./Backend/Tracker.TaskService
+      args:
+        SERVICE_NAME: Tracker.TaskService
+    container_name: tracker-task-service
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      auth-service:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__TaskDb: "Server=mariadb;Port=3306;Database=tracker_tasks;User=task_service;Password=${TASK_DB_PASSWORD};"
+      AuthService__BaseUrl: "http://auth-service:8080"
+      AuthService__VerifyPath: "/verify"
+      AllowedFrontendOrigins: "http://localhost:4200,http://localhost:4300"
+    ports:
+      - "5002:8080"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  notification-service:
+    build:
+      context: ./Backend/Tracker.NotificationService
+      args:
+        SERVICE_NAME: Tracker.NotificationService
+    container_name: tracker-notification-service
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      auth-service:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__NotificationDb: "Server=mariadb;Port=3306;Database=tracker_notifications;User=notification_service;Password=${NOTIFICATION_DB_PASSWORD};"
+      AuthService__BaseUrl: "http://auth-service:8080"
+      AuthService__VerifyPath: "/verify"
+      AllowedFrontendOrigins: "http://localhost:4200,http://localhost:4300"
+    ports:
+      - "5003:8080"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  project-service:
+    build:
+      context: ./Backend/Tracker.ProjectService
+      args:
+        SERVICE_NAME: Tracker.ProjectService
+    container_name: tracker-project-service
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      auth-service:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__ProjectDb: "Server=mariadb;Port=3306;Database=tracker_projects;User=project_service;Password=${PROJECT_DB_PASSWORD};"
+      AuthService__BaseUrl: "http://auth-service:8080"
+      AuthService__VerifyPath: "/verify"
+    ports:
+      - "5004:8080"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  comment-service:
+    build:
+      context: ./Backend/Tracker.CommentService
+      args:
+        SERVICE_NAME: Tracker.CommentService
+    container_name: tracker-comment-service
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      auth-service:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__CommentDb: "Server=mariadb;Port=3306;Database=tracker_comments;User=comment_service;Password=${COMMENT_DB_PASSWORD};"
+      AuthService__BaseUrl: "http://auth-service:8080"
+      AuthService__VerifyPath: "/verify"
+    ports:
+      - "5005:8080"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  customer-app:
+    build:
+      context: ./Frontend/CustomerApp
+      args:
+        CONFIGURATION: development
+        BASE_HREF: /
+    container_name: tracker-customer-app
+    depends_on:
+      - auth-service
+      - task-service
+      - notification-service
+      - project-service
+      - comment-service
+    ports:
+      - "4200:8080"
+
+  admin-portal:
+    build:
+      context: ./Frontend/AdminPortal
+      args:
+        CONFIGURATION: development
+        BASE_HREF: /
+    container_name: tracker-admin-portal
+    depends_on:
+      - auth-service
+      - task-service
+      - notification-service
+      - project-service
+      - comment-service
+    ports:
+      - "4300:8080"
+
+volumes:
+  mariadb_data:

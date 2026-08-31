@@ -1,0 +1,80 @@
+<section class="login-page">
+  <div class="login-card">
+    <h2>Create your account</h2>
+
+    <form (ngSubmit)="onRegister(registerForm)" #registerForm="ngForm" novalidate>
+      <div class="form-field">
+        <label for="username">Username</label>
+        <input
+          id="username"
+          name="username"
+          [(ngModel)]="username"
+          #usernameField="ngModel"
+          type="text"
+          minlength="3"
+          required
+        />
+        <p class="field-hint" *ngIf="usernameField.invalid && (usernameField.touched || submitAttempted)">
+          Username must be at least 3 characters.
+        </p>
+      </div>
+
+      <div class="form-field">
+        <label for="email">Email</label>
+        <input
+          id="email"
+          name="email"
+          [(ngModel)]="email"
+          #emailField="ngModel"
+          type="email"
+          required
+        />
+        <p class="field-hint" *ngIf="emailField.invalid && (emailField.touched || submitAttempted)">
+          Enter a valid email address, e.g. name&#64;example.com.
+        </p>
+      </div>
+
+      <div class="form-field">
+        <label for="password">Password</label>
+        <input
+          id="password"
+          name="password"
+          [(ngModel)]="password"
+          #passwordField="ngModel"
+          type="password"
+          minlength="6"
+          required
+        />
+        <p class="field-hint" *ngIf="passwordField.invalid && (passwordField.touched || submitAttempted)">
+          Password must be at least 6 characters.
+        </p>
+      </div>
+
+      <div class="form-field">
+        <label for="confirmPassword">Confirm password</label>
+        <input
+          id="confirmPassword"
+          name="confirmPassword"
+          [(ngModel)]="confirmPassword"
+          #confirmPasswordField="ngModel"
+          type="password"
+          required
+        />
+        <p class="field-hint" *ngIf="confirmPasswordField.touched || submitAttempted">
+          <ng-container *ngIf="confirmPasswordField.invalid">Please confirm your password.</ng-container>
+          <ng-container *ngIf="confirmPasswordField.valid && password !== confirmPassword">Passwords do not match.</ng-container>
+        </p>
+      </div>
+
+      <button class="submit-button" type="submit" [disabled]="isSubmitting">
+        {{ isSubmitting ? 'Creating account...' : 'Create account' }}
+      </button>
+
+      <p class="error-banner" *ngIf="errorMessage">{{ errorMessage }}</p>
+    </form>
+
+    <p class="switch-link">
+      Already have an account? <a routerLink="/login">Sign in</a>
+    </p>
+  </div>
+</section>

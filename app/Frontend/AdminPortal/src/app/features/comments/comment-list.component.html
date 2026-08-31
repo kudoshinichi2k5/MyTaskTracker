@@ -1,0 +1,276 @@
+<section class="page">
+
+  <header class="page-header">
+
+    <div>
+      <span class="eyebrow">
+        Workspace
+      </span>
+
+      <h1>Comments</h1>
+    </div>
+
+    <span
+      class="comment-count"
+      *ngIf="loadedTaskId !== null"
+    >
+      {{ comments.length }}
+    </span>
+
+  </header>
+
+  <section class="comment-layout">
+
+    <!-- CONTEXT -->
+
+    <aside class="context-card">
+
+      <div class="context-heading">
+        <span>Context</span>
+
+        <strong>
+          Task discussion
+        </strong>
+      </div>
+
+      <label>
+        Project
+      </label>
+
+      <select
+        [ngModel]="selectedProjectId"
+        (ngModelChange)="
+          changeProject($event)
+        "
+      >
+
+        <option value="">
+          All projects
+        </option>
+
+        <option
+          *ngFor="let project of projects"
+          [value]="project.id"
+        >
+          {{ project.name }}
+        </option>
+
+      </select>
+
+      <label>
+        Task
+      </label>
+
+      <select
+        [ngModel]="selectedTaskId"
+        (ngModelChange)="
+          selectTask($event)
+        "
+        [disabled]="
+          availableTasks.length === 0
+        "
+      >
+
+        <option [ngValue]="null">
+          Select task
+        </option>
+
+        <option
+          *ngFor="
+            let task of availableTasks
+          "
+          [ngValue]="task.id"
+        >
+          #{{ task.id }}
+          {{ task.title }}
+        </option>
+
+      </select>
+
+      <div
+        class="selected-task"
+        *ngIf="selectedTask"
+      >
+
+        <span>
+          Task #{{ selectedTask.id }}
+        </span>
+
+        <strong>
+          {{ selectedTask.title }}
+        </strong>
+
+        <small
+          [class.completed]="
+            selectedTask.completed
+          "
+        >
+          {{
+            selectedTask.completed
+              ? 'Completed'
+              : 'Pending'
+          }}
+        </small>
+
+      </div>
+
+    </aside>
+
+    <!-- COMMENTS -->
+
+    <main class="comments-card">
+
+      <div
+        class="error-banner"
+        *ngIf="error"
+      >
+        {{ error }}
+      </div>
+
+      <div
+        class="comments-header"
+        *ngIf="selectedTask"
+      >
+
+        <div>
+
+          <span class="eyebrow">
+            Task #{{ selectedTask.id }}
+          </span>
+
+          <h2>
+            {{ selectedTask.title }}
+          </h2>
+
+          <small
+            *ngIf="selectedProject"
+          >
+            {{ selectedProject.name }}
+          </small>
+
+        </div>
+
+        <button
+          type="button"
+          class="refresh-button"
+          (click)="loadComments()"
+          [disabled]="isLoadingComments"
+        >
+          ↻
+        </button>
+
+      </div>
+
+      <div
+        class="placeholder"
+        *ngIf="!selectedTask"
+      >
+
+        <div class="placeholder-icon">
+          💬
+        </div>
+
+        <h2>
+          Select a task
+        </h2>
+
+        <p>
+          Choose a project and task to
+          view its comments.
+        </p>
+
+      </div>
+
+      <div
+        class="loading"
+        *ngIf="isLoadingComments"
+      >
+        Loading comments...
+      </div>
+
+      <div
+        class="error-banner"
+        *ngIf="commentsError"
+      >
+        {{ commentsError }}
+      </div>
+
+      <section
+        class="comment-list"
+        *ngIf="
+          selectedTask &&
+          !isLoadingComments &&
+          !commentsError
+        "
+      >
+
+        <article
+          class="comment-card"
+          *ngFor="
+            let comment of comments
+          "
+        >
+
+          <div class="comment-avatar">
+            {{
+              comment.authorUserId
+                .slice(0, 1)
+                .toUpperCase()
+            }}
+          </div>
+
+          <div class="comment-content">
+
+            <div class="comment-header">
+
+              <strong>
+                {{ comment.authorUserId }}
+              </strong>
+
+              <time>
+                {{
+                  comment.createdAt
+                    | date:'medium'
+                }}
+              </time>
+
+            </div>
+
+            <p>
+              {{ comment.body }}
+            </p>
+
+            <small
+              *ngIf="comment.editedAt"
+            >
+              Edited
+              {{
+                comment.editedAt
+                  | date:'medium'
+              }}
+            </small>
+
+          </div>
+
+        </article>
+
+        <div
+          class="empty-state"
+          *ngIf="comments.length === 0"
+        >
+          <strong>
+            No comments
+          </strong>
+
+          <span>
+            This task has no discussion yet.
+          </span>
+        </div>
+
+      </section>
+
+    </main>
+
+  </section>
+
+</section>

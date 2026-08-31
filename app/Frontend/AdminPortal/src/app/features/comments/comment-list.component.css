@@ -1,0 +1,264 @@
+.page {
+  display: grid;
+  gap: 20px;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.eyebrow {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--color-accent);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+h1,
+h2 {
+  margin: 0;
+}
+
+h1 {
+  font-size: 32px;
+}
+
+h2 {
+  font-size: 18px;
+}
+
+.result-count {
+  min-width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  font-weight: 700;
+}
+
+.comment-layout {
+  display: grid;
+  grid-template-columns: 270px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.context-card,
+.comments-card {
+  border: 1px solid var(--color-line);
+  border-radius: 18px;
+  background: #fff;
+}
+
+.context-card {
+  position: sticky;
+  top: 90px;
+  padding: 20px;
+}
+
+.context-title {
+  display: grid;
+  gap: 3px;
+  margin-bottom: 22px;
+}
+
+.context-title span {
+  color: var(--color-muted);
+  font-size: 11px;
+}
+
+.context-title strong {
+  font-family: var(--font-display);
+  font-size: 16px;
+}
+
+label {
+  display: block;
+  margin: 16px 0 7px;
+  color: var(--color-muted);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+select {
+  width: 100%;
+  height: 42px;
+  padding: 0 11px;
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+  outline: none;
+  background: var(--color-surface-soft);
+  color: var(--color-ink);
+}
+
+select:focus {
+  border-color: var(--color-accent);
+}
+
+.context-summary {
+  display: grid;
+  gap: 3px;
+  margin-top: 22px;
+  padding-top: 17px;
+  border-top: 1px solid var(--color-line);
+}
+
+.context-summary span,
+.context-summary small {
+  color: var(--color-muted);
+  font-size: 11px;
+}
+
+.context-summary strong {
+  font-size: 13px;
+}
+
+.comments-card {
+  min-height: 500px;
+}
+
+.comments-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 22px 24px;
+  border-bottom: 1px solid var(--color-line);
+}
+
+.refresh-button {
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--color-muted);
+  cursor: pointer;
+}
+
+.refresh-button:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.comments-list {
+  padding: 4px 24px;
+}
+
+.comment {
+  display: flex;
+  gap: 13px;
+  padding: 20px 0;
+  border-bottom: 1px solid var(--color-line);
+}
+
+.comment:last-child {
+  border-bottom: 0;
+}
+
+.comment-avatar {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.comment-content {
+  min-width: 0;
+  flex: 1;
+}
+
+.comment-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.comment-meta strong {
+  font-size: 13px;
+}
+
+.comment-meta time {
+  color: var(--color-muted);
+  font-size: 10px;
+}
+
+.comment-content p {
+  margin: 7px 0 0;
+  color: var(--color-ink-soft);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.comment-content small {
+  display: block;
+  margin-top: 6px;
+  color: var(--color-muted);
+  font-size: 10px;
+}
+
+.comments-placeholder {
+  min-height: 450px;
+  display: grid;
+  place-content: center;
+  padding: 40px;
+  text-align: center;
+}
+
+.placeholder-icon {
+  width: 54px;
+  height: 54px;
+  display: grid;
+  place-items: center;
+  margin: 0 auto 14px;
+  border-radius: 16px;
+  background: var(--color-accent-soft);
+  font-size: 21px;
+}
+
+.comments-placeholder p {
+  max-width: 330px;
+  margin: 7px auto 0;
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
+.loading,
+.empty-comments {
+  padding: 50px 20px;
+  color: var(--color-muted);
+  text-align: center;
+}
+
+.error-card {
+  margin: 16px;
+  padding: 12px 14px;
+  border: 1px solid #efc7c4;
+  border-radius: 10px;
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+  font-size: 12px;
+}
+
+@media (max-width: 800px) {
+  .comment-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .context-card {
+    position: static;
+  }
+}

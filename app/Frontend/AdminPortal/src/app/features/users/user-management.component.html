@@ -1,0 +1,363 @@
+<section class="page">
+
+  <header class="page-header">
+
+    <div>
+      <span class="eyebrow">
+        Administration
+      </span>
+
+      <h1>
+        User Management
+      </h1>
+
+      <p>
+        Monitor user accounts and control
+        Admin Portal access.
+      </p>
+    </div>
+
+    <button
+      type="button"
+      class="secondary-button"
+      (click)="loadUsers()"
+      [disabled]="isLoading"
+    >
+      {{ isLoading ? 'Refreshing...' : 'Refresh' }}
+    </button>
+
+  </header>
+
+
+  <!-- Summary -->
+
+  <section class="stats-grid">
+
+    <article class="stat-card">
+
+      <span>
+        Total Users
+      </span>
+
+      <strong>
+        {{ isLoading ? '—' : totalUsers }}
+      </strong>
+
+      <small>
+        Registered accounts
+      </small>
+
+    </article>
+
+
+    <article class="stat-card">
+
+      <span>
+        Enabled
+      </span>
+
+      <strong>
+        {{ isLoading ? '—' : enabledUsers }}
+      </strong>
+
+      <small>
+        Active accounts
+      </small>
+
+    </article>
+
+
+    <article class="stat-card">
+
+      <span>
+        Disabled
+      </span>
+
+      <strong>
+        {{ isLoading ? '—' : disabledUsers }}
+      </strong>
+
+      <small>
+        Accounts without access
+      </small>
+
+    </article>
+
+
+    <article class="stat-card">
+
+      <span>
+        Admins
+      </span>
+
+      <strong>
+        {{ isLoading ? '—' : adminUsers }}
+      </strong>
+
+      <small>
+        Portal administrators
+      </small>
+
+    </article>
+
+  </section>
+
+
+  <!-- Filters -->
+
+  <section class="content-card">
+
+    <div class="section-title">
+
+      <div>
+
+        <span class="eyebrow">
+          Directory
+        </span>
+
+        <h2>
+          User Accounts
+        </h2>
+
+        <p>
+          Search accounts and review their
+          current access level.
+        </p>
+
+      </div>
+
+    </div>
+
+
+    <div class="filters">
+
+      <input
+        type="search"
+        placeholder="Search username or email..."
+        [(ngModel)]="searchTerm"
+      />
+
+
+      <select
+        [(ngModel)]="statusFilter"
+      >
+
+        <option value="all">
+          All statuses
+        </option>
+
+        <option value="enabled">
+          Enabled
+        </option>
+
+        <option value="disabled">
+          Disabled
+        </option>
+
+      </select>
+
+
+      <select
+        [(ngModel)]="accessFilter"
+      >
+
+        <option value="all">
+          All access levels
+        </option>
+
+        <option value="admin">
+          Admin
+        </option>
+
+        <option value="standard">
+          Standard
+        </option>
+
+      </select>
+
+
+      <button
+        type="button"
+        class="secondary-button"
+        (click)="clearFilters()"
+      >
+        Clear
+      </button>
+
+    </div>
+
+
+    <div
+      class="error"
+      *ngIf="error"
+    >
+      {{ error }}
+    </div>
+
+
+    <div
+      class="loading"
+      *ngIf="isLoading"
+    >
+      Loading users...
+    </div>
+
+
+    <div
+      class="table-wrapper"
+      *ngIf="
+        !isLoading &&
+        filteredUsers.length > 0
+      "
+    >
+
+      <table>
+
+        <thead>
+
+          <tr>
+
+            <th>
+              User
+            </th>
+
+            <th>
+              Email
+            </th>
+
+            <th>
+              Status
+            </th>
+
+            <th>
+              Roles
+            </th>
+
+            <th>
+              Admin Access
+            </th>
+
+          </tr>
+
+        </thead>
+
+
+        <tbody>
+
+          <tr
+            *ngFor="
+              let user of filteredUsers
+            "
+          >
+
+            <td>
+
+              <strong>
+                {{ user.username }}
+              </strong>
+
+              <small>
+                {{ user.id }}
+              </small>
+
+            </td>
+
+
+            <td>
+              {{ user.email || 'No email' }}
+            </td>
+
+
+            <td>
+
+              <span
+                class="status"
+                [class.disabled]="
+                  !user.enabled
+                "
+              >
+                {{
+                  user.enabled
+                    ? 'Enabled'
+                    : 'Disabled'
+                }}
+              </span>
+
+            </td>
+
+
+            <td>
+
+              <span
+                *ngIf="
+                  user.roles.length === 0
+                "
+              >
+                Standard
+              </span>
+
+              <span
+                *ngFor="
+                  let role of user.roles
+                "
+              >
+                {{ role }}
+              </span>
+
+            </td>
+
+
+            <td>
+
+              <label class="toggle">
+
+                <input
+                  type="checkbox"
+                  [checked]="
+                    hasAdminRole(user)
+                  "
+                  [disabled]="
+                    pendingUserIds.has(user.id)
+                  "
+                  (change)="
+                    toggleAdminRole(user)
+                  "
+                />
+
+                <span></span>
+
+              </label>
+
+            </td>
+
+          </tr>
+
+        </tbody>
+
+      </table>
+
+    </div>
+
+
+    <div
+      class="empty"
+      *ngIf="
+        !isLoading &&
+        !error &&
+        filteredUsers.length === 0
+      "
+    >
+
+      <h3>
+        No matching users
+      </h3>
+
+      <p>
+        Try changing your search or filters.
+      </p>
+
+    </div>
+
+  </section>
+
+</section>

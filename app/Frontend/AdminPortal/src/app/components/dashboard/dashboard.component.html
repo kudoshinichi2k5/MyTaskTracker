@@ -1,0 +1,176 @@
+<section class="dashboard-page">
+  <header class="page-header">
+    <div>
+      <span class="eyebrow">Admin Portal</span>
+
+      <h1>Dashboard</h1>
+
+      <p>
+        Monitor team activity and task progress.
+      </p>
+    </div>
+  </header>
+
+  <div
+    class="error-banner"
+    *ngIf="loadError"
+  >
+    Unable to load the team report.
+  </div>
+
+  <section
+    class="stats-grid"
+    *ngIf="!loadError"
+  >
+    <article class="stat-card">
+      <span>Members</span>
+
+      <strong>
+        {{ isLoading ? '—' : memberCount }}
+      </strong>
+
+      <small>
+        Active team members
+      </small>
+    </article>
+
+    <article class="stat-card">
+
+      <span>
+        Avg Tasks / Member
+      </span>
+
+      <strong>
+        {{ isLoading ? '—' : averageTasksPerMember }}
+      </strong>
+
+      <small>
+        Average workload per team member
+      </small>
+
+    </article>
+
+
+    <article class="stat-card">
+
+      <span>
+        Pending
+      </span>
+
+      <strong>
+        {{ isLoading ? '—' : totalPending }}
+      </strong>
+
+      <small>
+        Tasks still requiring attention
+      </small>
+
+    </article>
+
+    <article class="stat-card">
+      <span>Total Tasks</span>
+
+      <strong>
+        {{ isLoading ? '—' : totalTasks }}
+      </strong>
+
+      <small>
+        Tasks across the team
+      </small>
+    </article>
+
+    <article class="stat-card">
+      <span>Completed</span>
+
+      <strong>
+        {{ isLoading ? '—' : totalCompleted }}
+      </strong>
+
+      <small>
+        Finished tasks
+      </small>
+    </article>
+
+    <article class="stat-card">
+      <span>Completion</span>
+
+      <strong>
+        {{ isLoading ? '—' : completionRate + '%' }}
+      </strong>
+
+      <small>
+        Overall completion rate
+      </small>
+    </article>
+  </section>
+
+  <section
+    class="content-card"
+    *ngIf="!loadError"
+  >
+    <div class="section-header">
+      <div>
+        <span class="eyebrow">Team activity</span>
+
+        <h2>Task summary</h2>
+      </div>
+    </div>
+
+    <p
+      class="loading-state"
+      *ngIf="isLoading"
+    >
+      Loading team activity...
+    </p>
+
+    <table
+      *ngIf="!isLoading && summary.length > 0"
+    >
+      <thead>
+        <tr>
+          <th>User ID</th>
+          <th>Total</th>
+          <th>Completed</th>
+          <th>Pending</th>
+          <th>Completion</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        <tr *ngFor="let row of summary">
+          <td>{{ row.userId }}</td>
+
+          <td>
+            {{ row.totalTasks }}
+          </td>
+
+          <td>
+            {{ row.completedTasks }}
+          </td>
+
+          <td>
+            {{ row.totalTasks - row.completedTasks }}
+          </td>
+
+          <td>
+            {{ row.totalTasks === 0
+              ? 0
+              : ((row.completedTasks / row.totalTasks) * 100 | number:'1.0-0')
+            }}%
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div
+      class="empty-state"
+      *ngIf="!isLoading && summary.length === 0"
+    >
+      <h3>No activity yet</h3>
+
+      <p>
+        There is no task activity available.
+      </p>
+    </div>
+  </section>
+</section>
