@@ -22,5 +22,5 @@ variable "sku" {
 variable "admin_enabled" {
   description = "Bật admin user cho ACR"
   type        = bool
-  default     = true
+  default     = false
 }
