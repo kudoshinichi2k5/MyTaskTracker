@@ -14,6 +14,7 @@ resource "azurerm_kubernetes_cluster" "aks" {
     min_count           = 1
     max_count           = 2
     vnet_subnet_id      = var.aks_subnet_id
+    temporary_name_for_rotation = "tmppool"
   }
 
   identity {
