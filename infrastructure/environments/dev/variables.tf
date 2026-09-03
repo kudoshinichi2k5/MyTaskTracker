@@ -1,1 +1,11 @@
-# Ð?nh nghia các bi?n áp d?ng riêng cho môi tru?ng dev
+variable "location" {
+  description = "Azure Region"
+  type        = string
+  default     = "eastasia"
+}
+
+variable "environment" {
+  description = "Environment name"
+  type        = string
+  default     = "dev"
+}
