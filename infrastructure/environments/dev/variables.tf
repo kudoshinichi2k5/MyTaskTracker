@@ -24,3 +24,8 @@ variable "acr_name" {
   description = "Tên ACR (phải duy nhất toàn cầu)"
   type        = string
 }
+
+variable "vnet_name" { type = string }
+variable "vnet_address_space" { type = list(string) }
+variable "aks_subnet_address_prefix" { type = list(string) }
+variable "db_subnet_address_prefix" { type = list(string) }
