@@ -4,6 +4,9 @@ resource "azurerm_kubernetes_cluster" "aks" {
   resource_group_name = var.resource_group_name
   dns_prefix          = var.dns_prefix
 
+  # Thêm dòng này để đồng bộ với state thực tế của Azure
+  oidc_issuer_enabled = true
+
   default_node_pool {
     name                = "default"
     vm_size             = "standard_b2pls_v2"
