@@ -1,1 +1,7 @@
-# Ð?nh nghia các giá tr? tr? v? (outputs) c?a module acr
+output "acr_id" {
+  value = azurerm_container_registry.acr.id
+}
+
+output "login_server" {
+  value = azurerm_container_registry.acr.login_server
+}

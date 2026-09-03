@@ -10,7 +10,6 @@ crash.log
 crash.*.log
 
 # Ignore .tfvars files as they may contain secrets
-*.tfvars
 *.tfvars.json
 
 # Ignore override files
