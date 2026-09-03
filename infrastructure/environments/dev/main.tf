@@ -36,3 +36,11 @@ module "aks" {
   location            = azurerm_resource_group.app_rg.location
   aks_subnet_id       = module.networking.aks_subnet_id
 }
+
+# Cấp quyền AcrPull cho AKS Managed Identity để tự động kéo image từ ACR
+resource "azurerm_role_assignment" "aks_acrpull" {
+  principal_id                     = module.aks.kubelet_identity_object_id
+  role_definition_name             = "AcrPull"
+  scope                            = module.acr.acr_id
+  skip_service_principal_aad_check = true
+}
