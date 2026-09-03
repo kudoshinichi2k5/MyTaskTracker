@@ -27,3 +27,12 @@ module "networking" {
   aks_subnet_address_prefix = var.aks_subnet_address_prefix
   db_subnet_address_prefix  = var.db_subnet_address_prefix
 }
+
+module "aks" {
+  source              = "../../modules/aks"
+  cluster_name        = var.aks_cluster_name
+  dns_prefix          = var.aks_dns_prefix
+  resource_group_name = azurerm_resource_group.app_rg.name
+  location            = azurerm_resource_group.app_rg.location
+  aks_subnet_id       = module.networking.aks_subnet_id
+}
