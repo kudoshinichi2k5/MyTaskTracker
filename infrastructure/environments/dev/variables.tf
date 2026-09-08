@@ -39,3 +39,8 @@ variable "aks_dns_prefix" {
   description = "DNS prefix cho AKS dev"
   type        = string
 }
+
+variable "identity_name" {
+  description = "Tên của User Assigned Identity"
+  type        = string
+}

@@ -13,3 +13,4 @@ db_subnet_address_prefix  = ["10.0.2.0/24"]
 # AKS configs
 aks_cluster_name = "aks-tasktracker-dev"
 aks_dns_prefix   = "aks-tasktracker-dev-dns"
+identity_name = "id-github-actions-dev"

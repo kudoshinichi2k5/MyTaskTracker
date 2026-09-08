@@ -37,6 +37,13 @@ module "aks" {
   aks_subnet_id       = module.networking.aks_subnet_id
 }
 
+module "identity" {
+  source              = "../../modules/identity"
+  identity_name       = var.identity_name
+  resource_group_name = azurerm_resource_group.shared_rg.name # Đặt trong Shared RG
+  location            = azurerm_resource_group.shared_rg.location
+}
+
 # Cấp quyền AcrPull cho AKS Managed Identity để tự động kéo image từ ACR
 resource "azurerm_role_assignment" "aks_acrpull" {
   principal_id                     = module.aks.kubelet_identity_object_id
