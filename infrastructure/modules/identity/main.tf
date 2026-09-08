@@ -10,6 +10,7 @@ resource "azurerm_federated_identity_credential" "github_oidc" {
   audience            = ["api://AzureADTokenExchange"]
   issuer              = "https://token.actions.githubusercontent.com"
   parent_id           = azurerm_user_assigned_identity.github_ci.id
-  # Cấu trúc subject: repo:<github_org>/<github_repo>:ref:refs/heads/<branch>
-  subject             = "repo:kudoshinichi2k5/MyTaskTracker:ref:refs/heads/main"
+  
+  # Thay thế hardcode bằng biến
+  subject             = var.oidc_subject
 }

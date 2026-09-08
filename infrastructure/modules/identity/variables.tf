@@ -12,3 +12,8 @@ variable "location" {
     description = "Azure Region"
     type        = string
 }
+
+variable "oidc_subject" {
+  description = "Chuỗi subject claim OIDC động được truyền từ môi trường"
+  type        = string
+}

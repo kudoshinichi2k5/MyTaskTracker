@@ -37,11 +37,33 @@ module "aks" {
   aks_subnet_id       = module.networking.aks_subnet_id
 }
 
+# Gọi API công khai của GitHub để lấy thông tin tự động
+data "http" "github_user" {
+  url = "https://api.github.com/users/kudoshinichi2k5"
+}
+
+data "http" "github_repo" {
+  url = "https://api.github.com/repos/kudoshinichi2k5/MyTaskTracker"
+}
+
+locals {
+  # Parse JSON từ API trả về để lấy các numeric ID
+  owner_id = jsondecode(data.http.github_user.response_body).id
+  repo_id  = jsondecode(data.http.github_repo.response_body).id
+  
+  # Lắp ghép chuỗi theo đúng chuẩn bảo mật của GitHub
+  oidc_dynamic_subject = "repo:kudoshinichi2k5@${local.owner_id}/MyTaskTracker@${local.repo_id}:ref:refs/heads/main"
+}
+
+# Cập nhật block gọi module identity của bạn như sau:
 module "identity" {
   source              = "../../modules/identity"
   identity_name       = var.identity_name
-  resource_group_name = azurerm_resource_group.shared_rg.name # Đặt trong Shared RG
+  resource_group_name = azurerm_resource_group.shared_rg.name
   location            = azurerm_resource_group.shared_rg.location
+  
+  # Truyền chuỗi vừa lắp ghép vào module
+  oidc_subject        = local.oidc_dynamic_subject
 }
 
 # Cấp quyền AcrPull cho AKS Managed Identity để tự động kéo image từ ACR
@@ -51,3 +73,4 @@ resource "azurerm_role_assignment" "aks_acrpull" {
   scope                            = module.acr.acr_id
   skip_service_principal_aad_check = true
 }
+
