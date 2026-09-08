@@ -74,3 +74,16 @@ resource "azurerm_role_assignment" "aks_acrpull" {
   skip_service_principal_aad_check = true
 }
 
+# Cấp quyền Contributor cho GitHub Actions Identity trên App RG
+resource "azurerm_role_assignment" "ci_app_rg_contributor" {
+  principal_id         = module.identity.principal_id
+  role_definition_name = "Contributor"
+  scope                = azurerm_resource_group.app_rg.id
+}
+
+# Cấp quyền Contributor cho GitHub Actions Identity trên Shared RG (để thao tác ACR)
+resource "azurerm_role_assignment" "ci_shared_rg_contributor" {
+  principal_id         = module.identity.principal_id
+  role_definition_name = "Contributor"
+  scope                = azurerm_resource_group.shared_rg.id
+}
