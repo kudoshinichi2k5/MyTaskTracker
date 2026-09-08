@@ -13,12 +13,6 @@ permissions:
   id-token: write 
   contents: read  
 
-# Khai báo các thông số kết nối với Azure (Nên dùng GitHub Secrets trong thực tế, nhưng hiện tại hardcode để dễ test)
-env:
-  AZURE_CLIENT_ID: "d5f6a163-cfbe-4a4f-bb94-10b6df792363"
-  AZURE_TENANT_ID: "2dff09ac-2b3b-4182-9953-2b548e0d0b39"
-  AZURE_SUBSCRIPTION_ID: "7d87cfd2-0799-41e4-838a-0ea3b2b7f96d"
-
 jobs:
   setup-and-login:
     runs-on: ubuntu-latest
