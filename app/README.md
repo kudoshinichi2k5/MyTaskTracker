@@ -750,7 +750,7 @@ Both Angular applications use Jasmine/Karma and already contain starter specs. T
 2. Auth interceptor tests for bearer header injection, missing-token behavior, and `401` recovery.
 3. Guard tests for anonymous, authenticated, and admin-only navigation.
 4. Focused component tests for login/register validation, task/project forms, comment editing, notification unread state, and admin dashboard summaries.
-5. One CI job per Angular app using `npm ci`, `npm test -- --watch=false --browsers=ChromeHeadless`, and the matching production build.
+5. When frontend CI is enabled later, add one job per Angular app using `npm ci`, `npm test`, and the matching production build.
 
 Frontend tests should mock HTTP requests and environment-specific API origins rather than call live backend services.
 
