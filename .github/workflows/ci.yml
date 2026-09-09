@@ -19,15 +19,17 @@ jobs:
     runs-on: ubuntu-latest
     # Cần khai báo outputs để job khác đọc được
     outputs:
-      # action dorny sẽ sinh ra một output dạng mảng JSON chứa các filter có thay đổi, vd: '["Auth", "Task"]'
-      changed_services: ${{ steps.filter.outputs.changes }}
+      # Tách thành 2 output riêng biệt
+      changed_backend: ${{ steps.filter-backend.outputs.changes }}
+      changed_frontend: ${{ steps.filter-frontend.outputs.changes }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Check for file changes
+      - name: Check for Backend changes
+        # action dorny sẽ sinh ra một output dạng mảng JSON chứa các filter có thay đổi, vd: '["Auth", "Task"]'
         uses: dorny/paths-filter@v3
-        id: filter
+        id: filter-backend
         with:
           filters: |
             AuthService: 'app/Backend/Tracker.AuthService/**'
@@ -36,14 +38,22 @@ jobs:
             ProjectService: 'app/Backend/Tracker.ProjectService/**'
             CommentService: 'app/Backend/Tracker.CommentService/**'
 
+      - name: Check for Frontend changes
+        uses: dorny/paths-filter@v3
+        id: filter-frontend
+        with:
+          filters: |
+            CustomerApp: 'app/Frontend/CustomerApp/**'
+            AdminPortal: 'app/Frontend/AdminPortal/**'
+
   # Job 2: Build & Test
   build-backend:
     needs: [changes] # Phải đợi check thay đổi 
-    if: needs.changes.outputs.changed_services != '[]'
+    if: needs.changes.outputs.changed_backend != '[]'
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: ${{ fromJson(needs.changes.outputs.changed_services) }}
+        service: ${{ fromJson(needs.changes.outputs.changed_backend) }}
 
     steps:
       - name: Checkout Code
@@ -95,6 +105,42 @@ jobs:
           # Tránh lỗi khi project chưa có Unit Test
           if-no-files-found: warn
 
+  build-frontend:
+    needs: [changes]
+    # Chỉ chạy nếu có thay đổi Frontend
+    if: needs.changes.outputs.changed_frontend != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: ${{ fromJson(needs.changes.outputs.changed_frontend) }}
+    
+    # Thiết lập thư mục gốc mặc định cho toàn bộ job này
+    defaults:
+      run:
+        working-directory: app/Frontend/${{ matrix.app }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+
+      - name: Install dependencies (Clean install)
+        run: npm ci
+
+      # Chạy build với cấu hình testing như thống nhất
+      - name: Build (Testing Environment)
+        run: npm run build:testing
+
+      # Chạy Jest Test (Tự động Headless nhờ JSDOM)
+      - name: Test
+        run: npm run test
+
+      # (Optional) Bạn có thể tự thêm phần upload Artifact cho dist/ folder và coverage nếu muốn giống Backend
+  
   # Job 3: Login Azure (Chỉ chuẩn bị sẵn cho Day 4)
   # Đặt điều kiện: Chỉ chạy nếu sự kiện không phải là pull_request (tức là push vào main)
   setup-and-login:
