@@ -61,8 +61,34 @@ jobs:
       - name: Build
         run: dotnet build app/Backend/Tracker.${{ matrix.service }} --no-restore
 
-      - name: Test
-        run: dotnet test app/Backend/Tracker.${{ matrix.service }} --no-build --verbosity normal
+      # 1. Chạy test và ép xuất ra report (TRX và Cobertura)
+      - name: Test and Collect Coverage
+        run: |
+          dotnet test app/Backend/Tracker.${{ matrix.service }} \
+            --no-build \
+            --verbosity normal \
+            --logger "trx;LogFileName=test_results.trx" \
+            --collect:"XPlat Code Coverage" \
+            --results-directory ./TestResults
+
+      # 2. Upload Artifact: Test Results (.trx)
+      - name: Upload Test Results Artifact
+        uses: actions/upload-artifact@v4
+        # Đặt điều kiện: Upload cả khi test fail (nếu không, test fail job sẽ dừng và không có report để xem)
+        if: always() 
+        with:
+          # Đặt tên artifact phụ thuộc vào biến matrix để tránh ghi đè
+          name: TestReport-${{ matrix.service }}
+          path: ./TestResults/test_results.trx
+
+      # 3. Upload Artifact: Code Coverage (xml)
+      - name: Upload Code Coverage Artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: CodeCoverage-${{ matrix.service }}
+          # Coverlet sinh file coverage trong 1 thư mục random GUID, ta dùng wildcard (**) để tìm
+          path: ./TestResults/**/coverage.cobertura.xml
 
   # Job 3: Login Azure (Chỉ chuẩn bị sẵn cho Day 4)
   # Đặt điều kiện: Chỉ chạy nếu sự kiện không phải là pull_request (tức là push vào main)
