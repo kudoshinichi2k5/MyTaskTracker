@@ -50,3 +50,33 @@ jobs:
             NotificationService: 'app/Backend/Tracker.NotificationService/**'
             ProjectService: 'app/Backend/Tracker.ProjectService/**'
             CommentService: 'app/Backend/Tracker.CommentService/**'
+
+  build-backend:
+    needs: [changes, setup-and-login] # Phải đợi check thay đổi và login xong
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # Khai báo 5 giá trị khớp CHÍNH XÁC với tên filter bạn đặt ở Step 2
+        service: [AuthService, TaskService, NotificationService, ProjectService, CommentService]
+
+    # ĐÂY LÀ PHÉP MÀU: Chỉ chạy nếu mảng JSON từ job 'changes' có chứa tên của biến matrix hiện tại
+    if: contains(fromJson(needs.changes.outputs.changed_services), matrix.service)
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore dependencies
+        # Dùng biến matrix để thay đổi động đường dẫn thư mục
+        run: dotnet restore app/Backend/Tracker.${{ matrix.service }}
+
+      - name: Build
+        run: dotnet build app/Backend/Tracker.${{ matrix.service }} --no-restore
+
+      - name: Test
+        run: dotnet test app/Backend/Tracker.${{ matrix.service }} --no-build --verbosity normal
