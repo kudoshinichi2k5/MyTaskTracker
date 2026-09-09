@@ -18,5 +18,8 @@ override.tf.json
 *_override.tf
 *_override.tf.json
 
+# Backend configuration contains deployment-specific storage details
+backend.hcl
+
 ai_progress_tracker.md
 
