@@ -93,7 +93,15 @@ if (!app.Environment.IsProduction())
     app.UseSwaggerUI();
 
     using var scope = app.Services.CreateScope();
-    scope.ServiceProvider.GetRequiredService<NotificationDbContext>().Database.Migrate();
+    var db = scope.ServiceProvider.GetRequiredService<NotificationDbContext>();
+    if (app.Environment.IsEnvironment("Testing"))
+    {
+        db.Database.EnsureCreated();
+    }
+    else
+    {
+        db.Database.Migrate();
+    }
 }
 
 app.UseCors("AllowFrontend");
@@ -112,3 +120,5 @@ app.MapGet(
 app.MapNotificationEndpoints();
 
 app.Run();
+
+public partial class Program { }

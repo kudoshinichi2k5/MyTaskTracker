@@ -1,14 +1,17 @@
 # Backend tests
 
-`Tracker.AuthService` and `Tracker.TaskService` each have a sibling xUnit test project (`Tracker.AuthService.Tests`, `Tracker.TaskService.Tests`). `Tracker.NotificationService`, `Tracker.ProjectService`, and `Tracker.CommentService` do not have test projects yet.
+All five backend services now have test projects under `Backend/Tests/`, separate from production service folders. AuthService and TaskService use integration plus store unit tests. NotificationService has integration coverage for authenticated notification workflows. ProjectService and CommentService currently use store unit tests; their TestServer hosts returned an environment-specific `400 Invalid Hostname` before routing, so endpoint integration coverage remains a follow-up.
 
 ## Running the tests
 
 No database, Docker, or `.env` setup is required. Each suite runs against an isolated EF Core InMemory database and does not touch MariaDB.
 
 ```powershell
-dotnet test app/Backend/Tracker.AuthService.Tests/Tracker.AuthService.Tests.csproj
-dotnet test app/Backend/Tracker.TaskService.Tests/Tracker.TaskService.Tests.csproj
+dotnet test app/Backend/Tests/Tracker.AuthService.Tests/Tracker.AuthService.Tests.csproj
+dotnet test app/Backend/Tests/Tracker.TaskService.Tests/Tracker.TaskService.Tests.csproj
+dotnet test app/Backend/Tests/Tracker.NotificationService.Tests/Tracker.NotificationService.Tests.csproj
+dotnet test app/Backend/Tests/Tracker.ProjectService.Tests/Tracker.ProjectService.Tests.csproj
+dotnet test app/Backend/Tests/Tracker.CommentService.Tests/Tracker.CommentService.Tests.csproj
 ```
 
 ## Coverage layers
@@ -26,4 +29,16 @@ Both services use two behavior-preserving test hooks:
 
 ## Extending coverage
 
-The remaining resource services follow the same EF Core and opaque-token pattern. Add a sibling test project, a `Testing` startup seam, an API factory, a local AuthService `/verify` test double, endpoint tests, and store unit tests for each service.
+The remaining resource services follow the same EF Core and opaque-token pattern. Add endpoint integration coverage after the TestServer host issue is resolved.
+
+## Frontend test proposal
+
+Both Angular applications already use Jasmine/Karma and contain starter specs. The next frontend test group should be:
+
+1. Service HTTP contract tests with `HttpClientTestingModule`/`HttpTestingController` for auth, task, project, comment, notification, report, and admin-user services.
+2. Auth interceptor tests for bearer header injection, missing token behavior, and `401` recovery.
+3. Guard tests for anonymous, authenticated, and admin-only navigation.
+4. Focused component tests for login/register validation, task/project forms, comment editing, notification unread state, and admin dashboard summaries.
+5. One build/test job per Angular app in GitHub Actions, using `npm ci`, `npm test -- --watch=false --browsers=ChromeHeadless`, and the matching production build.
+
+Keep frontend tests independent of live APIs by mocking HTTP requests and environment-specific API origins.
