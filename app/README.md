@@ -744,7 +744,7 @@ The production Angular builds use their respective `environment.prod.ts` files a
 
 ## Frontend testing proposal
 
-Both Angular applications use Jasmine/Karma and already contain starter specs. The next frontend test group should focus on:
+Both Angular applications now use Jest through Angular's Jest builder. The existing specs remain next to the source files. The next frontend test group should focus on:
 
 1. Service HTTP contract tests with `HttpClientTestingModule`/`HttpTestingController` for auth, task, project, comment, notification, report, and admin-user services.
 2. Auth interceptor tests for bearer header injection, missing-token behavior, and `401` recovery.
