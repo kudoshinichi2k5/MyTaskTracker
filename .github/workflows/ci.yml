@@ -56,11 +56,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        # Khai báo 5 giá trị khớp CHÍNH XÁC với tên filter bạn đặt ở Step 2
-        service: [AuthService, TaskService, NotificationService, ProjectService, CommentService]
-
-    # ĐÂY LÀ PHÉP MÀU: Chỉ chạy nếu mảng JSON từ job 'changes' có chứa tên của biến matrix hiện tại
-    if: contains(fromJson(needs.changes.outputs.changed_services), matrix.service)
+        service: ${{ fromJson(needs.changes.outputs.changed_services) }}
 
     steps:
       - name: Checkout Code
