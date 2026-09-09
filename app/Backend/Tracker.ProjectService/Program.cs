@@ -89,11 +89,15 @@ if (!app.Environment.IsProduction())
 
     using var scope = app.Services.CreateScope();
 
-    scope
-        .ServiceProvider
-        .GetRequiredService<ProjectDbContext>()
-        .Database
-        .Migrate();
+    var db = scope.ServiceProvider.GetRequiredService<ProjectDbContext>();
+    if (app.Environment.IsEnvironment("Testing"))
+    {
+        db.Database.EnsureCreated();
+    }
+    else
+    {
+        db.Database.Migrate();
+    }
 }
 
 app.UseCors("AllowFrontend");
@@ -113,3 +117,5 @@ app.MapGet(
 app.MapProjectEndpoints();
 
 app.Run();
+
+public partial class Program { }

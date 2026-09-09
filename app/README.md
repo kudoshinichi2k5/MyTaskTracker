@@ -742,6 +742,18 @@ Pop-Location
 
 The production Angular builds use their respective `environment.prod.ts` files and do not require build-time Google Fonts access.
 
+## Frontend testing proposal
+
+Both Angular applications now use Jest through Angular's Jest builder. The existing specs remain next to the source files. The next frontend test group should focus on:
+
+1. Service HTTP contract tests with `HttpClientTestingModule`/`HttpTestingController` for auth, task, project, comment, notification, report, and admin-user services.
+2. Auth interceptor tests for bearer header injection, missing-token behavior, and `401` recovery.
+3. Guard tests for anonymous, authenticated, and admin-only navigation.
+4. Focused component tests for login/register validation, task/project forms, comment editing, notification unread state, and admin dashboard summaries.
+5. When frontend CI is enabled later, add one job per Angular app using `npm ci`, `npm test`, and the matching production build.
+
+Frontend tests should mock HTTP requests and environment-specific API origins rather than call live backend services.
+
 ## IIS deployment
 
 See [DEPLOYMENT.md](DEPLOYMENT.md) for prerequisites, production configuration, publish commands, IIS application-pool settings, frontend deployment paths, and post-deployment verification.

@@ -87,7 +87,15 @@ if (!app.Environment.IsProduction())
     app.UseSwaggerUI();
     
     using var scope = app.Services.CreateScope();
-    scope.ServiceProvider.GetRequiredService<CommentDbContext>().Database.Migrate();
+    var db = scope.ServiceProvider.GetRequiredService<CommentDbContext>();
+    if (app.Environment.IsEnvironment("Testing"))
+    {
+        db.Database.EnsureCreated();
+    }
+    else
+    {
+        db.Database.Migrate();
+    }
 }
 
 app.UseCors("AllowFrontend");
@@ -102,3 +110,5 @@ app.MapGet(
 app.MapCommentEndpoints();
 
 app.Run();
+
+public partial class Program { }
