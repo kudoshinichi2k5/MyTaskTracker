@@ -69,7 +69,16 @@ if (!app.Environment.IsProduction())
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
-    db.Database.Migrate();
+
+    if (app.Environment.IsEnvironment("Testing"))
+    {
+        db.Database.EnsureCreated();
+    }
+    else
+    {
+        db.Database.Migrate();
+    }
+
     AuthDbSeeder.Seed(db, scope.ServiceProvider.GetRequiredService<IPasswordHasher<User>>());
 }
 
@@ -80,6 +89,8 @@ app.UseAuthorization();
 app.MapAuthEndpoints();
 
 app.Run();
+
+public partial class Program { }
 
 // --- AUTH HANDLER & SHARED STATE MODELS --- (giữ nguyên toàn bộ phần dưới, không đổi)
 

@@ -71,6 +71,7 @@ public class EfTaskStore : ITaskStore
     public IReadOnlyList<UserTaskSummary> GetSummaryForAllUsers()
     {
         return _db.Tasks
+            .AsEnumerable()
             .GroupBy(t => t.UserId)
             .Select(g => new UserTaskSummary(
                 g.Key,

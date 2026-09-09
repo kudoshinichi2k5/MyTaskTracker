@@ -109,7 +109,16 @@ var app = builder.Build();
 if (!app.Environment.IsProduction())
 {
     using var scope = app.Services.CreateScope();
-    scope.ServiceProvider.GetRequiredService<TaskDbContext>().Database.Migrate();
+    var db = scope.ServiceProvider.GetRequiredService<TaskDbContext>();
+
+    if (app.Environment.IsEnvironment("Testing"))
+    {
+        db.Database.EnsureCreated();
+    }
+    else
+    {
+        db.Database.Migrate();
+    }
 }
 
 app.UseCors("AllowFrontend");
@@ -128,3 +137,5 @@ app.MapGet(
 app.MapTaskEndpoints();
 
 app.Run();
+
+public partial class Program { }
