@@ -6,21 +6,21 @@ resource "azurerm_virtual_network" "vnet" {
 }
 
 resource "azurerm_subnet" "aks_subnet" {
-  name                 = "aks-subnet"
+  name                 = var.aks_subnet_name
   resource_group_name  = var.resource_group_name
   virtual_network_name = azurerm_virtual_network.vnet.name
   address_prefixes     = var.aks_subnet_address_prefix
 }
 
 resource "azurerm_subnet" "db_subnet" {
-  name                 = "db-subnet"
+  name                 = var.db_subnet_name
   resource_group_name  = var.resource_group_name
   virtual_network_name = azurerm_virtual_network.vnet.name
   address_prefixes     = var.db_subnet_address_prefix
 }
 
 resource "azurerm_network_security_group" "db_nsg" {
-  name                = "db-nsg"
+  name                = var.db_nsg_name
   location            = var.location
   resource_group_name = var.resource_group_name
 

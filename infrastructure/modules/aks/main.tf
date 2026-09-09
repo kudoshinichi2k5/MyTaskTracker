@@ -5,16 +5,16 @@ resource "azurerm_kubernetes_cluster" "aks" {
   dns_prefix          = var.dns_prefix
 
   # Thêm dòng này để đồng bộ với state thực tế của Azure
-  oidc_issuer_enabled = true
+  oidc_issuer_enabled = var.oidc_issuer_enabled
 
   default_node_pool {
-    name                = "default"
-    vm_size             = "standard_b2ps_v2"
-    enable_auto_scaling = true
-    min_count           = 1
-    max_count           = 2
-    vnet_subnet_id      = var.aks_subnet_id
-    temporary_name_for_rotation = "tmppool"
+    name                        = var.node_pool_name
+    vm_size                     = var.node_vm_size
+    enable_auto_scaling         = var.node_auto_scaling_enabled
+    min_count                   = var.node_min_count
+    max_count                   = var.node_max_count
+    vnet_subnet_id              = var.aks_subnet_id
+    temporary_name_for_rotation = var.node_rotation_name
   }
 
   identity {
@@ -22,9 +22,9 @@ resource "azurerm_kubernetes_cluster" "aks" {
   }
 
   network_profile {
-    network_plugin    = "azure"
-    load_balancer_sku = "standard"
-    service_cidr      = "192.168.0.0/16"
-    dns_service_ip    = "192.168.0.10"
+    network_plugin    = var.network_plugin
+    load_balancer_sku = var.load_balancer_sku
+    service_cidr      = var.service_cidr
+    dns_service_ip    = var.dns_service_ip
   }
 }
