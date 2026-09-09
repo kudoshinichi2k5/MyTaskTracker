@@ -31,14 +31,3 @@ Both services use two behavior-preserving test hooks:
 
 The remaining resource services follow the same EF Core and opaque-token pattern. Add endpoint integration coverage after the TestServer host issue is resolved.
 
-## Frontend test proposal
-
-Both Angular applications already use Jasmine/Karma and contain starter specs. The next frontend test group should be:
-
-1. Service HTTP contract tests with `HttpClientTestingModule`/`HttpTestingController` for auth, task, project, comment, notification, report, and admin-user services.
-2. Auth interceptor tests for bearer header injection, missing token behavior, and `401` recovery.
-3. Guard tests for anonymous, authenticated, and admin-only navigation.
-4. Focused component tests for login/register validation, task/project forms, comment editing, notification unread state, and admin dashboard summaries.
-5. One build/test job per Angular app in GitHub Actions, using `npm ci`, `npm test -- --watch=false --browsers=ChromeHeadless`, and the matching production build.
-
-Keep frontend tests independent of live APIs by mocking HTTP requests and environment-specific API origins.
