@@ -53,6 +53,7 @@ jobs:
 
   build-backend:
     needs: [changes, setup-and-login] # Phải đợi check thay đổi và login xong
+    if: needs.changes.outputs.changed_services != '[]'
     runs-on: ubuntu-latest
     strategy:
       matrix:
