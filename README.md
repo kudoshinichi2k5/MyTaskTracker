@@ -11,6 +11,8 @@ MyTaskTracker is a task-tracking platform built from five ASP.NET Core 8 microse
 
 Implementation details are documented within [app/README.md](app/README.md) and [infrastructure/README.md](infrastructure/README.md). Generated directories such as `bin/`, `obj/`, `node_modules/`, and Terraform `.terraform/` are not documentation targets.
 
+Local AI progress trackers are intentionally ignored by Git. The root tracker summarizes the project, while `app/ai_progress_tracker.md`, `infrastructure/ai_progress_tracker.md`, and `.github/ai_progress_tracker.md` record the current application, Terraform, and workflow states. These files are working notes, not authoritative release documentation; verify their claims against source files and command output.
+
 ## Architecture
 
 ```mermaid
