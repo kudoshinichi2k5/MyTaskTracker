@@ -56,15 +56,15 @@ jobs:
 
       - name: Restore dependencies
         # Dùng biến matrix để thay đổi động đường dẫn thư mục
-        run: dotnet restore app/Backend/Tracker.${{ matrix.service }}
+        run: dotnet restore app/Backend/Tests/Tracker.${{ matrix.service }}.Tests
 
       - name: Build
-        run: dotnet build app/Backend/Tracker.${{ matrix.service }} --no-restore
+        run: dotnet build app/Backend/Tests/Tracker.${{ matrix.service }}.Tests --no-restore
 
       # 1. Chạy test và ép xuất ra report (TRX và Cobertura)
       - name: Test and Collect Coverage
         run: |
-          dotnet test app/Backend/Tracker.${{ matrix.service }} \
+          dotnet test app/Backend/Tests/Tracker.${{ matrix.service }}.Tests \
             --no-build \
             --verbosity normal \
             --logger "trx;LogFileName=test_results.trx" \
@@ -79,7 +79,10 @@ jobs:
         with:
           # Đặt tên artifact phụ thuộc vào biến matrix để tránh ghi đè
           name: TestReport-${{ matrix.service }}
-          path: ./TestResults/test_results.trx
+          # Dùng đường dẫn tuyệt đối để đảm bảo tìm đúng
+          path: ${{ github.workspace }}/TestResults/test_results.trx
+          # Tránh lỗi khi project chưa có Unit Test
+          if-no-files-found: warn
 
       # 3. Upload Artifact: Code Coverage (xml)
       - name: Upload Code Coverage Artifact
@@ -88,7 +91,9 @@ jobs:
         with:
           name: CodeCoverage-${{ matrix.service }}
           # Coverlet sinh file coverage trong 1 thư mục random GUID, ta dùng wildcard (**) để tìm
-          path: ./TestResults/**/coverage.cobertura.xml
+          path: ${{ github.workspace }}/TestResults/**/coverage.cobertura.xml
+          # Tránh lỗi khi project chưa có Unit Test
+          if-no-files-found: warn
 
   # Job 3: Login Azure (Chỉ chuẩn bị sẵn cho Day 4)
   # Đặt điều kiện: Chỉ chạy nếu sự kiện không phải là pull_request (tức là push vào main)
