@@ -53,8 +53,25 @@ module "aks" {
   dns_service_ip            = var.aks_dns_service_ip
 }
 
+# Resolve GitHub owner and repository IDs at plan time for the federated identity subject.
 locals {
-  oidc_subject = "repo:${var.github_repository}:ref:refs/heads/${var.github_ref}"
+  github_owner      = split("/", var.github_repository)[0]
+  github_repository = split("/", var.github_repository)[1]
+}
+
+data "http" "github_user" {
+  url = "https://api.github.com/users/${local.github_owner}"
+}
+
+data "http" "github_repo" {
+  url = "https://api.github.com/repos/${var.github_repository}"
+}
+
+locals {
+  owner_id = jsondecode(data.http.github_user.response_body).id
+  repo_id  = jsondecode(data.http.github_repo.response_body).id
+
+  oidc_dynamic_subject = "repo:${local.github_owner}@${local.owner_id}/${local.github_repository}@${local.repo_id}:ref:refs/heads/${var.github_ref}"
 }
 
 module "identity" {
@@ -63,7 +80,7 @@ module "identity" {
   resource_group_name = azurerm_resource_group.shared_rg.name
   location            = azurerm_resource_group.shared_rg.location
 
-  oidc_subject  = local.oidc_subject
+  oidc_subject  = local.oidc_dynamic_subject
   oidc_audience = var.oidc_audience
   oidc_issuer   = var.oidc_issuer
 }
