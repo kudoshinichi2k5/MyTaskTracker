@@ -25,7 +25,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Tracker.AuthService\Tracker.AuthService.csproj" />
+    <ProjectReference Include="..\..\Tracker.AuthService\Tracker.AuthService.csproj" />
   </ItemGroup>
 
 </Project>
