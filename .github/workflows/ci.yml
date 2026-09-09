@@ -29,3 +29,24 @@ jobs:
 
       - name: Test Azure CLI
         run: az account show
+
+  changes:
+    runs-on: ubuntu-latest
+    # Cần khai báo outputs để job khác đọc được
+    outputs:
+      # action dorny sẽ sinh ra một output dạng mảng JSON chứa các filter có thay đổi, vd: '["Auth", "Task"]'
+      changed_services: ${{ steps.filter.outputs.changes }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Check for file changes
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            AuthService: 'app/Backend/Tracker.AuthService/**'
+            TaskService: 'app/Backend/Tracker.TaskService/**'
+            NotificationService: 'app/Backend/Tracker.NotificationService/**'
+            ProjectService: 'app/Backend/Tracker.ProjectService/**'
+            CommentService: 'app/Backend/Tracker.CommentService/**'
