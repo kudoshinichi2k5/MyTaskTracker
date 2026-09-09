@@ -7,13 +7,9 @@ MyTaskTracker is a task-tracking platform built from five ASP.NET Core 8 microse
 | Area | Purpose | Documentation |
 | --- | --- | --- |
 | `app/` | Application source, local orchestration, and deployment docs | [app/README.md](app/README.md) |
-| `app/Backend/` | Auth, task, notification, project, and comment APIs | [Backend README](app/Backend/README.md) |
-| `app/Frontend/` | Customer and admin Angular applications | [Frontend README](app/Frontend/README.md) |
-| `app/infra/` | MariaDB initialization scripts | [Database README](app/infra/README.md) |
 | `infrastructure/` | Terraform environments and reusable Azure modules | [Infrastructure README](infrastructure/README.md) |
-| `.github/` | GitHub Actions workflows | [CI workflow](.github/workflows/ci.yml) |
 
-Generated directories such as `bin/`, `obj/`, `node_modules/`, and Terraform `.terraform/` directories are not source documentation targets.
+Implementation details are documented within [app/README.md](app/README.md) and [infrastructure/README.md](infrastructure/README.md). Generated directories such as `bin/`, `obj/`, `node_modules/`, and Terraform `.terraform/` are not documentation targets.
 
 ## Architecture
 
