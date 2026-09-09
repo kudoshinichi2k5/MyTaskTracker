@@ -1,14 +1,13 @@
 # Infrastructure
 
-Each environment keeps its deployable values in its own `terraform.tfvars` file. Backend storage settings are supplied locally through an ignored `backend.hcl` file.
+Each environment keeps its deployable resource values in its own `terraform.tfvars` file. The `dev` environment includes its Azure remote backend in `backend.tf`; Terraform backend settings are separate from Terraform input variables.
 
 Initialize an environment with:
 
 ```powershell
-Copy-Item backend.hcl.example backend.hcl
-terraform init -backend-config=backend.hcl
+terraform init
 terraform validate
 terraform plan -var-file=terraform.tfvars
 ```
 
-Replace the placeholder values in `backend.hcl` before initialization. Run the commands from the selected environment directory.
+For `staging` and `prod`, add the environment-specific Azure backend settings before initializing them. Backend values cannot be loaded from `terraform.tfvars`; Terraform initializes the backend before it loads that file.
