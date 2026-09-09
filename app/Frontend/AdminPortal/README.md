@@ -1,27 +1,30 @@
 # AdminPortal
 
-This project was generated with [Angular CLI](https://github.com/angular/angular-cli) version 18.2.21.
+Administrative Angular 18 application for task summaries, user access, projects, and comments.
 
-## Development server
+- Local URL: `http://localhost:4300`
+- Package name: `admin-portal`
+- API configuration: `src/environments/`
 
-Run `ng serve` for a dev server. Navigate to `http://localhost:4200/`. The application will automatically reload if you change any of the source files.
+## Run locally
 
-## Code scaffolding
+From this directory:
 
-Run `ng generate component component-name` to generate a new component. You can also use `ng generate directive|pipe|service|class|guard|interface|enum|module`.
+```powershell
+npm.cmd ci
+npm.cmd start -- --port 4300
+```
 
-## Build
+The development environment targets the local backend APIs on ports `5001` through `5005`. Start MariaDB and the backend services first; see [app README](../../README.md).
 
-Run `ng build` to build the project. The build artifacts will be stored in the `dist/` directory.
+## Build and test
 
-## Running unit tests
+```powershell
+npm.cmd run build
+npm.cmd run build:testing
+npm.cmd run build:staging
+npm.cmd run build:production
+npm.cmd test
+```
 
-Run `ng test` to execute the unit tests via [Karma](https://karma-runner.github.io).
-
-## Running end-to-end tests
-
-Run `ng e2e` to execute the end-to-end tests via a platform of your choice. To use this command, you need to first add a package that implements end-to-end testing capabilities.
-
-## Further help
-
-To get more help on the Angular CLI use `ng help` or go check out the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+The staging and production environment files contain example HTTPS domains. Replace those values with the deployed API origins before creating a deployment bundle.
