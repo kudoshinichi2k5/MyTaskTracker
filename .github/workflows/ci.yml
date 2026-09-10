@@ -215,29 +215,38 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       # 2. Login ACR bằng biến động thay vì hardcode
       - name: Login to ACR
         run: az acr login --name ${{ vars.ACR_NAME }}
 
-      # 3. Chuẩn bị đường dẫn thư mục và tên image
-      # Bước này dùng bash script đơn giản để gán biến môi trường dựa trên matrix.service (Frontend hay Backend)
-      - name: Set Image Path and Name
+      # 3. Chuẩn bị đường dẫn thư mục, tên image và Build Args
+      - name: Set Image Path, Name and Build Args
         id: prep
         run: |
           SERVICE_LOWER=$(echo "${{ matrix.service }}" | tr '[:upper:]' '[:lower:]')
           
           if [[ "${{ matrix.service }}" == *"App"* ]] || [[ "${{ matrix.service }}" == *"Portal"* ]]; then
             CONTEXT_PATH="app/Frontend/${{ matrix.service }}"
-            # Đưa vào namespace 'frontend'
             IMAGE_NAME="${{ vars.ACR_NAME }}.azurecr.io/frontend/$SERVICE_LOWER"
+            # Frontend dùng ARG CONFIGURATION (testing cho CI, hoặc production tùy chiến lược)
+            BUILD_ARGS="CONFIGURATION=testing\nBASE_HREF=/"
           else
             CONTEXT_PATH="app/Backend/Tracker.${{ matrix.service }}"
-            # Đưa vào namespace 'backend'
             IMAGE_NAME="${{ vars.ACR_NAME }}.azurecr.io/backend/$SERVICE_LOWER"
+            # Backend bắt buộc cần ARG SERVICE_NAME
+            BUILD_ARGS="SERVICE_NAME=Tracker.${{ matrix.service }}"
           fi
           
           echo "IMAGE_NAME=$IMAGE_NAME" >> $GITHUB_ENV
           echo "CONTEXT_PATH=$CONTEXT_PATH" >> $GITHUB_ENV
+          
+          # Lưu BUILD_ARGS dưới dạng multiline string vào GITHUB_ENV
+          echo "BUILD_ARGS<<EOF" >> $GITHUB_ENV
+          echo -e "$BUILD_ARGS" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
 
       # 4. Build và Push sử dụng docker/build-push-action
       - name: Build and Push Docker Image
@@ -246,3 +255,4 @@ jobs:
           context: ${{ env.CONTEXT_PATH }}
           push: true
           tags: ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          build-args: ${{ env.BUILD_ARGS }}
