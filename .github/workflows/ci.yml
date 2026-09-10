@@ -7,6 +7,12 @@ on:
   pull_request:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      build_all:
+        description: 'Build & push tất cả service, bỏ qua kiểm tra thay đổi'
+        type: boolean
+        default: false
 
 # BẮT BUỘC: Khai báo quyền để GitHub Actions có thể xin token OIDC
 permissions:
@@ -20,11 +26,16 @@ jobs:
     # Cần khai báo outputs để job khác đọc được
     outputs:
       # Tách thành 2 output riêng biệt
-      changed_backend: ${{ steps.filter-backend.outputs.changes }}
-      changed_frontend: ${{ steps.filter-frontend.outputs.changes }}
+      changed_backend: ${{ steps.final.outputs.backend }}
+      changed_frontend: ${{ steps.final.outputs.frontend }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          # dorny/paths-filter cần lịch sử git để diff với commit trước đó
+          # khi event là "push". fetch-depth mặc định = 1 (chỉ 1 commit)
+          # khiến nó không có gì để so sánh -> fetch toàn bộ lịch sử.
+          fetch-depth: 0
 
       - name: Check for Backend changes
         # action dorny sẽ sinh ra một output dạng mảng JSON chứa các filter có thay đổi, vd: '["Auth", "Task"]'
@@ -45,6 +56,31 @@ jobs:
           filters: |
             CustomerApp: 'app/Frontend/CustomerApp/**'
             AdminPortal: 'app/Frontend/AdminPortal/**'
+
+      # ĐÂY mới là nơi duy nhất build_all được phép có tác dụng: override
+      # ngay tại NGUỒN dữ liệu (output của job này), chứ không phải ở điều
+      # kiện "if" của job build-and-push-docker. Mọi job phía sau chỉ đọc
+      # changed_backend/changed_frontend và không cần biết build_all tồn tại.
+      - name: Resolve final changed-service lists
+        id: final
+        run: |
+          if [[ "${{ github.event.inputs.build_all }}" == "true" ]]; then
+            # Dùng EOF để gói chuỗi JSON an toàn
+            cat << 'EOF' >> "$GITHUB_OUTPUT"
+          backend=["AuthService","TaskService","NotificationService","ProjectService","CommentService"]
+          frontend=["CustomerApp","AdminPortal"]
+          EOF
+          else
+            # Khai báo biến trung gian
+            BACKEND_CHANGES='${{ steps.filter-backend.outputs.changes }}'
+            FRONTEND_CHANGES='${{ steps.filter-frontend.outputs.changes }}'
+            
+            # Ghi vào GITHUB_OUTPUT bằng heredoc
+            cat << EOF >> "$GITHUB_OUTPUT"
+          backend=$BACKEND_CHANGES
+          frontend=$FRONTEND_CHANGES
+          EOF
+          fi
 
   # Job 2: Build & Test backend (Chỉ chạy nếu có thay đổi Backend)
   build-backend:
@@ -146,7 +182,11 @@ jobs:
   build-and-push-docker:
     # Phải đợi build và test pass. Chỉ chạy khi event là 'push' (nghĩa là đã merge vào main)
     needs: [changes, build-backend, build-frontend]
-    if: github.event_name == 'push'
+    if: |
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      !contains(needs.*.result, 'failure') &&
+      !contains(needs.*.result, 'cancelled') &&
+      (needs.changes.outputs.changed_backend != '[]' || needs.changes.outputs.changed_frontend != '[]')
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -182,13 +222,15 @@ jobs:
         id: prep
         run: |
           SERVICE_LOWER=$(echo "${{ matrix.service }}" | tr '[:upper:]' '[:lower:]')
-          # Dùng biến ACR_NAME thay cho chuỗi tĩnh
-          IMAGE_NAME="${{ vars.ACR_NAME }}.azurecr.io/$SERVICE_LOWER"
           
           if [[ "${{ matrix.service }}" == *"App"* ]] || [[ "${{ matrix.service }}" == *"Portal"* ]]; then
             CONTEXT_PATH="app/Frontend/${{ matrix.service }}"
+            # Đưa vào namespace 'frontend'
+            IMAGE_NAME="${{ vars.ACR_NAME }}.azurecr.io/frontend/$SERVICE_LOWER"
           else
             CONTEXT_PATH="app/Backend/Tracker.${{ matrix.service }}"
+            # Đưa vào namespace 'backend'
+            IMAGE_NAME="${{ vars.ACR_NAME }}.azurecr.io/backend/$SERVICE_LOWER"
           fi
           
           echo "IMAGE_NAME=$IMAGE_NAME" >> $GITHUB_ENV
