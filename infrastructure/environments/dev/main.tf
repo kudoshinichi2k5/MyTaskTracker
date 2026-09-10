@@ -100,9 +100,10 @@ resource "azurerm_role_assignment" "ci_app_rg_contributor" {
   scope                = azurerm_resource_group.app_rg.id
 }
 
-# Cấp quyền Contributor cho GitHub Actions Identity trên Shared RG (để thao tác ACR)
-resource "azurerm_role_assignment" "ci_shared_rg_contributor" {
+# Cấp quyền AcrPush cho GitHub Actions Identity (Giới hạn scope CHỈ TRÊN ACR)
+resource "azurerm_role_assignment" "ci_acr_push" {
   principal_id         = module.identity.principal_id
-  role_definition_name = "Reader"
-  scope                = azurerm_resource_group.shared_rg.id
+  role_definition_name = "AcrPush"
+  # Bạn đã suy đoán cực kỳ chính xác: truyền ID của ACR thay vì ID của Resource Group
+  scope                = module.acr.acr_id 
 }
