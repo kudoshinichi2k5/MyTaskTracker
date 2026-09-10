@@ -46,7 +46,7 @@ jobs:
             CustomerApp: 'app/Frontend/CustomerApp/**'
             AdminPortal: 'app/Frontend/AdminPortal/**'
 
-  # Job 2: Build & Test
+  # Job 2: Build & Test backend (Chỉ chạy nếu có thay đổi Backend)
   build-backend:
     needs: [changes] # Phải đợi check thay đổi 
     if: needs.changes.outputs.changed_backend != '[]'
@@ -105,6 +105,7 @@ jobs:
           # Tránh lỗi khi project chưa có Unit Test
           if-no-files-found: warn
 
+  # Job 3: Build & Test frontend (Chỉ chạy nếu có thay đổi Frontend)
   build-frontend:
     needs: [changes]
     # Chỉ chạy nếu có thay đổi Frontend
@@ -141,21 +142,62 @@ jobs:
 
       # (Optional) Bạn có thể tự thêm phần upload Artifact cho dist/ folder và coverage nếu muốn giống Backend
   
-  # Job 3: Login Azure (Chỉ chuẩn bị sẵn cho Day 4)
-  # Đặt điều kiện: Chỉ chạy nếu sự kiện không phải là pull_request (tức là push vào main)
-  setup-and-login:
-    if: github.event_name != 'pull_request'
+  # Job 4: Build và Push Docker Image (Chỉ chạy khi push vào main)
+  build-and-push-docker:
+    # Phải đợi build và test pass. Chỉ chạy khi event là 'push' (nghĩa là đã merge vào main)
+    needs: [changes, build-backend, build-frontend]
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # Cú pháp này sẽ hợp nhất 2 mảng JSON (Backend + Frontend) thành 1 danh sách matrix duy nhất
+        service: >-
+          ${{ fromJson(
+            format('[{0}{1}{2}]',
+              join(fromJson(needs.changes.outputs.changed_backend), ','),
+              needs.changes.outputs.changed_backend != '[]' && needs.changes.outputs.changed_frontend != '[]' && ',' || '',
+              join(fromJson(needs.changes.outputs.changed_frontend), ',')
+            )
+          ) }}
+    
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Azure Login (OIDC)
+      # 1. Xác thực với Azure (OIDC)
+      - name: Azure Login
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Test Azure CLI
-        run: az account show
+      # 2. Login ACR bằng biến động thay vì hardcode
+      - name: Login to ACR
+        run: az acr login --name ${{ vars.ACR_NAME }}
+
+      # 3. Chuẩn bị đường dẫn thư mục và tên image
+      # Bước này dùng bash script đơn giản để gán biến môi trường dựa trên matrix.service (Frontend hay Backend)
+      - name: Set Image Path and Name
+        id: prep
+        run: |
+          SERVICE_LOWER=$(echo "${{ matrix.service }}" | tr '[:upper:]' '[:lower:]')
+          # Dùng biến ACR_NAME thay cho chuỗi tĩnh
+          IMAGE_NAME="${{ vars.ACR_NAME }}.azurecr.io/$SERVICE_LOWER"
+          
+          if [[ "${{ matrix.service }}" == *"App"* ]] || [[ "${{ matrix.service }}" == *"Portal"* ]]; then
+            CONTEXT_PATH="app/Frontend/${{ matrix.service }}"
+          else
+            CONTEXT_PATH="app/Backend/Tracker.${{ matrix.service }}"
+          fi
+          
+          echo "IMAGE_NAME=$IMAGE_NAME" >> $GITHUB_ENV
+          echo "CONTEXT_PATH=$CONTEXT_PATH" >> $GITHUB_ENV
+
+      # 4. Build và Push sử dụng docker/build-push-action
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ env.CONTEXT_PATH }}
+          push: true
+          tags: ${{ env.IMAGE_NAME }}:${{ github.sha }}
