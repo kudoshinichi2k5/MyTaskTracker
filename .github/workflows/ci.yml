@@ -28,6 +28,10 @@ jobs:
       # Tách thành 2 output riêng biệt
       changed_backend: ${{ steps.final.outputs.backend }}
       changed_frontend: ${{ steps.final.outputs.frontend }}
+      # Mảng đã hợp nhất backend+frontend, tính sẵn bằng jq ở step "final"
+      # bên dưới - để job 4 không phải tự ghép chuỗi JSON bằng
+      # format()+join() nữa (join() không quote lại string -> sinh JSON hỏng).
+      changed_all: ${{ steps.final.outputs.all }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -60,27 +64,32 @@ jobs:
       # ĐÂY mới là nơi duy nhất build_all được phép có tác dụng: override
       # ngay tại NGUỒN dữ liệu (output của job này), chứ không phải ở điều
       # kiện "if" của job build-and-push-docker. Mọi job phía sau chỉ đọc
-      # changed_backend/changed_frontend và không cần biết build_all tồn tại.
+      # changed_backend/changed_frontend/changed_all và không cần biết
+      # build_all tồn tại.
       - name: Resolve final changed-service lists
         id: final
         run: |
           if [[ "${{ github.event.inputs.build_all }}" == "true" ]]; then
-            # Dùng EOF để gói chuỗi JSON an toàn
-            cat << 'EOF' >> "$GITHUB_OUTPUT"
-          backend=["AuthService","TaskService","NotificationService","ProjectService","CommentService"]
-          frontend=["CustomerApp","AdminPortal"]
-          EOF
+            # build_all bật -> bỏ qua kết quả diff, coi như mọi service đổi
+            BACKEND='["AuthService","TaskService","NotificationService","ProjectService","CommentService"]'
+            FRONTEND='["CustomerApp","AdminPortal"]'
           else
             # Khai báo biến trung gian
-            BACKEND_CHANGES='${{ steps.filter-backend.outputs.changes }}'
-            FRONTEND_CHANGES='${{ steps.filter-frontend.outputs.changes }}'
-            
-            # Ghi vào GITHUB_OUTPUT bằng heredoc
-            cat << EOF >> "$GITHUB_OUTPUT"
-          backend=$BACKEND_CHANGES
-          frontend=$FRONTEND_CHANGES
-          EOF
+            BACKEND='${{ steps.filter-backend.outputs.changes }}'
+            FRONTEND='${{ steps.filter-frontend.outputs.changes }}'
           fi
+
+          # Hợp nhất 2 mảng JSON bằng jq (có sẵn trên ubuntu-latest) thay vì
+          # format()+join() của GitHub Actions expression, vì join() chỉ nối
+          # chuỗi thô, không quote lại string -> sinh ra JSON không hợp lệ.
+          ALL=$(jq -c -n --argjson a "$BACKEND" --argjson b "$FRONTEND" '$a + $b')
+
+          # Ghi vào GITHUB_OUTPUT bằng heredoc
+          cat << EOF >> "$GITHUB_OUTPUT"
+          backend=$BACKEND
+          frontend=$FRONTEND
+          all=$ALL
+          EOF
 
   # Job 2: Build & Test backend (Chỉ chạy nếu có thay đổi Backend)
   build-backend:
@@ -177,29 +186,23 @@ jobs:
         run: npm run test
 
       # (Optional) Bạn có thể tự thêm phần upload Artifact cho dist/ folder và coverage nếu muốn giống Backend
-  
-  # Job 4: Build và Push Docker Image (Chỉ chạy khi push vào main)
+
+  # Job 4: Build và Push Docker Image
   build-and-push-docker:
-    # Phải đợi build và test pass. Chỉ chạy khi event là 'push' (nghĩa là đã merge vào main)
+    # Phải đợi build và test pass.
     needs: [changes, build-backend, build-frontend]
     if: |
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
       !contains(needs.*.result, 'failure') &&
       !contains(needs.*.result, 'cancelled') &&
-      (needs.changes.outputs.changed_backend != '[]' || needs.changes.outputs.changed_frontend != '[]')
+      needs.changes.outputs.changed_all != '[]'
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        # Cú pháp này sẽ hợp nhất 2 mảng JSON (Backend + Frontend) thành 1 danh sách matrix duy nhất
-        service: >-
-          ${{ fromJson(
-            format('[{0}{1}{2}]',
-              join(fromJson(needs.changes.outputs.changed_backend), ','),
-              needs.changes.outputs.changed_backend != '[]' && needs.changes.outputs.changed_frontend != '[]' && ',' || '',
-              join(fromJson(needs.changes.outputs.changed_frontend), ',')
-            )
-          ) }}
-    
+        # changed_all đã là 1 mảng JSON hợp lệ được hợp nhất sẵn (bằng jq)
+        # ở job "changes" - không còn tự ghép bằng format()+join() ở đây nữa.
+        service: ${{ fromJson(needs.changes.outputs.changed_all) }}
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
