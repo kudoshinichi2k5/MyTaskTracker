@@ -272,3 +272,29 @@ jobs:
           # Kích hoạt Docker Cache, dùng tên dịch vụ lấy từ matrix làm Scope để không đụng nhau
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+  # Job 5: Gatekeeper (Tổng hợp kết quả để Branch Protection kiểm tra)
+  ci-gate:
+    needs: [changes, build-backend, build-frontend, build-and-push-docker]
+    # BẮT BUỘC: Luôn chạy để hứng kết quả, kể cả khi các job trên bị fail
+    if: always() 
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify Pipeline Status
+        run: |
+          # Kiểm tra nếu có bất kỳ job nào thất bại hoặc bị hủy
+          if [[ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            echo "❌ **Pipeline Failed!** Một hoặc nhiều service đã gặp lỗi trong quá trình Build/Test." >> $GITHUB_STEP_SUMMARY
+            exit 1 # Báo lỗi job này để khóa PR
+          else
+            echo "✅ **Pipeline Passed!** Tất cả các service đều thành công hoặc được skip hợp lệ." >> $GITHUB_STEP_SUMMARY
+            exit 0 # Pass job này để cho phép Merge
+          fi
+
+      - name: Send Failure Notification
+        # Hàm failure() đảm bảo bước này chỉ chạy nếu bước Verify bên trên gọi 'exit 1'
+        if: failure()
+        run: |
+          # Trong thực tế, bạn sẽ dùng curl để gọi Webhook của Slack/Discord ở đây
+          # Ví dụ: curl -X POST -H 'Content-type: application/json' --data '{"text":"🚨 CI Pipeline Failed on main branch!"}' ${{ secrets.SLACK_WEBHOOK }}
+          echo "🚨 Gửi cảnh báo thất bại đến kênh chat của team (Placeholder)..."
