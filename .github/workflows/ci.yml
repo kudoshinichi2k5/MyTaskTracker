@@ -104,6 +104,15 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      # THÊM MỚI: Cache NuGet
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ matrix.service }}-${{ hashFiles(format('app/Backend/Tracker.{0}/*.csproj', matrix.service), format('app/Backend/Tests/Tracker.{0}.Tests/*.csproj', matrix.service)) }}
+          restore-keys: |
+            nuget-${{ runner.os }}-${{ matrix.service }}-
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
@@ -169,10 +178,14 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      # SỬA LẠI: Tận dụng tính năng cache tích hợp của setup-node
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22.x'
+          cache: npm
+          # Truyền đường dẫn tĩnh (động theo matrix) để setup-node tự tính hash code
+          cache-dependency-path: app/Frontend/${{ matrix.app }}/package-lock.json
 
       - name: Install dependencies (Clean install)
         run: npm ci
@@ -256,3 +269,6 @@ jobs:
           push: true
           tags: ${{ env.IMAGE_NAME }}:${{ github.sha }}
           build-args: ${{ env.BUILD_ARGS }}
+          # Kích hoạt Docker Cache, dùng tên dịch vụ lấy từ matrix làm Scope để không đụng nhau
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
