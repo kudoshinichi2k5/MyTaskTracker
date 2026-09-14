@@ -47,13 +47,17 @@ Pop-Location
 
 The local applications are available at `http://localhost:4200` and `http://localhost:4300`.
 
-## Verification
+## Verification & CI
 
+Local manual verification:
 ```powershell
 dotnet build app/Backend/Tracker.AuthService/Tracker.AuthService.csproj
 Push-Location app/Frontend/CustomerApp; npm.cmd run build; Pop-Location
 Push-Location app/Frontend/AdminPortal; npm.cmd run build; Pop-Location
 ```
+
+Continuous Integration (CI):
+The repository uses GitHub Actions for automated CI. On every push and pull request to main, the pipeline dynamically detects changes, runs tests, and pushes Docker images to Azure Container Registry using secure OIDC authentication and layer caching. Branch protection is enforced via a gatekeeper job.
 
 Terraform validation is documented in [infrastructure/README.md](infrastructure/README.md). Do not commit `.env`, user secrets, deployment credentials, or a real `backend.hcl`.
 
