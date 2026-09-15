@@ -1,0 +1,21 @@
+# Global values (sẽ được override bởi file dev/values.yaml)
+global:
+  imageRegistry: ""
+  namespace: "default"
+
+# Thiết lập an toàn mặc định
+replicaCount: 1
+
+image:
+  repository: ""
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+fullnameOverride: ""
+nameOverride: ""
+
+containerPort: 8080 # Phù hợp với Dockerfile của dự án
+
+service:
+  type: ClusterIP
+  port: 80
