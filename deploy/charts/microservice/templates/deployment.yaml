@@ -20,7 +20,7 @@ spec:
       containers:
         - name: {{ include "microservice.fullname" . }}
           # Lấy Registry từ biến global, ghép với tên repository và tag
-          image: "{{ .Values.global.imageRegistry }}/{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          image: "{{ .Values.global.imageRegistry }}/{{ .Values.image.repository }}:{{ .Values.global.imageTag | default .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http
