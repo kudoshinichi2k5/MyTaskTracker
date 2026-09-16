@@ -235,6 +235,9 @@ jobs:
       - name: Login to ACR
         run: az acr login --name ${{ vars.ACR_NAME }}
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+
       # 3. Chuẩn bị đường dẫn thư mục, tên image và Build Args
       - name: Set Image Path, Name and Build Args
         id: prep
@@ -244,22 +247,21 @@ jobs:
           if [[ "${{ matrix.service }}" == *"App"* ]] || [[ "${{ matrix.service }}" == *"Portal"* ]]; then
             CONTEXT_PATH="app/Frontend/${{ matrix.service }}"
             IMAGE_NAME="${{ vars.ACR_NAME }}.azurecr.io/frontend/$SERVICE_LOWER"
-            # Frontend dùng ARG CONFIGURATION (testing cho CI, hoặc production tùy chiến lược)
-            BUILD_ARGS="CONFIGURATION=testing\nBASE_HREF=/"
+            # Cú pháp chuẩn cho nhiều build-args: Xuống dòng trực tiếp
+            echo "BUILD_ARGS<<EOF" >> $GITHUB_ENV
+            echo "CONFIGURATION=testing" >> $GITHUB_ENV
+            echo "BASE_HREF=/" >> $GITHUB_ENV
+            echo "EOF" >> $GITHUB_ENV
           else
             CONTEXT_PATH="app/Backend/Tracker.${{ matrix.service }}"
             IMAGE_NAME="${{ vars.ACR_NAME }}.azurecr.io/backend/$SERVICE_LOWER"
-            # Backend bắt buộc cần ARG SERVICE_NAME
-            BUILD_ARGS="SERVICE_NAME=Tracker.${{ matrix.service }}"
+            echo "BUILD_ARGS<<EOF" >> $GITHUB_ENV
+            echo "SERVICE_NAME=Tracker.${{ matrix.service }}" >> $GITHUB_ENV
+            echo "EOF" >> $GITHUB_ENV
           fi
           
           echo "IMAGE_NAME=$IMAGE_NAME" >> $GITHUB_ENV
           echo "CONTEXT_PATH=$CONTEXT_PATH" >> $GITHUB_ENV
-          
-          # Lưu BUILD_ARGS dưới dạng multiline string vào GITHUB_ENV
-          echo "BUILD_ARGS<<EOF" >> $GITHUB_ENV
-          echo -e "$BUILD_ARGS" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
 
       # 4. Build và Push sử dụng docker/build-push-action
       - name: Build and Push Docker Image
@@ -272,6 +274,9 @@ jobs:
           # Kích hoạt Docker Cache, dùng tên dịch vụ lấy từ matrix làm Scope để không đụng nhau
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+          # Tắt SLSA provenance để tương thích với AKS Containerd
+          provenance: false
+          platforms: linux/amd64,linux/arm64
 
   # Job 5: Gatekeeper (Tổng hợp kết quả để Branch Protection kiểm tra)
   ci-gate:

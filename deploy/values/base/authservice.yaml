@@ -3,7 +3,12 @@ image:
   # Tên repo đã lowercase như Week 6
   repository: "backend/authservice" 
   # Hãy dán cái Git SHA (VD: d55ac27d3a31568cf5aa5ea76d732c0c97c32f9f) bạn lấy từ ACR vào đây
-  tag: "d55ac27d3a31568cf5aa5ea76d732c0c97c32f9f"
+  tag: "f799b711517030b2cf1c0330626e2889be61977f"
+env:
+  ASPNETCORE_ENVIRONMENT: "Development"
+  # Tên DNS nội bộ của MariaDB sẽ là: <tên-release>-<tên-chart>.<namespace>.svc.cluster.local
+  # Trong trường hợp này là: tracker-mariadb.dev.svc.cluster.local
+  ConnectionStrings__AuthDb: "Server=tracker-mariadb.dev.svc.cluster.local;Port=3306;Database=tracker_auth;User=auth_service;Password=devauthpassword;"
 
 service:
   port: 80 # Bên ngoài cụm nội bộ gọi port 80, K8s sẽ trỏ vào containerPort 8080
