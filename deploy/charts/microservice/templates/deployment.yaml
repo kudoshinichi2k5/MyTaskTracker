@@ -27,4 +27,8 @@ spec:
               containerPort: {{ .Values.containerPort }} # Sẽ là 8080 cho Backend, thay đổi tuỳ service
               protocol: TCP
           # Các thiết lập Env Vars (chúng ta sẽ thêm ConfigMap ở Day 2, tạm thời để trống)
-          env: []
+          env:
+            {{- range $key, $value := .Values.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
