@@ -1,4 +1,4 @@
-# Global values (sẽ được override bởi file dev/values.yaml)
+# Global values (sẽ được override bởi file dev/values.yaml hoac prod/values.yaml)
 global:
   imageRegistry: ""
   namespace: "default"
@@ -19,3 +19,5 @@ containerPort: 8080 # Phù hợp với Dockerfile của dự án
 service:
   type: ClusterIP
   port: 80
+
+env: {}
