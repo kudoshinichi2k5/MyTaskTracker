@@ -235,6 +235,9 @@ jobs:
       - name: Login to ACR
         run: az acr login --name ${{ vars.ACR_NAME }}
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+
       # 3. Chuẩn bị đường dẫn thư mục, tên image và Build Args
       - name: Set Image Path, Name and Build Args
         id: prep
@@ -274,6 +277,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
           # Tắt SLSA provenance để tương thích với AKS Containerd
           provenance: false
+          platforms: linux/amd64,linux/arm64
 
   # Job 5: Gatekeeper (Tổng hợp kết quả để Branch Protection kiểm tra)
   ci-gate:
