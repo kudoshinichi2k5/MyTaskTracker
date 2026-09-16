@@ -31,4 +31,5 @@ COPY --from=build /app/publish .
 ENV SERVICE_DLL="${SERVICE_NAME}.dll"
 # Run as non-root user
 USER app
-ENTRYPOINT ["sh", "-c", "exec dotnet \"$SERVICE_DLL\""]
+# Dùng shell form thay vì exec form để hệ điều hành Linux (sh) tự động phân giải biến $SERVICE_DLL
+ENTRYPOINT dotnet $SERVICE_DLL

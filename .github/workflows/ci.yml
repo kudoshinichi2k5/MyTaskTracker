@@ -247,22 +247,21 @@ jobs:
           if [[ "${{ matrix.service }}" == *"App"* ]] || [[ "${{ matrix.service }}" == *"Portal"* ]]; then
             CONTEXT_PATH="app/Frontend/${{ matrix.service }}"
             IMAGE_NAME="${{ vars.ACR_NAME }}.azurecr.io/frontend/$SERVICE_LOWER"
-            # Frontend dùng ARG CONFIGURATION (testing cho CI, hoặc production tùy chiến lược)
-            BUILD_ARGS="CONFIGURATION=testing\nBASE_HREF=/"
+            # Cú pháp chuẩn cho nhiều build-args: Xuống dòng trực tiếp
+            echo "BUILD_ARGS<<EOF" >> $GITHUB_ENV
+            echo "CONFIGURATION=testing" >> $GITHUB_ENV
+            echo "BASE_HREF=/" >> $GITHUB_ENV
+            echo "EOF" >> $GITHUB_ENV
           else
             CONTEXT_PATH="app/Backend/Tracker.${{ matrix.service }}"
             IMAGE_NAME="${{ vars.ACR_NAME }}.azurecr.io/backend/$SERVICE_LOWER"
-            # Backend bắt buộc cần ARG SERVICE_NAME
-            BUILD_ARGS="SERVICE_NAME=Tracker.${{ matrix.service }}"
+            echo "BUILD_ARGS<<EOF" >> $GITHUB_ENV
+            echo "SERVICE_NAME=Tracker.${{ matrix.service }}" >> $GITHUB_ENV
+            echo "EOF" >> $GITHUB_ENV
           fi
           
           echo "IMAGE_NAME=$IMAGE_NAME" >> $GITHUB_ENV
           echo "CONTEXT_PATH=$CONTEXT_PATH" >> $GITHUB_ENV
-          
-          # Lưu BUILD_ARGS dưới dạng multiline string vào GITHUB_ENV
-          echo "BUILD_ARGS<<EOF" >> $GITHUB_ENV
-          echo -e "$BUILD_ARGS" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
 
       # 4. Build và Push sử dụng docker/build-push-action
       - name: Build and Push Docker Image
