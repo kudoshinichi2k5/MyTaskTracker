@@ -1,7 +1,6 @@
 fullnameOverride: "task-service"
 image:
   repository: "backend/taskservice"
-  tag: "f799b711517030b2cf1c0330626e2889be61977f" # Lấy từ ACR giống hôm qua
 service:
   port: 80
 env:

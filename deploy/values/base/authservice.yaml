@@ -1,9 +1,6 @@
 fullnameOverride: "auth-service" # Định danh cố định để các service khác gọi
 image:
-  # Tên repo đã lowercase như Week 6
   repository: "backend/authservice" 
-  # Hãy dán cái Git SHA (VD: d55ac27d3a31568cf5aa5ea76d732c0c97c32f9f) bạn lấy từ ACR vào đây
-  tag: "f799b711517030b2cf1c0330626e2889be61977f"
 env:
   ASPNETCORE_ENVIRONMENT: "Development"
   # Tên DNS nội bộ của MariaDB sẽ là: <tên-release>-<tên-chart>.<namespace>.svc.cluster.local
