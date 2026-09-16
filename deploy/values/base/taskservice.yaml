@@ -1,0 +1,24 @@
+fullnameOverride: "task-service"
+image:
+  repository: "backend/taskservice"
+  tag: "f799b711517030b2cf1c0330626e2889be61977f" # Lấy từ ACR giống hôm qua
+service:
+  port: 80
+env:
+  ASPNETCORE_ENVIRONMENT: "Development"
+  ConnectionStrings__TaskDb: "Server=tracker-mariadb.dev.svc.cluster.local;Port=3306;Database=tracker_tasks;User=task_service;Password=devtaskpassword;"
+  AuthService__BaseUrl: "http://auth-service"
+  AuthService__VerifyPath: "/verify"
+  AllowedFrontendOrigins: "http://localhost:4200,http://localhost:4300"
+
+# KHAI BÁO PROBE CHO .NET
+livenessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 10
+readinessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 10

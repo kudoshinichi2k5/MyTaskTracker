@@ -12,3 +12,14 @@ env:
 
 service:
   port: 80 # Bên ngoài cụm nội bộ gọi port 80, K8s sẽ trỏ vào containerPort 8080
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 10
+readinessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 10

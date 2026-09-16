@@ -1,0 +1,19 @@
+fullnameOverride: "admin-portal"
+image:
+  repository: "frontend/adminportal"
+  tag: "f799b711517030b2cf1c0330626e2889be61977f"
+service:
+  port: 80
+env: {} # Frontend SPA Nginx không cần truyền biến môi trường Runtime kiểu backend
+
+# KHAI BÁO PROBE CHO NGINX
+livenessProbe:
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 5
+readinessProbe:
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 5
