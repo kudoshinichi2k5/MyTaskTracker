@@ -272,6 +272,8 @@ jobs:
           # Kích hoạt Docker Cache, dùng tên dịch vụ lấy từ matrix làm Scope để không đụng nhau
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+          # Tắt SLSA provenance để tương thích với AKS Containerd
+          provenance: false
 
   # Job 5: Gatekeeper (Tổng hợp kết quả để Branch Protection kiểm tra)
   ci-gate:
