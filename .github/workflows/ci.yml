@@ -276,7 +276,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
           # Tắt SLSA provenance để tương thích với AKS Containerd
           provenance: false
-          # platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
 
   # Job 5: Gatekeeper (Tổng hợp kết quả để Branch Protection kiểm tra)
   ci-gate:
