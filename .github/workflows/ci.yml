@@ -135,6 +135,22 @@ jobs:
             --collect:"XPlat Code Coverage" \
             --results-directory ./TestResults
 
+      # === THÊM MỚI: Publish project chính (không phải Test project) ===
+      - name: Publish
+        run: |
+          dotnet publish app/Backend/Tracker.${{ matrix.service }} \
+            -c Release \
+            -o ./publish/Tracker.${{ matrix.service }}
+
+      # === THÊM MỚI: Upload publish output để Job 4 dùng ===
+      - name: Upload Publish Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: publish-${{ matrix.service }}
+          path: ./publish/Tracker.${{ matrix.service }}
+          if-no-files-found: error
+          retention-days: 1   # chỉ cần trong 1 lần chạy, không cần giữ lâu
+
       # 2. Upload Artifact: Test Results (.trx)
       - name: Upload Test Results Artifact
         uses: actions/upload-artifact@v4
@@ -198,7 +214,19 @@ jobs:
       - name: Test
         run: npm run test
 
-      # (Optional) Bạn có thể tự thêm phần upload Artifact cho dist/ folder và coverage nếu muốn giống Backend
+      # === THÊM MỚI: gom output Angular (dist/<name>/browser) về 1 path cố định ===
+      - name: Flatten Angular build output
+        run: |
+          mkdir -p dist_out
+          cp -r dist/*/browser/* dist_out/
+
+      - name: Upload Dist Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.app }}
+          path: app/Frontend/${{ matrix.app }}/dist_out
+          if-no-files-found: error
+          retention-days: 1
 
   # Job 4: Build và Push Docker Image
   build-and-push-docker:
@@ -235,33 +263,40 @@ jobs:
       - name: Login to ACR
         run: az acr login --name ${{ vars.ACR_NAME }}
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v4
+      # - name: Set up QEMU
+      #   uses: docker/setup-qemu-action@v4
 
       # 3. Chuẩn bị đường dẫn thư mục, tên image và Build Args
       - name: Set Image Path, Name and Build Args
         id: prep
         run: |
           SERVICE_LOWER=$(echo "${{ matrix.service }}" | tr '[:upper:]' '[:lower:]')
-          
+
           if [[ "${{ matrix.service }}" == *"App"* ]] || [[ "${{ matrix.service }}" == *"Portal"* ]]; then
             CONTEXT_PATH="app/Frontend/${{ matrix.service }}"
             IMAGE_NAME="${{ vars.ACR_NAME }}.azurecr.io/frontend/$SERVICE_LOWER"
-            # Cú pháp chuẩn cho nhiều build-args: Xuống dòng trực tiếp
-            echo "BUILD_ARGS<<EOF" >> $GITHUB_ENV
-            echo "CONFIGURATION=testing" >> $GITHUB_ENV
-            echo "BASE_HREF=/" >> $GITHUB_ENV
-            echo "EOF" >> $GITHUB_ENV
+            ARTIFACT_NAME="dist-${{ matrix.service }}"
+            ARTIFACT_SUBDIR="dist"
+            echo "BUILD_ARGS=" >> $GITHUB_ENV   # frontend không còn cần build-arg nào
           else
             CONTEXT_PATH="app/Backend/Tracker.${{ matrix.service }}"
             IMAGE_NAME="${{ vars.ACR_NAME }}.azurecr.io/backend/$SERVICE_LOWER"
-            echo "BUILD_ARGS<<EOF" >> $GITHUB_ENV
-            echo "SERVICE_NAME=Tracker.${{ matrix.service }}" >> $GITHUB_ENV
-            echo "EOF" >> $GITHUB_ENV
+            ARTIFACT_NAME="publish-${{ matrix.service }}"
+            ARTIFACT_SUBDIR="publish"
+            echo "BUILD_ARGS=SERVICE_NAME=Tracker.${{ matrix.service }}" >> $GITHUB_ENV
           fi
-          
+
           echo "IMAGE_NAME=$IMAGE_NAME" >> $GITHUB_ENV
           echo "CONTEXT_PATH=$CONTEXT_PATH" >> $GITHUB_ENV
+          echo "ARTIFACT_NAME=$ARTIFACT_NAME" >> $GITHUB_ENV
+          echo "ARTIFACT_SUBDIR=$ARTIFACT_SUBDIR" >> $GITHUB_ENV
+
+       # === THÊM MỚI: Tải artifact đã build sẵn ở Job 2/3 vào context ===
+      - name: Download Build Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: ${{ env.CONTEXT_PATH }}/${{ env.ARTIFACT_SUBDIR }}
 
       # 4. Build và Push sử dụng docker/build-push-action
       - name: Build and Push Docker Image
