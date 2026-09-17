@@ -235,8 +235,8 @@ jobs:
       - name: Login to ACR
         run: az acr login --name ${{ vars.ACR_NAME }}
 
-      # - name: Set up QEMU
-      #   uses: docker/setup-qemu-action@v4
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
 
       # 3. Chuẩn bị đường dẫn thư mục, tên image và Build Args
       - name: Set Image Path, Name and Build Args
