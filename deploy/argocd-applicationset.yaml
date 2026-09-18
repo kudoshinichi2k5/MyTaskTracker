@@ -1,0 +1,39 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: mytasktracker-services
+  namespace: argocd
+spec:
+  # Generator: Cung cấp danh sách các biến (ở đây là biến 'service')
+  generators:
+    - list:
+        elements:
+          - service: authservice
+          - service: taskservice
+          - service: notificationservice
+          - service: projectservice
+          - service: commentservice
+          - service: customerapp
+          - service: adminportal
+  # Template: ArgoCD sẽ thay chữ {{service}} bằng các giá trị bên trên
+  template:
+    metadata:
+      name: '{{service}}'
+      namespace: argocd
+    spec:
+      project: default
+      source:
+        repoURL: 'https://github.com/kudoshinichi2k5/MyTaskTracker.git' # THAY BẰNG REPO URL CỦA BẠN
+        targetRevision: main
+        path: deploy/charts/microservice
+        helm:
+          valueFiles:
+            - ../../values/base/{{service}}.yaml
+            - ../../environments/dev/values.yaml
+      destination:
+        server: 'https://kubernetes.default.svc'
+        namespace: dev
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true

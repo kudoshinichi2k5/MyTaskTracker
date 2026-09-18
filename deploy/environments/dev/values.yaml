@@ -1,6 +1,5 @@
 global:
   imageRegistry: "acrtasktrackerdev4459.azurecr.io"
   namespace: "dev"
-  imageTag: "027dd9b0f38153397cd4dca3152461a567a4e84a"
 
 replicaCount: 1 # Ở dev chỉ cần 1 pod để tiết kiệm tiền
