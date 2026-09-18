@@ -1,6 +1,7 @@
 fullnameOverride: "comment-service"
 image:
   repository: "backend/commentservice"
+  tag: ""
 service:
   port: 80
 env:

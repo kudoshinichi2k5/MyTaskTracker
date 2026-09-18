@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tracker-mariadb
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    # Source 1: Lấy Helm Chart từ Bitnami
+    - chart: mariadb
+      repoURL: https://charts.bitnami.com/bitnami
+      targetRevision: 28.0.0 # Bắt buộc phải chốt version (Pin version) để tránh lỗi bất ngờ
+      helm:
+        valueFiles:
+          # Trỏ vào file values nằm ở Source 2
+          - $values/deploy/environments/dev/mariadb-values.yaml
+    # Source 2: Lấy file values từ Git Repo của bạn
+    - repoURL: 'https://github.com/kudoshinichi2k5/MyTaskTracker.git' # THAY BẰNG REPO CỦA BẠN
+      targetRevision: main
+      ref: values # Đặt tên biến ref để Source 1 có thể trỏ tới ($values)
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: dev
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
