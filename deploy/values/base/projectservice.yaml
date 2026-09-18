@@ -1,7 +1,7 @@
 fullnameOverride: "project-service"
 image:
   repository: "backend/projectservice"
-  tag: "latest"
+  tag: "83322643943f1a85cd597626d10118cfb43d908a"
 service:
   port: 80
 env:
