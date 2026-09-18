@@ -61,6 +61,13 @@ jobs:
             CustomerApp: 'app/Frontend/CustomerApp/**'
             AdminPortal: 'app/Frontend/AdminPortal/**'
 
+      - name: Check for Deploy (Helm) changes
+        uses: dorny/paths-filter@v3
+        id: filter-deploy
+        with:
+          filters: |
+            helm: 'deploy/**'
+
       # ĐÂY mới là nơi duy nhất build_all được phép có tác dụng: override
       # ngay tại NGUỒN dữ liệu (output của job này), chứ không phải ở điều
       # kiện "if" của job build-and-push-docker. Mọi job phía sau chỉ đọc
@@ -70,25 +77,22 @@ jobs:
         id: final
         run: |
           if [[ "${{ github.event.inputs.build_all }}" == "true" ]]; then
-            # build_all bật -> bỏ qua kết quả diff, coi như mọi service đổi
             BACKEND='["AuthService","TaskService","NotificationService","ProjectService","CommentService"]'
             FRONTEND='["CustomerApp","AdminPortal"]'
+            DEPLOY='true'
           else
-            # Khai báo biến trung gian
             BACKEND='${{ steps.filter-backend.outputs.changes }}'
             FRONTEND='${{ steps.filter-frontend.outputs.changes }}'
+            DEPLOY='${{ steps.filter-deploy.outputs.helm }}'
           fi
 
-          # Hợp nhất 2 mảng JSON bằng jq (có sẵn trên ubuntu-latest) thay vì
-          # format()+join() của GitHub Actions expression, vì join() chỉ nối
-          # chuỗi thô, không quote lại string -> sinh ra JSON không hợp lệ.
           ALL=$(jq -c -n --argjson a "$BACKEND" --argjson b "$FRONTEND" '$a + $b')
 
-          # Ghi vào GITHUB_OUTPUT bằng heredoc
           cat << EOF >> "$GITHUB_OUTPUT"
           backend=$BACKEND
           frontend=$FRONTEND
           all=$ALL
+          deploy=$DEPLOY
           EOF
 
   # Job 2: Build & Test backend (Chỉ chạy nếu có thay đổi Backend)
@@ -352,9 +356,41 @@ jobs:
           git add deploy/values/base/*.yaml
           git diff --quiet && git diff --staged --quiet || (git commit -m "ci(gitops): update image tags for changed services [skip ci]" && git push)
 
+  # === Job 7 - Validate Helm Chart & Values ===
+  validate-helm:
+    needs: [changes]
+    # Chỉ chạy khi có thay đổi trong thư mục deploy/ hoặc khi chạy workflow_dispatch
+    if: needs.changes.outputs.changed_deploy == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: 'latest'
+
+      - name: Lint Helm Chart
+        run: |
+          echo "Running helm lint..."
+          helm lint deploy/charts/microservice
+
+      - name: Dry-run Helm Template (Test Render with Dev Values)
+        run: |
+          echo "Running helm template dry-run for AuthService..."
+          helm template authservice deploy/charts/microservice \
+            -f deploy/values/base/authservice.yaml \
+            -f deploy/environments/dev/values.yaml
+
+          echo "Running helm template dry-run for CustomerApp..."
+          helm template customerapp deploy/charts/microservice \
+            -f deploy/values/base/customerapp.yaml \
+            -f deploy/environments/dev/values.yaml
+  
   # Job 6: Gatekeeper (Tổng hợp kết quả để Branch Protection kiểm tra)
   ci-gate:
-    needs: [changes, build-backend, build-frontend, build-and-push-docker, update-gitops]
+    needs: [changes, build-backend, build-frontend, build-and-push-docker, update-gitops, validate-helm]
     # BẮT BUỘC: Luôn chạy để hứng kết quả, kể cả khi các job trên bị fail
     if: always() 
     runs-on: ubuntu-latest
