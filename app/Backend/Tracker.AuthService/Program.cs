@@ -64,22 +64,37 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Migration + seed tài khoản demo — chỉ chạy ngoài Production (mục 9 của kế hoạch).
+// 1. CHỈ BẬT SWAGGER CHO MÔI TRƯỜNG DEV/TESTING
 if (!app.Environment.IsProduction())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+
+    // Dành cho Unit Test (Testing)
+    if (app.Environment.IsEnvironment("Testing"))
+    {
+        using var scope = app.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
+        db.Database.EnsureCreated();
+        // Vẫn gọi Seeder trong lúc test để có data test
+        AuthDbSeeder.Seed(db, scope.ServiceProvider.GetRequiredService<IPasswordHasher<User>>());
+    }
+}
+
+// 2. KHỐI LOGIC MỚI: Chỉ dành cho Helm Hook (Chạy Migration và Seeding)
+if (args.Contains("--migrate"))
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
-
-    if (app.Environment.IsEnvironment("Testing"))
-    {
-        db.Database.EnsureCreated();
-    }
-    else
-    {
-        db.Database.Migrate();
-    }
-
+    
+    Console.WriteLine("Starting Database Migration for AuthService...");
+    db.Database.Migrate();
+    
+    Console.WriteLine("Starting Database Seeding...");
     AuthDbSeeder.Seed(db, scope.ServiceProvider.GetRequiredService<IPasswordHasher<User>>());
+    
+    Console.WriteLine("Migration and Seeding completed successfully.");
+    return; // Thoát app ngay, không chạy Web Server
 }
 
 app.UseCors("AllowFrontend");
