@@ -1,7 +1,7 @@
 fullnameOverride: "auth-service" # Định danh cố định để các service khác gọi
 image:
   repository: "backend/authservice" 
-  tag: "83322643943f1a85cd597626d10118cfb43d908a"
+  tag: "8d2961620a2805258bb3855a2309668b0f4d4e30"
 env:
   ASPNETCORE_ENVIRONMENT: "Development"
   # Tên DNS nội bộ của MariaDB sẽ là: <tên-release>-<tên-chart>.<namespace>.svc.cluster.local
