@@ -313,23 +313,36 @@ jobs:
           provenance: false
           platforms: linux/arm64
 
-      # 5. Cập nhật GitOps Repository
+  # === THÊM MỚI: Job 5 - Chuyên đảm nhận việc update GitOps (Chỉ chạy 1 lần) ===
+  update-gitops:
+    # Phải đợi toàn bộ các tiến trình của Job 4 chạy xong thành công
+    needs: [changes, build-and-push-docker]
+    if: |
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      needs.changes.outputs.changed_all != '[]' &&
+      !contains(needs.*.result, 'failure') &&
+      !contains(needs.*.result, 'cancelled')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          # DÙNG PAT Ở ĐÂY để bypass Branch Protection
+          token: ${{ secrets.PAT_TOKEN }}
+
       - name: Update Global Image Tag in Values
         run: |
-          # Dùng sed để thay thế chuỗi imageTag bằng tag mới (github.sha)
           sed -i "s/imageTag: .*/imageTag: \"${{ github.sha }}\"/" deploy/environments/dev/values.yaml
           
-          # Cấu hình Git ẩn danh để commit
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
-          # Chỉ commit nếu có sự thay đổi
           git add deploy/environments/dev/values.yaml
-          git diff --quiet && git diff --staged --quiet || (git commit -m "ci(gitops): update global image tag to ${{ github.sha }}" && git push)
+          git diff --quiet && git diff --staged --quiet || (git commit -m "ci(gitops): update global image tag to ${{ github.sha }}" && git push) 
 
-  # Job 5: Gatekeeper (Tổng hợp kết quả để Branch Protection kiểm tra)
+  # Job 6: Gatekeeper (Tổng hợp kết quả để Branch Protection kiểm tra)
   ci-gate:
-    needs: [changes, build-backend, build-frontend, build-and-push-docker]
+    needs: [changes, build-backend, build-frontend, build-and-push-docker, update-gitops]
     # BẮT BUỘC: Luôn chạy để hứng kết quả, kể cả khi các job trên bị fail
     if: always() 
     runs-on: ubuntu-latest
