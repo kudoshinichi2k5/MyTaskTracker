@@ -28,6 +28,7 @@ jobs:
       # Tách thành 2 output riêng biệt
       changed_backend: ${{ steps.final.outputs.backend }}
       changed_frontend: ${{ steps.final.outputs.frontend }}
+      changed_deploy: ${{ steps.final.outputs.deploy }}
       # Mảng đã hợp nhất backend+frontend, tính sẵn bằng jq ở step "final"
       # bên dưới - để job 4 không phải tự ghép chuỗi JSON bằng
       # format()+join() nữa (join() không quote lại string -> sinh JSON hỏng).
