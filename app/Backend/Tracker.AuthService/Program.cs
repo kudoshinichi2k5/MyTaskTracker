@@ -62,6 +62,9 @@ builder.Services.AddCors(options =>
     });
 });
 
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
 var app = builder.Build();
 
 // 1. CHỈ BẬT SWAGGER CHO MÔI TRƯỜNG DEV/TESTING
