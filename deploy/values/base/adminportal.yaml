@@ -1,7 +1,7 @@
 fullnameOverride: "admin-portal"
 image:
   repository: "frontend/adminportal"
-  tag: ""
+  tag: "latest"
 service:
   port: 80
 env: {} # Frontend SPA Nginx không cần truyền biến môi trường Runtime kiểu backend
