@@ -11,6 +11,10 @@ env:
 service:
   port: 80 # Bên ngoài cụm nội bộ gọi port 80, K8s sẽ trỏ vào containerPort 8080
 
+migration:
+  enabled: true
+  dllName: "Tracker.AuthService.dll"
+
 livenessProbe:
   httpGet:
     path: /health

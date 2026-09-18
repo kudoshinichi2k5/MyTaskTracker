@@ -11,6 +11,10 @@ env:
   AuthService__VerifyPath: "/verify"
   AllowedFrontendOrigins: "http://localhost:4200,http://localhost:4300"
 
+migration:
+  enabled: true
+  dllName: "Tracker.TaskService.dll"
+
 # KHAI BÁO PROBE CHO .NET
 livenessProbe:
   httpGet:

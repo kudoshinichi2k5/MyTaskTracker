@@ -20,6 +20,10 @@ service:
   type: ClusterIP
   port: 80
 
+migration:
+  enabled: false
+  dllName: ""
+
 env: {}
 livenessProbe: {}
 readinessProbe: {}

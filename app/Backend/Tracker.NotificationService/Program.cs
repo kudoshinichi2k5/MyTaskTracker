@@ -87,21 +87,33 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
+// 1. CHỈ GIỮ LẠI Swagger cho môi trường Dev/Testing (Không Production)
 if (!app.Environment.IsProduction())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
-
-    using var scope = app.Services.CreateScope();
-    var db = scope.ServiceProvider.GetRequiredService<NotificationDbContext>();
+    
+    // (Bổ sung cho Unit Test): Unit test không có khái niệm chạy job riêng, nó tự setup DB bộ nhớ lúc khởi động.
     if (app.Environment.IsEnvironment("Testing"))
     {
+        using var scope = app.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<NotificationDbContext>();
         db.Database.EnsureCreated();
     }
-    else
-    {
-        db.Database.Migrate();
-    }
+}
+
+// 2. KHỐI LOGIC MỚI: Chỉ dành riêng cho Helm Hook Migration (Chạy bằng lệnh: dotnet dll --migrate)
+if (args.Contains("--migrate"))
+{
+    using var scope = app.Services.CreateScope();
+    // NHỚ SỬA TÊN DbContext CHO ĐÚNG TỪNG SERVICE:
+    var db = scope.ServiceProvider.GetRequiredService<NotificationDbContext>();
+    
+    Console.WriteLine("Starting Database Migration for NotificationService...");
+    db.Database.Migrate();
+    
+    Console.WriteLine("Migration completed successfully.");
+    return; // Thoát app ngay, không chạy Web Server (không chạy app.Run())
 }
 
 app.UseCors("AllowFrontend");

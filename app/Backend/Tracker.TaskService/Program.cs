@@ -104,21 +104,33 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// Áp migration tự động khi KHÔNG phải Production — Production chạy migration
-// tường minh qua CI/CD (mục 8), không để app tự ALTER TABLE lúc khởi động.
+// 1. CHỈ GIỮ LẠI Swagger cho môi trường Dev/Testing (Không Production)
 if (!app.Environment.IsProduction())
 {
-    using var scope = app.Services.CreateScope();
-    var db = scope.ServiceProvider.GetRequiredService<TaskDbContext>();
-
+    app.UseSwagger();
+    app.UseSwaggerUI();
+    
+    // (Bổ sung cho Unit Test): Unit test không có khái niệm chạy job riêng, nó tự setup DB bộ nhớ lúc khởi động.
     if (app.Environment.IsEnvironment("Testing"))
     {
+        using var scope = app.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<TaskDbContext>();
         db.Database.EnsureCreated();
     }
-    else
-    {
-        db.Database.Migrate();
-    }
+}
+
+// 2. KHỐI LOGIC MỚI: Chỉ dành riêng cho Helm Hook Migration (Chạy bằng lệnh: dotnet dll --migrate)
+if (args.Contains("--migrate"))
+{
+    using var scope = app.Services.CreateScope();
+    // NHỚ SỬA TÊN DbContext CHO ĐÚNG TỪNG SERVICE:
+    var db = scope.ServiceProvider.GetRequiredService<TaskDbContext>();
+    
+    Console.WriteLine("Starting Database Migration for TaskService...");
+    db.Database.Migrate();
+    
+    Console.WriteLine("Migration completed successfully.");
+    return; // Thoát app ngay, không chạy Web Server (không chạy app.Run())
 }
 
 app.UseCors("AllowFrontend");
