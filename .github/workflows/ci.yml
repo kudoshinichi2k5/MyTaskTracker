@@ -313,6 +313,20 @@ jobs:
           provenance: false
           platforms: linux/arm64
 
+      # 5. Cập nhật GitOps Repository
+      - name: Update Global Image Tag in Values
+        run: |
+          # Dùng sed để thay thế chuỗi imageTag bằng tag mới (github.sha)
+          sed -i "s/imageTag: .*/imageTag: \"${{ github.sha }}\"/" deploy/environments/dev/values.yaml
+          
+          # Cấu hình Git ẩn danh để commit
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Chỉ commit nếu có sự thay đổi
+          git add deploy/environments/dev/values.yaml
+          git diff --quiet && git diff --staged --quiet || (git commit -m "ci(gitops): update global image tag to ${{ github.sha }}" && git push)
+
   # Job 5: Gatekeeper (Tổng hợp kết quả để Branch Protection kiểm tra)
   ci-gate:
     needs: [changes, build-backend, build-frontend, build-and-push-docker]
