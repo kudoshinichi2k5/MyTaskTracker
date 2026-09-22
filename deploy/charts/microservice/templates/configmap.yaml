@@ -6,6 +6,11 @@ metadata:
   namespace: {{ .Values.global.namespace | default .Release.Namespace }}
   labels:
     {{- include "microservice.labels" . | nindent 4 }}
+  annotations:
+    # Đánh dấu ConfigMap này chạy trước cả install và upgrade
+    "helm.sh/hook": pre-install,pre-upgrade
+    # Weight -10 để đảm bảo nó tạo trước Job (có weight -5)
+    "helm.sh/hook-weight": "-10"
 data:
   {{- range $key, $value := .Values.env }}
   {{ $key }}: {{ $value | quote }}
