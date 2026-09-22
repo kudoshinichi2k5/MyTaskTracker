@@ -6,7 +6,9 @@ env:
   ASPNETCORE_ENVIRONMENT: "Development"
   # Tên DNS nội bộ của MariaDB sẽ là: <tên-release>-<tên-chart>.<namespace>.svc.cluster.local
   # Trong trường hợp này là: tracker-mariadb.dev.svc.cluster.local
-  ConnectionStrings__AuthDb: "Server=tracker-mariadb.dev.svc.cluster.local;Port=3306;Database=tracker_auth;User=auth_service;Password=devauthpassword;"
+
+secretEnv:
+  ConnectionStrings__AuthDb: "Server=tracker-mariadb.dev.svc.cluster.local;Port=3306;Database=tracker_auth;User=auth_service;Password=newauthpassword888;"
 
 service:
   port: 80 # Bên ngoài cụm nội bộ gọi port 80, K8s sẽ trỏ vào containerPort 8080

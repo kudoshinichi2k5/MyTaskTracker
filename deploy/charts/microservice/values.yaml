@@ -25,5 +25,6 @@ migration:
   dllName: ""
 
 env: {}
+secretEnv: {}
 livenessProbe: {}
 readinessProbe: {}

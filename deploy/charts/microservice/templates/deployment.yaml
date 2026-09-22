@@ -27,10 +27,16 @@ spec:
               containerPort: {{ .Values.containerPort }} # Sẽ là 8080 cho Backend, thay đổi tuỳ service
               protocol: TCP
           
-          {{- if .Values.env }}
+          {{- if or .Values.env .Values.secretEnv }}
           envFrom:
+            {{- if .Values.env }}
             - configMapRef:
                 name: {{ include "microservice.fullname" . }}-config
+            {{- end }}
+            {{- if .Values.secretEnv }}
+            - secretRef:
+                name: {{ include "microservice.fullname" . }}-secret
+            {{- end }}
           {{- end }}
 
           {{- if .Values.livenessProbe }}

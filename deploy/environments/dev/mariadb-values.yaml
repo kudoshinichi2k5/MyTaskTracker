@@ -1,6 +1,6 @@
 architecture: standalone
 auth:
-  rootPassword: "devrootpassword"
+  rootPassword: "newrootpassword888"
 
 # QUAN TRỌNG NHẤT: Tắt lưu trữ vĩnh viễn cho môi trường DEV
 # Điều này đảm bảo init script luôn chạy mỗi khi cài lại
@@ -13,11 +13,11 @@ initdbScripts:
     #!/usr/bin/env bash
     set -euo pipefail
 
-    AUTH_DB_PASSWORD="devauthpassword"
-    TASK_DB_PASSWORD="devtaskpassword"
-    NOTIFICATION_DB_PASSWORD="devnotificationpassword"
-    PROJECT_DB_PASSWORD="devprojectpassword"
-    COMMENT_DB_PASSWORD="devcommentpassword"
+    AUTH_DB_PASSWORD="newauthpassword888"
+    TASK_DB_PASSWORD="newtaskpassword888"
+    NOTIFICATION_DB_PASSWORD="newnotificationpassword888"
+    PROJECT_DB_PASSWORD="newprojectpassword888"
+    COMMENT_DB_PASSWORD="newcommentpassword888"
 
     echo "Initializing Tracker databases..."
 

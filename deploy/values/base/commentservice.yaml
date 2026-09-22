@@ -6,7 +6,9 @@ service:
   port: 80
 env:
   ASPNETCORE_ENVIRONMENT: "Development"
-  ConnectionStrings__CommentDb: "Server=tracker-mariadb.dev.svc.cluster.local;Port=3306;Database=tracker_comments;User=comment_service;Password=devcommentpassword;"
+
+secretEnv:
+  ConnectionStrings__CommentDb: "Server=tracker-mariadb.dev.svc.cluster.local;Port=3306;Database=tracker_comments;User=comment_service;Password=newcommentpassword888;"
   AuthService__BaseUrl: "http://auth-service"
   AuthService__VerifyPath: "/verify"
   AllowedFrontendOrigins: "http://localhost:4200,http://localhost:4300"

@@ -6,7 +6,9 @@ service:
   port: 80
 env:
   ASPNETCORE_ENVIRONMENT: "Development"
-  ConnectionStrings__ProjectDb: "Server=tracker-mariadb.dev.svc.cluster.local;Port=3306;Database=tracker_projects;User=project_service;Password=devprojectpassword;"
+
+secretEnv:
+  ConnectionStrings__ProjectDb: "Server=tracker-mariadb.dev.svc.cluster.local;Port=3306;Database=tracker_projects;User=project_service;Password=newprojectpassword888;"
   AuthService__BaseUrl: "http://auth-service"
   AuthService__VerifyPath: "/verify"
   AllowedFrontendOrigins: "http://localhost:4200,http://localhost:4300"
