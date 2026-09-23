@@ -1,1 +1,4 @@
-# Cung c?p các outputs c?n thi?t sau khi tri?n khai môi tru?ng dev
+output "generated_db_passwords" {
+  value     = { for k, v in random_password.db_passwords : k => v.result }
+  sensitive = true
+}
