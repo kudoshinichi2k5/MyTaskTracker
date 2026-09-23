@@ -7,8 +7,16 @@ env:
   # Tên DNS nội bộ của MariaDB sẽ là: <tên-release>-<tên-chart>.<namespace>.svc.cluster.local
   # Trong trường hợp này là: tracker-mariadb.dev.svc.cluster.local
 
-secretEnv:
-  ConnectionStrings__AuthDb: "Server=tracker-mariadb.dev.svc.cluster.local;Port=3306;Database=tracker_auth;User=auth_service;Password=newauthpassword888;"
+# secretEnv:
+#   ConnectionStrings__AuthDb: "Server=tracker-mariadb.dev.svc.cluster.local;Port=3306;Database=tracker_auth;User=auth_service;Password=newauthpassword888;"
+
+keyvault:
+  enabled: true
+  clientId: "7d469160-a064-440f-b624-e129f382a908" # Bạn lấy từ Terraform output
+  secretsMap:
+    # Key: Tên Secret được lưu trong Azure Key Vault (Bạn phải tạo thủ công trên Portal)
+    # Value: Tên Biến Môi Trường sẽ được K8s bơm vào cho ứng dụng .NET
+    "AuthDbConnectionString": "ConnectionStrings__AuthDb"
 
 service:
   port: 80 # Bên ngoài cụm nội bộ gọi port 80, K8s sẽ trỏ vào containerPort 8080

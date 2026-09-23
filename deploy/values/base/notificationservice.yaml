@@ -7,11 +7,19 @@ service:
 env:
   ASPNETCORE_ENVIRONMENT: "Development"
 
-secretEnv:
-  ConnectionStrings__NotificationDb: "Server=tracker-mariadb.dev.svc.cluster.local;Port=3306;Database=tracker_notifications;User=notification_service;Password=newnotificationpassword888;"
-  AuthService__BaseUrl: "http://auth-service"
-  AuthService__VerifyPath: "/verify"
-  AllowedFrontendOrigins: "http://localhost:4200,http://localhost:4300"
+# secretEnv:
+#   ConnectionStrings__NotificationDb: "Server=tracker-mariadb.dev.svc.cluster.local;Port=3306;Database=tracker_notifications;User=notification_service;Password=newnotificationpassword888;"
+#   AuthService__BaseUrl: "http://auth-service"
+#   AuthService__VerifyPath: "/verify"
+#   AllowedFrontendOrigins: "http://localhost:4200,http://localhost:4300"
+
+keyvault:
+  enabled: true
+  clientId: "868396fe-4175-478a-8592-fe1662fd55e6" # Bạn lấy từ Terraform output
+  secretsMap:
+    # Key: Tên Secret được lưu trong Azure Key Vault (Bạn phải tạo thủ công trên Portal)
+    # Value: Tên Biến Môi Trường sẽ được K8s bơm vào cho ứng dụng .NET
+    "NotificationDbConnectionString": "ConnectionStrings__NotificationDb"
 
 migration:
   enabled: true
