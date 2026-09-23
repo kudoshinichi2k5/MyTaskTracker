@@ -7,12 +7,7 @@ metadata:
   labels:
     {{- include "microservice.labels" . | nindent 4 }}
   annotations:
-    # Báo cho Helm biết đây là một Hook chạy trước khi cài hoặc nâng cấp
-    "helm.sh/hook": pre-install,pre-upgrade
-    # Mức độ ưu tiên, số nhỏ chạy trước (-5 chạy trước 0)
-    "helm.sh/hook-weight": "-5"
-    # Xóa job cũ trước khi tạo job mới, và xóa job nếu chạy thành công
-    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   template:
     metadata:
