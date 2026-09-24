@@ -40,14 +40,31 @@ variable "aks_load_balancer_sku" { type = string }
 variable "aks_service_cidr" { type = string }
 variable "aks_dns_service_ip" { type = string }
 
+variable "kubernetes_namespace" {
+  description = "Namespace dùng cho các resource Kubernetes của môi trường"
+  type        = string
+  default     = "dev"
+}
+
 variable "backend_services_list" {
   description = "Danh sách các backend services cần tạo Workload Identity"
   type        = list(string)
-  default     = [
+  default = [
     "auth-service",
     "task-service",
     "notification-service",
     "project-service",
     "comment-service"
   ]
+
+  validation {
+    condition = length(setsubtract([
+      "auth-service",
+      "task-service",
+      "notification-service",
+      "project-service",
+      "comment-service"
+    ], var.backend_services_list)) == 0
+    error_message = "backend_services_list phải chứa đủ năm backend service được MariaDB init script sử dụng."
+  }
 }
