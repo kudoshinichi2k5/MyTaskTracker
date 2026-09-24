@@ -28,3 +28,7 @@ env: {}
 secretEnv: {}
 livenessProbe: {}
 readinessProbe: {}
+
+keyvault:
+  enabled: false
+  secretsMap: {}

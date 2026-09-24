@@ -255,3 +255,18 @@ resource "kubernetes_config_map" "workload_identity_client_ids" {
 
   depends_on = [module.aks]
 }
+
+# Tạo một ConfigMap chứa TẤT CẢ Client ID của các Backend
+resource "kubernetes_config_map" "workload_identity_client_ids" {
+  metadata {
+    name      = "workload-identity-client-ids"
+    namespace = "dev"
+  }
+
+  data = {
+    # Dùng vòng lặp để đẩy Client ID của từng service vào ConfigMap
+    for k, v in module.backend_workload_identities : k => v.client_id
+  }
+
+  depends_on = [module.aks]
+}
