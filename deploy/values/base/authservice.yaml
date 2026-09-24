@@ -12,6 +12,7 @@ env:
 
 keyvault:
   enabled: true
+  clientId: "REPLACE_ME" # Lát nữa kịch bản tự động sẽ tìm chữ này và thay thế
   secretsMap:
     # Key: Tên Secret được lưu trong Azure Key Vault (Bạn phải tạo thủ công trên Portal)
     # Value: Tên Biến Môi Trường sẽ được K8s bơm vào cho ứng dụng .NET
