@@ -18,11 +18,9 @@ spec:
       labels:
         app.kubernetes.io/name: {{ include "microservice.fullname" . }}
         app.kubernetes.io/instance: {{ .Release.Name }}
+        azure.workload.identity/use: "true" # Cắn label của AKS Workload Identity
     spec:
       serviceAccountName: {{ include "microservice.fullname" . }} # Tên ServiceAccount
-      # Cắn label của AKS Workload Identity
-      labels:
-        azure.workload.identity/use: "true"
       containers:
         - name: {{ include "microservice.fullname" . }}
           # Lấy Registry từ biến global, ghép với tên repository và tag
