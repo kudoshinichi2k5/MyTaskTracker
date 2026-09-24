@@ -1,7 +1,7 @@
 fullnameOverride: "customer-app"
 image:
   repository: "frontend/customerapp"
-  tag: "11a010945053f4345708a41359f78d63c3a89546"
+  tag: "820e67b7062aafcabd2dce6a7cb5e0419c5b3f29"
 service:
   port: 80
 env: {} # Frontend SPA Nginx không cần truyền biến môi trường Runtime kiểu backend
