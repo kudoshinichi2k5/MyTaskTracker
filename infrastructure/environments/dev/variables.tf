@@ -4,50 +4,24 @@ variable "location" {
 }
 
 variable "environment" {
-  description = "Environment name"
+  description = "Environment name (dev, staging, prod)"
   type        = string
 }
 
-variable "app_rg_name" {
-  description = "Tên Resource Group cho ứng dụng Dev"
-  type        = string
-}
-
-variable "shared_rg_name" {
-  description = "Tên Resource Group chứa các dịch vụ dùng chung (ACR, DNS...)"
-  type        = string
-}
-
-variable "acr_name" {
-  description = "Tên ACR (phải duy nhất toàn cầu)"
+variable "project_name" {
+  description = "Tên gốc của dự án dùng để sinh tên cho các tài nguyên"
   type        = string
 }
 
 variable "acr_sku" { type = string }
 variable "acr_admin_enabled" { type = bool }
 
-variable "vnet_name" { type = string }
 variable "vnet_address_space" { type = list(string) }
 variable "aks_subnet_address_prefix" { type = list(string) }
 variable "db_subnet_address_prefix" { type = list(string) }
 variable "aks_subnet_name" { type = string }
 variable "db_subnet_name" { type = string }
 variable "db_nsg_name" { type = string }
-
-variable "aks_cluster_name" {
-  description = "Tên của AKS Cluster trong môi trường dev"
-  type        = string
-}
-
-variable "aks_dns_prefix" {
-  description = "DNS prefix cho AKS dev"
-  type        = string
-}
-
-variable "identity_name" {
-  description = "Tên của User Assigned Identity"
-  type        = string
-}
 
 variable "oidc_audience" { type = list(string) }
 variable "oidc_issuer" { type = string }
@@ -65,3 +39,15 @@ variable "aks_network_plugin" { type = string }
 variable "aks_load_balancer_sku" { type = string }
 variable "aks_service_cidr" { type = string }
 variable "aks_dns_service_ip" { type = string }
+
+variable "backend_services_list" {
+  description = "Danh sách các backend services cần tạo Workload Identity"
+  type        = list(string)
+  default     = [
+    "auth-service",
+    "task-service",
+    "notification-service",
+    "project-service",
+    "comment-service"
+  ]
+}

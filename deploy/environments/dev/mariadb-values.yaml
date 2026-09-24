@@ -1,27 +1,25 @@
 architecture: standalone
 auth:
-  rootPassword: "newrootpassword888"
+  # Trỏ tới Secret do Terraform tạo ra
+  existingSecret: "mariadb-init-secret"
 
-# QUAN TRỌNG NHẤT: Tắt lưu trữ vĩnh viễn cho môi trường DEV
-# Điều này đảm bảo init script luôn chạy mỗi khi cài lại
 primary:
   persistence:
     enabled: false
+  # Mount các biến môi trường từ K8s Secret vào container MariaDB
+  extraEnvVarsSecret: "mariadb-init-secret"
 
 initdbScripts:
   01-init-databases.sh: |
     #!/usr/bin/env bash
     set -euo pipefail
 
-    AUTH_DB_PASSWORD="newauthpassword888"
-    TASK_DB_PASSWORD="newtaskpassword888"
-    NOTIFICATION_DB_PASSWORD="newnotificationpassword888"
-    PROJECT_DB_PASSWORD="newprojectpassword888"
-    COMMENT_DB_PASSWORD="newcommentpassword888"
+    # TẤT CẢ mật khẩu (AUTH_DB_PASSWORD, v.v...) đã được bơm sẵn thành 
+    # Biến môi trường (Environment Variable) nhờ extraEnvVarsSecret bên trên.
+    # Ta không cần khai báo lại ở đây nữa.
 
     echo "Initializing Tracker databases..."
 
-    # Biến $MARIADB_ROOT_PASSWORD được Bitnami tự động inject vào container
     mariadb -u root -p"${MARIADB_ROOT_PASSWORD}" <<-EOSQL
     CREATE DATABASE IF NOT EXISTS tracker_auth CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     CREATE DATABASE IF NOT EXISTS tracker_tasks CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;

@@ -27,4 +27,11 @@ resource "azurerm_kubernetes_cluster" "aks" {
     service_cidr      = var.service_cidr
     dns_service_ip    = var.dns_service_ip
   }
+
+  # Bật CSI Key Vault Driver
+  key_vault_secrets_provider {
+    secret_rotation_enabled = true
+  }
+
+  workload_identity_enabled = true
 }

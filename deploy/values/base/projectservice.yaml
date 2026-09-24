@@ -7,11 +7,18 @@ service:
 env:
   ASPNETCORE_ENVIRONMENT: "Development"
 
-secretEnv:
-  ConnectionStrings__ProjectDb: "Server=tracker-mariadb.dev.svc.cluster.local;Port=3306;Database=tracker_projects;User=project_service;Password=newprojectpassword888;"
-  AuthService__BaseUrl: "http://auth-service"
-  AuthService__VerifyPath: "/verify"
-  AllowedFrontendOrigins: "http://localhost:4200,http://localhost:4300"
+# secretEnv:
+#   ConnectionStrings__ProjectDb: "Server=tracker-mariadb.dev.svc.cluster.local;Port=3306;Database=tracker_projects;User=project_service;Password=newprojectpassword888;"
+#   AuthService__BaseUrl: "http://auth-service"
+#   AuthService__VerifyPath: "/verify"
+#   AllowedFrontendOrigins: "http://localhost:4200,http://localhost:4300"
+
+keyvault:
+  enabled: true
+  secretsMap:
+    # Key: Tên Secret được lưu trong Azure Key Vault (Bạn phải tạo thủ công trên Portal)
+    # Value: Tên Biến Môi Trường sẽ được K8s bơm vào cho ứng dụng .NET
+    "project-service-connection-string": "ConnectionStrings__ProjectDb"
 
 migration:
   enabled: true
