@@ -32,3 +32,6 @@ readinessProbe: {}
 keyvault:
   enabled: false
   secretsMap: {}
+
+# Workload Identities mapping (mặc định rỗng, override ở dev/prod)
+workloadIdentities: {}
