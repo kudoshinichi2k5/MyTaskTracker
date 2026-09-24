@@ -30,8 +30,7 @@ spec:
           valueFiles:
             - ../../values/base/{{service}}.yaml
             - ../../environments/dev/values.yaml
-            # THÊM MỚI: Yêu cầu ArgoCD đọc thêm file chứa Client IDs
-            - ../../environments/dev/identity-values.yaml
+
       destination:
         server: 'https://kubernetes.default.svc'
         namespace: dev

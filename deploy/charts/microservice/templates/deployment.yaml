@@ -31,6 +31,16 @@ spec:
               containerPort: {{ .Values.containerPort }} # Sẽ là 8080 cho Backend, thay đổi tuỳ service
               protocol: TCP
           
+          # THÊM KHỐI ENV NÀY VÀO (Ngay trên envFrom)
+          {{- if .Values.keyvault.enabled }}
+          env:
+            - name: AZURE_CLIENT_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: workload-identity-client-ids
+                  key: {{ include "microservice.fullname" . }}
+          {{- end }}
+
           {{- if or .Values.env .Values.keyvault.enabled }}
           envFrom:
             {{- if .Values.env }}
