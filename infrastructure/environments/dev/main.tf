@@ -248,18 +248,16 @@ resource "kubernetes_secret_v1" "mariadb_init_secret" {
   depends_on = [module.aks]
 }
 
-# Tự động sinh file values.yaml chứa Client IDs cho Helm/ArgoCD đọc
-resource "local_file" "helm_identity_values" {
-  # Đường dẫn tương đối từ thư mục chạy Terraform (infrastructure/environments/dev) ra ngoài deploy/
-  filename = "../../../deploy/environments/dev/identity-values.yaml"
-  
-  # Tạo cấu trúc YAML chuẩn:
-  # workloadIdentities:
-  #   auth-service: "xxxx-xxxx-..."
-  #   task-service: "yyyy-yyyy-..."
-  content  = yamlencode({
-    workloadIdentities = {
-      for k, v in module.backend_workload_identities : k => v.client_id
-    }
-  })
+# Tạo ConfigMap chứa TẤT CẢ Client ID đẩy thẳng vào Cluster
+resource "kubernetes_config_map" "workload_identity_client_ids" {
+  metadata {
+    name      = "workload-identity-client-ids"
+    namespace = var.environment
+  }
+
+  data = {
+    for k, v in module.backend_workload_identities : k => v.client_id
+  }
+
+  depends_on = [module.aks]
 }
