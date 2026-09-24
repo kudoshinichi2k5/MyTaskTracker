@@ -7,7 +7,10 @@ service:
 env: {} # Frontend SPA Nginx không cần truyền biến môi trường Runtime kiểu backend
 
 keyvault:
-  enabled: false # TẮT TÍNH NĂNG NÀY
+  enabled: false
+
+migration:
+  enabled: false
 
 # KHAI BÁO PROBE CHO NGINX
 livenessProbe:
