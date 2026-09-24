@@ -13,21 +13,21 @@ data "azurerm_client_config" "current" {}
 # Tự động sinh tên chuẩn cho toàn bộ project
 locals {
   # Tiền tố chung (vd: tasktracker-dev)
-  app_prefix    = "${var.project_name}-${var.environment}"
+  app_prefix = "${var.project_name}-${var.environment}"
   # Tiền tố cho shared (vd: tasktracker-shared)
   shared_prefix = "${var.project_name}-shared"
 
   app_rg_name    = "rg-${local.app_prefix}"
   shared_rg_name = "rg-${local.shared_prefix}"
-  
+
   # ACR chỉ nhận chữ thường và số
-  acr_name       = "acr${var.project_name}${var.environment}4459"
-  
-  vnet_name      = "vnet-${local.app_prefix}"
-  aks_name       = "aks-${local.app_prefix}"
-  dns_prefix     = "aks-${local.app_prefix}-dns"
-  identity_name  = "id-github-actions-${var.environment}"
-  keyvault_name  = "kv-${local.app_prefix}-888"
+  acr_name = "acr${var.project_name}${var.environment}4459"
+
+  vnet_name     = "vnet-${local.app_prefix}"
+  aks_name      = "aks-${local.app_prefix}"
+  dns_prefix    = "aks-${local.app_prefix}-dns"
+  identity_name = "id-github-actions-${var.environment}"
+  keyvault_name = "kv-${local.app_prefix}-888"
 }
 
 # Resource Group cho môi trường Dev
@@ -46,7 +46,7 @@ resource "azurerm_resource_group" "shared_rg" {
 module "acr" {
   source              = "../../modules/acr"
   name                = local.acr_name
-  resource_group_name = azurerm_resource_group.shared_rg.name 
+  resource_group_name = azurerm_resource_group.shared_rg.name
   location            = azurerm_resource_group.shared_rg.location
   sku                 = var.acr_sku
   admin_enabled       = var.acr_admin_enabled
@@ -55,7 +55,7 @@ module "acr" {
 module "networking" {
   source                    = "../../modules/networking"
   vnet_name                 = local.vnet_name
-  resource_group_name       = azurerm_resource_group.app_rg.name 
+  resource_group_name       = azurerm_resource_group.app_rg.name
   location                  = azurerm_resource_group.app_rg.location
   vnet_address_space        = var.vnet_address_space
   aks_subnet_address_prefix = var.aks_subnet_address_prefix
@@ -136,13 +136,13 @@ resource "azurerm_role_assignment" "ci_app_rg_contributor" {
 resource "azurerm_role_assignment" "ci_acr_push" {
   principal_id         = module.identity.principal_id
   role_definition_name = "AcrPush"
-  scope                = module.acr.acr_id 
+  scope                = module.acr.acr_id
 }
 
 # Gọi Module Key Vault
 module "keyvault" {
   source              = "../../modules/keyvault"
-  keyvault_name       = local.keyvault_name 
+  keyvault_name       = local.keyvault_name
   resource_group_name = azurerm_resource_group.shared_rg.name
   location            = azurerm_resource_group.shared_rg.location
 }
@@ -159,12 +159,12 @@ module "backend_workload_identities" {
   identity_name       = "id-${each.key}-${var.environment}"
   resource_group_name = azurerm_resource_group.app_rg.name
   location            = azurerm_resource_group.app_rg.location
-  
-  is_workload_identity     = true
-  aks_oidc_issuer_url      = module.aks.oidc_issuer_url
-  k8s_namespace            = var.environment
-  
-  k8s_service_account_name = each.key 
+
+  is_workload_identity = true
+  aks_oidc_issuer_url  = module.aks.oidc_issuer_url
+  k8s_namespace        = var.kubernetes_namespace
+
+  k8s_service_account_name = each.key
 }
 
 # Cấp quyền ĐỌC Secret cho từng Pod Identity trên Key Vault đó
@@ -191,17 +191,17 @@ resource "azurerm_role_assignment" "terraform_kv_admin" {
 
 # Tạo Connection String và lưu vào Azure Key Vault
 resource "azurerm_key_vault_secret" "db_connection_strings" {
-  for_each     = toset(local.backend_services)
+  for_each = toset(local.backend_services)
   # Sử dụng chính tên service (vd: auth-service-connection-string)
   # KeyVault không phân biệt hoa thường và chấp nhận dấu gạch ngang
-  name         = "${each.key}-connection-string" 
-  
+  name = "${each.key}-connection-string"
+
   # Cấu trúc Connection String (MariaDB)
-  value        = "Server=tracker-mariadb.dev.svc.cluster.local;Port=3306;Database=tracker_${split("-", each.key)[0]};User=${replace(each.key, "-", "_")};Password=${random_password.db_passwords[each.key].result};"
-  
+  value = "Server=tracker-mariadb.${var.kubernetes_namespace}.svc.cluster.local;Port=3306;Database=tracker_${split("-", each.key)[0]};User=${replace(each.key, "-", "_")};Password=${random_password.db_passwords[each.key].result};"
+
   key_vault_id = module.keyvault.kv_id
 
-  depends_on   = [azurerm_role_assignment.terraform_kv_admin]
+  depends_on = [azurerm_role_assignment.terraform_kv_admin]
 }
 
 # Sinh Root Password cho MariaDB
@@ -219,22 +219,29 @@ resource "azurerm_key_vault_secret" "root_pass" {
   depends_on   = [azurerm_role_assignment.terraform_kv_admin]
 }
 
-# TẠO KUBERNETES SECRET CHO MARIADB (Terraform trực tiếp tạo)
-resource "kubernetes_secret" "mariadb_init_secret" {
+# Tạo namespace trước các resource Kubernetes mà Terraform quản lý.
+resource "kubernetes_namespace_v1" "environment" {
+  metadata {
+    name = var.kubernetes_namespace
+  }
+}
+
+# Tạo Kubernetes Secret cho MariaDB.
+resource "kubernetes_secret_v1" "mariadb_init_secret" {
   metadata {
     name      = "mariadb-init-secret"
-    namespace = "dev" # Phải đảm bảo namespace này đã tồn tại
+    namespace = kubernetes_namespace_v1.environment.metadata[0].name
   }
 
   data = {
     # Truyền Root Pass cho Bitnami
     "mariadb-root-password" = random_password.mariadb_root.result
     # Truyền 5 pass của 5 backend cho Init Script
-    "AUTH_DB_PASSWORD"      = random_password.db_passwords["auth-service"].result
-    "TASK_DB_PASSWORD"      = random_password.db_passwords["task-service"].result
+    "AUTH_DB_PASSWORD"         = random_password.db_passwords["auth-service"].result
+    "TASK_DB_PASSWORD"         = random_password.db_passwords["task-service"].result
     "NOTIFICATION_DB_PASSWORD" = random_password.db_passwords["notification-service"].result
-    "PROJECT_DB_PASSWORD"   = random_password.db_passwords["project-service"].result
-    "COMMENT_DB_PASSWORD"   = random_password.db_passwords["comment-service"].result
+    "PROJECT_DB_PASSWORD"      = random_password.db_passwords["project-service"].result
+    "COMMENT_DB_PASSWORD"      = random_password.db_passwords["comment-service"].result
   }
 
   # Đảm bảo AKS được tạo trước khi thả Secret vào
@@ -242,10 +249,10 @@ resource "kubernetes_secret" "mariadb_init_secret" {
 }
 
 # Tạo một ConfigMap chứa TẤT CẢ Client ID của các Backend
-resource "kubernetes_config_map" "workload_identity_client_ids" {
+resource "kubernetes_config_map_v1" "workload_identity_client_ids" {
   metadata {
     name      = "workload-identity-client-ids"
-    namespace = "dev"
+    namespace = kubernetes_namespace_v1.environment.metadata[0].name
   }
 
   data = {

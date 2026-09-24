@@ -31,3 +31,13 @@ aks_network_plugin            = "azure"
 aks_load_balancer_sku         = "standard"
 aks_service_cidr              = "192.168.0.0/16"
 aks_dns_service_ip            = "192.168.0.10"
+
+kubernetes_namespace = "dev"
+
+backend_services_list = [
+  "auth-service",
+  "task-service",
+  "notification-service",
+  "project-service",
+  "comment-service"
+]
