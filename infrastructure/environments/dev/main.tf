@@ -248,16 +248,20 @@ resource "kubernetes_secret_v1" "mariadb_init_secret" {
   depends_on = [module.aks]
 }
 
-# Tạo ConfigMap chứa TẤT CẢ Client ID đẩy thẳng vào Cluster
-resource "kubernetes_config_map" "workload_identity_client_ids" {
-  metadata {
-    name      = "workload-identity-client-ids"
-    namespace = var.environment
-  }
-
-  data = {
-    for k, v in module.backend_workload_identities : k => v.client_id
-  }
-
-  depends_on = [module.aks]
+# Tự động sinh file identity values cho TỪNG service
+resource "local_file" "identity_values" {
+  for_each = toset(local.backend_services)
+  
+  # Đặt tên file khớp với vòng lặp của ArgoCD (vd: authservice-identity.yaml)
+  # Hàm replace() xóa dấu gạch ngang để biến 'auth-service' thành 'authservice'
+  filename = "../../../deploy/values/base/${replace(each.key, "-", "")}-identity.yaml"
+  
+  # Sinh cấu trúc yaml chuẩn xác:
+  # keyvault:
+  #   clientId: "xxxxx-xxxx-..."
+  content  = yamlencode({
+    keyvault = {
+      clientId = module.backend_workload_identities[each.key].client_id
+    }
+  })
 }

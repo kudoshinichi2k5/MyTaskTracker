@@ -23,16 +23,6 @@ spec:
           image: "{{ .Values.global.imageRegistry }}/{{ .Values.image.repository }}:{{ .Values.global.imageTag | default .Values.image.tag }}"
           # Chèn thêm argument --migrate vào lệnh chạy DLL
           command: ["dotnet", "{{ .Values.migration.dllName }}", "--migrate"]
-          
-          # THÊM KHỐI ENV NÀY VÀO (Ngay trên envFrom)
-          {{- if .Values.keyvault.enabled }}
-          env:
-            - name: AZURE_CLIENT_ID
-              valueFrom:
-                configMapKeyRef:
-                  name: workload-identity-client-ids
-                  key: {{ include "microservice.fullname" . }}
-          {{- end }}
 
           # Mount Volume CSI cho Job
           {{- if .Values.keyvault.enabled }}
