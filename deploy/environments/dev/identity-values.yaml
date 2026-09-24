@@ -1,6 +1,0 @@
-"workloadIdentities":
-  "auth-service": "01997f36-2cd6-4729-a6ff-f9e688855352"
-  "comment-service": "858e5684-0c44-4806-9527-d3357a82d6db"
-  "notification-service": "879600de-8b63-47ec-aca1-850899c17721"
-  "project-service": "bf6b68ea-5ab2-48d4-83b7-22479d1e998d"
-  "task-service": "8722a2c3-463f-4c51-ad82-cc51754ca7d8"
