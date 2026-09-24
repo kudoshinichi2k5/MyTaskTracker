@@ -1,3 +1,15 @@
+# Bổ sung Provider Kubernetes vào đầu file (cần cấu hình kết nối tới AKS)
+provider "kubernetes" {
+  host                   = module.aks.host
+  client_certificate     = base64decode(module.aks.client_certificate)
+  client_key             = base64decode(module.aks.client_key)
+  cluster_ca_certificate = base64decode(module.aks.cluster_ca_certificate)
+}
+
+# Cấp quyền cho chính tài khoản Terraform (của bạn) được ghi Secret vào Key Vault
+# (Mặc định khi tạo Key Vault với RBAC, người tạo không tự có quyền Data Plane, phải tự cấp quyền)
+data "azurerm_client_config" "current" {}
+
 # Tự động sinh tên chuẩn cho toàn bộ project
 locals {
   # Tiền tố chung (vd: tasktracker-dev)
@@ -171,10 +183,6 @@ resource "random_password" "db_passwords" {
   override_special = "!#$%&*()-_=+[]{}<>:?"
 }
 
-# Cấp quyền cho chính tài khoản Terraform (của bạn) được ghi Secret vào Key Vault
-# (Mặc định khi tạo Key Vault với RBAC, người tạo không tự có quyền Data Plane, phải tự cấp quyền)
-data "azurerm_client_config" "current" {}
-
 resource "azurerm_role_assignment" "terraform_kv_admin" {
   principal_id         = data.azurerm_client_config.current.object_id
   role_definition_name = "Key Vault Administrator"
@@ -184,15 +192,66 @@ resource "azurerm_role_assignment" "terraform_kv_admin" {
 # Tạo Connection String và lưu vào Azure Key Vault
 resource "azurerm_key_vault_secret" "db_connection_strings" {
   for_each     = toset(local.backend_services)
-  # Đặt tên Secret chuẩn hóa, VD: AuthDbConnectionString
-  name         = "${title(split("-", each.key)[0])}DbConnectionString" 
+  # Sử dụng chính tên service (vd: auth-service-connection-string)
+  # KeyVault không phân biệt hoa thường và chấp nhận dấu gạch ngang
+  name         = "${each.key}-connection-string" 
   
   # Cấu trúc Connection String (MariaDB)
-  # Tên user và database sẽ được cắt từ tên service (auth-service -> auth_service / tracker_auth)
   value        = "Server=tracker-mariadb.dev.svc.cluster.local;Port=3306;Database=tracker_${split("-", each.key)[0]};User=${replace(each.key, "-", "_")};Password=${random_password.db_passwords[each.key].result};"
   
   key_vault_id = module.keyvault.kv_id
 
-  # Bắt buộc phải đợi cấp quyền Admin xong mới được phép ghi Secret
   depends_on   = [azurerm_role_assignment.terraform_kv_admin]
+}
+
+# Sinh Root Password cho MariaDB
+resource "random_password" "mariadb_root" {
+  length           = 20
+  special          = true
+  override_special = "!#%&*()-_=+[]{}<>:?"
+}
+
+# Lưu Root Pass vào Key Vault
+resource "azurerm_key_vault_secret" "root_pass" {
+  name         = "mariadb-root-password"
+  value        = random_password.mariadb_root.result
+  key_vault_id = module.keyvault.kv_id
+  depends_on   = [azurerm_role_assignment.terraform_kv_admin]
+}
+
+# TẠO KUBERNETES SECRET CHO MARIADB (Terraform trực tiếp tạo)
+resource "kubernetes_secret" "mariadb_init_secret" {
+  metadata {
+    name      = "mariadb-init-secret"
+    namespace = "dev" # Phải đảm bảo namespace này đã tồn tại
+  }
+
+  data = {
+    # Truyền Root Pass cho Bitnami
+    "mariadb-root-password" = random_password.mariadb_root.result
+    # Truyền 5 pass của 5 backend cho Init Script
+    "AUTH_DB_PASSWORD"      = random_password.db_passwords["auth-service"].result
+    "TASK_DB_PASSWORD"      = random_password.db_passwords["task-service"].result
+    "NOTIFICATION_DB_PASSWORD" = random_password.db_passwords["notification-service"].result
+    "PROJECT_DB_PASSWORD"   = random_password.db_passwords["project-service"].result
+    "COMMENT_DB_PASSWORD"   = random_password.db_passwords["comment-service"].result
+  }
+
+  # Đảm bảo AKS được tạo trước khi thả Secret vào
+  depends_on = [module.aks]
+}
+
+# Tạo một ConfigMap chứa TẤT CẢ Client ID của các Backend
+resource "kubernetes_config_map" "workload_identity_client_ids" {
+  metadata {
+    name      = "workload-identity-client-ids"
+    namespace = "dev"
+  }
+
+  data = {
+    # Dùng vòng lặp để đẩy Client ID của từng service vào ConfigMap
+    for k, v in module.backend_workload_identities : k => v.client_id
+  }
+
+  depends_on = [module.aks]
 }

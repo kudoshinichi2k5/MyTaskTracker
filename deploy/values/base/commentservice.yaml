@@ -15,11 +15,10 @@ env:
 
 keyvault:
   enabled: true
-  clientId: "e5e37c9f-ae37-4a0e-8bd1-1734b529db81" # Bạn lấy từ Terraform output
   secretsMap:
     # Key: Tên Secret được lưu trong Azure Key Vault (Bạn phải tạo thủ công trên Portal)
     # Value: Tên Biến Môi Trường sẽ được K8s bơm vào cho ứng dụng .NET
-    "CommentDbConnectionString": "ConnectionStrings__CommentDb"
+    "comment-service-connection-string": "ConnectionStrings__CommentDb"
 
 migration:
   enabled: true

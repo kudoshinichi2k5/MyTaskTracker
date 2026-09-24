@@ -19,6 +19,10 @@ spec:
         app.kubernetes.io/name: {{ include "microservice.fullname" . }}
         app.kubernetes.io/instance: {{ .Release.Name }}
     spec:
+      serviceAccountName: {{ include "microservice.fullname" . }} # Tên ServiceAccount
+      # Cắn label của AKS Workload Identity
+      labels:
+        azure.workload.identity/use: "true"
       containers:
         - name: {{ include "microservice.fullname" . }}
           # Lấy Registry từ biến global, ghép với tên repository và tag
@@ -29,16 +33,24 @@ spec:
               containerPort: {{ .Values.containerPort }} # Sẽ là 8080 cho Backend, thay đổi tuỳ service
               protocol: TCP
           
-          {{- if or .Values.env .Values.secretEnv }}
+          {{- if or .Values.env .Values.keyvault.enabled }}
           envFrom:
             {{- if .Values.env }}
             - configMapRef:
                 name: {{ include "microservice.fullname" . }}-config
             {{- end }}
-            {{- if .Values.secretEnv }}
+            {{- if .Values.keyvault.enabled }}
             - secretRef:
-                name: {{ include "microservice.fullname" . }}-secret
+                name: {{ include "microservice.fullname" . }}-synced-secret
             {{- end }}
+          {{- end }}
+
+          # THÊM MỚI: Mount ổ đĩa ảo của CSI
+          {{- if .Values.keyvault.enabled }}
+          volumeMounts:
+            - name: secrets-store-inline
+              mountPath: "/mnt/secrets-store"
+              readOnly: true
           {{- end }}
 
           {{- if .Values.livenessProbe }}
@@ -49,3 +61,14 @@ spec:
           readinessProbe:
             {{- toYaml .Values.readinessProbe | nindent 12 }}
           {{- end }}
+
+      # Khai báo Volume cho CSI
+      {{- if .Values.keyvault.enabled }}
+      volumes:
+        - name: secrets-store-inline
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: {{ include "microservice.fullname" . }}-akv
+      {{- end }}

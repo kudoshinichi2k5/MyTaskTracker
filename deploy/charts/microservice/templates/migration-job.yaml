@@ -13,6 +13,7 @@ spec:
     metadata:
       name: {{ include "microservice.fullname" . }}-migration
     spec:
+      serviceAccountName: {{ include "microservice.fullname" . }}
       # Job không bao giờ tự restart nếu lỗi mã code, để ta còn check log
       restartPolicy: Never
       containers:
@@ -20,8 +21,16 @@ spec:
           image: "{{ .Values.global.imageRegistry }}/{{ .Values.image.repository }}:{{ .Values.global.imageTag | default .Values.image.tag }}"
           # Chèn thêm argument --migrate vào lệnh chạy DLL
           command: ["dotnet", "{{ .Values.migration.dllName }}", "--migrate"]
-          # Tái sử dụng lại toàn bộ biến môi trường của ứng dụng để kết nối DB
-          {{- if or .Values.env .Values.secretEnv }}
+          
+          # Mount Volume CSI cho Job
+          {{- if .Values.keyvault.enabled }}
+          volumeMounts:
+            - name: secrets-store-inline
+              mountPath: "/mnt/secrets-store"
+              readOnly: true
+          {{- end }}
+
+          {{- if or .Values.env .Values.secretEnv .Values.keyvault.enabled }}
           envFrom:
             {{- if .Values.env }}
             - configMapRef:
@@ -31,5 +40,21 @@ spec:
             - secretRef:
                 name: {{ include "microservice.fullname" . }}-secret
             {{- end }}
+            # Nạp Synced Secret
+            {{- if .Values.keyvault.enabled }}
+            - secretRef:
+                name: {{ include "microservice.fullname" . }}-synced-secret
+            {{- end }}
           {{- end }}
+
+      # Khai báo Volume CSI cho Job
+      {{- if .Values.keyvault.enabled }}
+      volumes:
+        - name: secrets-store-inline
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: {{ include "microservice.fullname" . }}-akv
+      {{- end }}
 {{- end }}

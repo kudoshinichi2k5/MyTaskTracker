@@ -15,11 +15,10 @@ env:
 
 keyvault:
   enabled: true
-  clientId: "868396fe-4175-478a-8592-fe1662fd55e6" # Bạn lấy từ Terraform output
   secretsMap:
     # Key: Tên Secret được lưu trong Azure Key Vault (Bạn phải tạo thủ công trên Portal)
     # Value: Tên Biến Môi Trường sẽ được K8s bơm vào cho ứng dụng .NET
-    "NotificationDbConnectionString": "ConnectionStrings__NotificationDb"
+    "notification-service-connection-string": "ConnectionStrings__NotificationDb"
 
 migration:
   enabled: true
