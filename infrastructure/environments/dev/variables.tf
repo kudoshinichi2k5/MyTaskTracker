@@ -68,3 +68,10 @@ variable "backend_services_list" {
     error_message = "backend_services_list phải chứa đủ năm backend service được MariaDB init script sử dụng."
   }
 }
+
+variable "github_token" {
+  description = "GitHub Token để gọi API tránh rate limit"
+  type        = string
+  sensitive   = true
+  default     = ""
+}

@@ -27,7 +27,7 @@ locals {
   aks_name      = "aks-${local.app_prefix}"
   dns_prefix    = "aks-${local.app_prefix}-dns"
   identity_name = "id-github-actions-${var.environment}"
-  keyvault_name = "kv-${local.app_prefix}-888"
+  keyvault_name = "kv-${local.app_prefix}-999"
 }
 
 # Resource Group cho môi trường Dev
@@ -93,17 +93,27 @@ locals {
 
 data "http" "github_user" {
   url = "https://api.github.com/users/${local.github_owner}"
+  request_headers = {
+    Authorization = "Bearer ${var.github_token}"
+  }
 }
 
 data "http" "github_repo" {
   url = "https://api.github.com/repos/${var.github_repository}"
+  request_headers = {
+    Authorization = "Bearer ${var.github_token}"
+  }
 }
 
 locals {
   owner_id = jsondecode(data.http.github_user.response_body).id
   repo_id  = jsondecode(data.http.github_repo.response_body).id
 
-  oidc_dynamic_subject = "repo:${local.github_owner}@${local.owner_id}/${local.github_repository}@${local.repo_id}:ref:refs/heads/${var.github_ref}"
+  # Vé cho nhánh main
+  oidc_subject_main = "repo:${local.github_owner}@${local.owner_id}/${local.github_repository}@${local.repo_id}:ref:refs/heads/${var.github_ref}"
+  
+  # Vé cho Pull Request (THÊM MỚI)
+  oidc_subject_pr   = "repo:${local.github_owner}@${local.owner_id}/${local.github_repository}@${local.repo_id}:pull_request"
 }
 
 module "identity" {
@@ -112,7 +122,7 @@ module "identity" {
   resource_group_name = azurerm_resource_group.shared_rg.name
   location            = azurerm_resource_group.shared_rg.location
 
-  oidc_subject  = local.oidc_dynamic_subject
+  oidc_subjects        = [local.oidc_subject_main, local.oidc_subject_pr]
   oidc_audience = var.oidc_audience
   oidc_issuer   = var.oidc_issuer
 }
@@ -123,13 +133,6 @@ resource "azurerm_role_assignment" "aks_acrpull" {
   role_definition_name             = "AcrPull"
   scope                            = module.acr.acr_id
   skip_service_principal_aad_check = true
-}
-
-# Cấp quyền Contributor cho GitHub Actions Identity trên App RG
-resource "azurerm_role_assignment" "ci_app_rg_contributor" {
-  principal_id         = module.identity.principal_id
-  role_definition_name = "Reader"
-  scope                = azurerm_resource_group.app_rg.id
 }
 
 # Cấp quyền AcrPush cho GitHub Actions Identity (Giới hạn scope CHỈ TRÊN ACR)
@@ -257,7 +260,7 @@ module "terraform_ci_identity" {
 
   # Cấu hình OIDC cho GitHub Actions
   is_workload_identity = false
-  oidc_subject         = local.oidc_dynamic_subject # Dùng chung nhánh main như app CI
+  oidc_subjects        = [local.oidc_subject_main, local.oidc_subject_pr]
   oidc_audience        = var.oidc_audience
   oidc_issuer          = var.oidc_issuer
 }
@@ -298,5 +301,12 @@ data "azurerm_storage_account" "tfstate" {
 resource "azurerm_role_assignment" "tf_ci_state_access" {
   principal_id         = module.terraform_ci_identity.principal_id
   role_definition_name = "Storage Blob Data Contributor"
+  scope                = data.azurerm_storage_account.tfstate.id
+}
+
+# Gán quyền Reader (Control Plane) vào storage account chứa tfstate để terraform init có thể đọc metadata
+resource "azurerm_role_assignment" "tf_ci_state_reader" {
+  principal_id         = module.terraform_ci_identity.principal_id
+  role_definition_name = "Reader"
   scope                = data.azurerm_storage_account.tfstate.id
 }
