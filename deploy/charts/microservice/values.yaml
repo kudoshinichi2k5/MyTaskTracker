@@ -35,3 +35,5 @@ keyvault:
 
 # Workload Identities mapping (mặc định rỗng, override ở dev/prod)
 workloadIdentities: {}
+
+keyvault_clients: {}
