@@ -14,7 +14,7 @@ spec:
     metadata:
       name: {{ include "microservice.fullname" . }}-migration
       labels:
-        {{- include "microservice.labels" . | nindent 6 }}
+        {{- include "microservice.labels" . | nindent 8 }}
         {{- if .Values.keyvault.enabled }}
         azure.workload.identity/use: "true"
         {{- end }}
