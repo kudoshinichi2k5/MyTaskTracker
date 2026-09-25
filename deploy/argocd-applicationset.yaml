@@ -29,8 +29,8 @@ spec:
         helm:
           valueFiles:
             - ../../values/base/{{service}}.yaml
-            # THÊM MỚI: Đọc file Client ID tương ứng của từng service
             - ../../environments/dev/values.yaml
+            - ../../environments/dev/akv-values.yaml
 
       destination:
         server: 'https://kubernetes.default.svc'
