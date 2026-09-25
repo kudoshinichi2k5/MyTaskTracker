@@ -14,7 +14,8 @@ spec:
     metadata:
       name: {{ include "microservice.fullname" . }}-migration
       labels:
-        azure.workload.identity/use: "true" # Cắn label của AKS Workload Identity
+        {{- if .Values.keyvault.enabled }}
+        azure.workload.identity/use: "true"
     spec:
       serviceAccountName: {{ include "microservice.fullname" . }}
       # Job không bao giờ tự restart nếu lỗi mã code, để ta còn check log

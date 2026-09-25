@@ -18,7 +18,8 @@ spec:
       labels:
         app.kubernetes.io/name: {{ include "microservice.fullname" . }}
         app.kubernetes.io/instance: {{ .Release.Name }}
-        azure.workload.identity/use: "true" # Cắn label của AKS Workload Identity
+        {{- if .Values.keyvault.enabled }}
+        azure.workload.identity/use: "true"
     spec:
       serviceAccountName: {{ include "microservice.fullname" . }} # Tên ServiceAccount
       containers:

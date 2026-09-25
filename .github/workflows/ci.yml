@@ -382,12 +382,14 @@ jobs:
           echo "Running helm template dry-run for AuthService..."
           helm template authservice deploy/charts/microservice \
             -f deploy/values/base/authservice.yaml \
-            -f deploy/environments/dev/values.yaml
-
-          echo "Running helm template dry-run for CustomerApp..."
+            -f deploy/environments/dev/values.yaml \
+            -f deploy/environments/dev/akv-values.yaml # THÊM FILE NÀY
+          
+            echo "Running helm template dry-run for CustomerApp..."
           helm template customerapp deploy/charts/microservice \
             -f deploy/values/base/customerapp.yaml \
-            -f deploy/environments/dev/values.yaml
+            -f deploy/environments/dev/values.yaml \
+            -f deploy/environments/dev/akv-values.yaml
   
   # Job 6: Gatekeeper (Tổng hợp kết quả để Branch Protection kiểm tra)
   ci-gate:
