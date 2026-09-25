@@ -56,7 +56,10 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Terraform Init
-        run: terraform init
+        run: |
+          terraform init \
+            -backend-config="use_oidc=true" \
+            -backend-config="use_azuread_auth=true"
 
       # (4) Bổ sung Format và Validate
       - name: Terraform Format Check
