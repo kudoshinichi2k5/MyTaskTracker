@@ -1,0 +1,11 @@
+# FILE NÀY SẼ ĐƯỢC TỰ ĐỘNG GHI ĐÈ BỞI TERRAFORM CI (GITHUB ACTIONS)
+# DO NOT EDIT MANUALLY
+global:
+  keyvaultName: "mock-kv"
+  tenantId: "mock-tenant"
+keyvault_clients:
+  auth-service: "mock-id"
+  task-service: "mock-id"
+  notification-service: "mock-id"
+  project-service: "mock-id"
+  comment-service: "mock-id"
