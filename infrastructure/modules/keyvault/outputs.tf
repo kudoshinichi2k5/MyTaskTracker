@@ -7,3 +7,8 @@ output "kv_uri" {
   description = "URI của Key Vault"
   value       = azurerm_key_vault.kv.vault_uri
 }
+
+output "kv_name" {
+  description = "Tên của Key Vault"
+  value = azurerm_key_vault.kv.name
+}
