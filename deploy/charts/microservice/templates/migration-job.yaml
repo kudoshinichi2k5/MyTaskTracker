@@ -14,8 +14,10 @@ spec:
     metadata:
       name: {{ include "microservice.fullname" . }}-migration
       labels:
+        {{- include "microservice.labels" . | nindent 6 }}
         {{- if .Values.keyvault.enabled }}
         azure.workload.identity/use: "true"
+        {{- end }}
     spec:
       serviceAccountName: {{ include "microservice.fullname" . }}
       # Job không bao giờ tự restart nếu lỗi mã code, để ta còn check log
