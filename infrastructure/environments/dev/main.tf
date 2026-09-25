@@ -248,20 +248,55 @@ resource "kubernetes_secret_v1" "mariadb_init_secret" {
   depends_on = [module.aks]
 }
 
-# Tự động sinh file identity values cho TỪNG service
-resource "local_file" "identity_values" {
-  for_each = toset(local.backend_services)
-  
-  # Đặt tên file khớp với vòng lặp của ArgoCD (vd: authservice-identity.yaml)
-  # Hàm replace() xóa dấu gạch ngang để biến 'auth-service' thành 'authservice'
-  filename = "../../../deploy/values/base/${replace(each.key, "-", "")}-identity.yaml"
-  
-  # Sinh cấu trúc yaml chuẩn xác:
-  # keyvault:
-  #   clientId: "xxxxx-xxxx-..."
-  content  = yamlencode({
-    keyvault = {
-      clientId = module.backend_workload_identities[each.key].client_id
-    }
-  })
+# Tạo Identity riêng cho Terraform CI
+module "terraform_ci_identity" {
+  source              = "../../modules/identity"
+  identity_name       = "id-terraform-ci-${var.environment}"
+  resource_group_name = azurerm_resource_group.shared_rg.name
+  location            = azurerm_resource_group.shared_rg.location
+
+  # Cấu hình OIDC cho GitHub Actions
+  is_workload_identity = false
+  oidc_subject         = local.oidc_dynamic_subject # Dùng chung nhánh main như app CI
+  oidc_audience        = var.oidc_audience
+  oidc_issuer          = var.oidc_issuer
+}
+
+# Gán quyền Contributor trên 2 Resource Group
+resource "azurerm_role_assignment" "tf_ci_contributor_app" {
+  principal_id         = module.terraform_ci_identity.principal_id
+  role_definition_name = "Contributor"
+  scope                = azurerm_resource_group.app_rg.id
+}
+
+resource "azurerm_role_assignment" "tf_ci_contributor_shared" {
+  principal_id         = module.terraform_ci_identity.principal_id
+  role_definition_name = "Contributor"
+  scope                = azurerm_resource_group.shared_rg.id
+}
+
+# Gán quyền User Access Administrator để Terraform có thể cấp role cho các Identity khác
+resource "azurerm_role_assignment" "tf_ci_rbac_admin_app" {
+  principal_id         = module.terraform_ci_identity.principal_id
+  role_definition_name = "User Access Administrator"
+  scope                = azurerm_resource_group.app_rg.id
+}
+
+resource "azurerm_role_assignment" "tf_ci_rbac_admin_shared" {
+  principal_id         = module.terraform_ci_identity.principal_id
+  role_definition_name = "User Access Administrator"
+  scope                = azurerm_resource_group.shared_rg.id
+}
+
+# Gán quyền Storage Blob Data Contributor vào storage account chứa tfstate
+# (Lấy hardcode theo context bạn cung cấp ở backend.tf)
+data "azurerm_storage_account" "tfstate" {
+  name                = "tfstate4459"
+  resource_group_name = "TaskTrackerRG"
+}
+
+resource "azurerm_role_assignment" "tf_ci_state_access" {
+  principal_id         = module.terraform_ci_identity.principal_id
+  role_definition_name = "Storage Blob Data Contributor"
+  scope                = data.azurerm_storage_account.tfstate.id
 }

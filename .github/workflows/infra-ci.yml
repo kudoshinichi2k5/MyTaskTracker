@@ -1,0 +1,87 @@
+name: Infrastructure CI/CD
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'infrastructure/**'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'infrastructure/**'
+
+permissions:
+  id-token: write
+  contents: write # Cần write để commit lại file values
+
+env:
+  TF_WORKING_DIR: 'infrastructure/environments/dev'
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ env.TF_WORKING_DIR }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT_TOKEN }} # Dùng PAT để bypass branch protection khi commit lại
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      # Login Azure bằng Identity dành riêng cho Terraform (OIDC)
+      - name: Azure Login (Terraform CI)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_TF_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Plan
+        id: plan
+        if: github.event_name == 'pull_request'
+        run: terraform plan -no-color
+
+      - name: Terraform Apply
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: terraform apply -auto-approve
+
+      # Bước GitOps: Trích xuất Output và cập nhật file YAML
+      - name: Update ArgoCD AKV Values
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          # Xuất output ra dạng JSON
+          terraform output -json > tf_outputs.json
+          
+          # Đọc giá trị bằng jq
+          KV_NAME=$(jq -r '.keyvault_name.value' tf_outputs.json)
+          TENANT_ID=$(jq -r '.tenant_id.value' tf_outputs.json)
+          
+          # Di chuyển về gốc repo để ghi file
+          cd ../../../
+          
+          # Ghi đè vào file global values cho AKV
+          cat <<EOF > deploy/environments/dev/akv-values.yaml
+          global:
+            keyvaultName: "$KV_NAME"
+            tenantId: "$TENANT_ID"
+          EOF
+          
+          # Vòng lặp đọc các Client ID của backend và ghi tiếp vào file
+          echo "keyvault_clients:" >> deploy/environments/dev/akv-values.yaml
+          jq -r '.backend_client_ids.value | to_entries | .[] | "  \(.key): \(.value)"' infrastructure/environments/dev/tf_outputs.json >> deploy/environments/dev/akv-values.yaml
+
+          # Commit & Push với cờ [skip ci]
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add deploy/environments/dev/akv-values.yaml
+          git diff --quiet && git diff --staged --quiet || (git commit -m "chore(infra): sync terraform outputs to argocd values [skip ci]" && git push)
