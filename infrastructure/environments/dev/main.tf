@@ -27,7 +27,7 @@ locals {
   aks_name      = "aks-${local.app_prefix}"
   dns_prefix    = "aks-${local.app_prefix}-dns"
   identity_name = "id-github-actions-${var.environment}"
-  keyvault_name = "kv-${local.app_prefix}-888"
+  keyvault_name = "kv-${local.app_prefix}-999"
 }
 
 # Resource Group cho môi trường Dev
@@ -301,5 +301,12 @@ data "azurerm_storage_account" "tfstate" {
 resource "azurerm_role_assignment" "tf_ci_state_access" {
   principal_id         = module.terraform_ci_identity.principal_id
   role_definition_name = "Storage Blob Data Contributor"
+  scope                = data.azurerm_storage_account.tfstate.id
+}
+
+# Gán quyền Reader (Control Plane) vào storage account chứa tfstate để terraform init có thể đọc metadata
+resource "azurerm_role_assignment" "tf_ci_state_reader" {
+  principal_id         = module.terraform_ci_identity.principal_id
+  role_definition_name = "Reader"
   scope                = data.azurerm_storage_account.tfstate.id
 }
