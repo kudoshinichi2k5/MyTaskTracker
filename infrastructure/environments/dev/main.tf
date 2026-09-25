@@ -109,7 +109,11 @@ locals {
   owner_id = jsondecode(data.http.github_user.response_body).id
   repo_id  = jsondecode(data.http.github_repo.response_body).id
 
-  oidc_dynamic_subject = "repo:${local.github_owner}@${local.owner_id}/${local.github_repository}@${local.repo_id}:ref:refs/heads/${var.github_ref}"
+  # Vé cho nhánh main
+  oidc_subject_main = "repo:${local.github_owner}@${local.owner_id}/${local.github_repository}@${local.repo_id}:ref:refs/heads/${var.github_ref}"
+  
+  # Vé cho Pull Request (THÊM MỚI)
+  oidc_subject_pr   = "repo:${local.github_owner}@${local.owner_id}/${local.github_repository}@${local.repo_id}:pull_request"
 }
 
 module "identity" {
@@ -118,7 +122,7 @@ module "identity" {
   resource_group_name = azurerm_resource_group.shared_rg.name
   location            = azurerm_resource_group.shared_rg.location
 
-  oidc_subject  = local.oidc_dynamic_subject
+  oidc_subjects        = [local.oidc_subject_main, local.oidc_subject_pr]
   oidc_audience = var.oidc_audience
   oidc_issuer   = var.oidc_issuer
 }
@@ -256,7 +260,7 @@ module "terraform_ci_identity" {
 
   # Cấu hình OIDC cho GitHub Actions
   is_workload_identity = false
-  oidc_subject         = local.oidc_dynamic_subject # Dùng chung nhánh main như app CI
+  oidc_subjects        = [local.oidc_subject_main, local.oidc_subject_pr]
   oidc_audience        = var.oidc_audience
   oidc_issuer          = var.oidc_issuer
 }
