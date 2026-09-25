@@ -93,10 +93,16 @@ locals {
 
 data "http" "github_user" {
   url = "https://api.github.com/users/${local.github_owner}"
+  request_headers = {
+    Authorization = "Bearer ${var.github_token}"
+  }
 }
 
 data "http" "github_repo" {
   url = "https://api.github.com/repos/${var.github_repository}"
+  request_headers = {
+    Authorization = "Bearer ${var.github_token}"
+  }
 }
 
 locals {
@@ -123,13 +129,6 @@ resource "azurerm_role_assignment" "aks_acrpull" {
   role_definition_name             = "AcrPull"
   scope                            = module.acr.acr_id
   skip_service_principal_aad_check = true
-}
-
-# Cấp quyền Contributor cho GitHub Actions Identity trên App RG
-resource "azurerm_role_assignment" "ci_app_rg_contributor" {
-  principal_id         = module.identity.principal_id
-  role_definition_name = "Reader"
-  scope                = azurerm_resource_group.app_rg.id
 }
 
 # Cấp quyền AcrPush cho GitHub Actions Identity (Giới hạn scope CHỈ TRÊN ACR)

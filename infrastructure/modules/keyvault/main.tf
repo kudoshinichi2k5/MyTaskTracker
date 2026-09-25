@@ -9,7 +9,7 @@ resource "azurerm_key_vault" "kv" {
   
   # Yêu cầu bắt buộc của Enterprise
   soft_delete_retention_days = 7
-  purge_protection_enabled   = true
+  purge_protection_enabled   = false
 
   # Bật RBAC thay vì Access Policies cũ
   enable_rbac_authorization  = true
