@@ -9,6 +9,7 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "1"
 spec:
+  ttlSecondsAfterFinished: 300 # Thêm field tự động dọn dẹp Job sau 300 giây (5 phút)
   template:
     metadata:
       name: {{ include "microservice.fullname" . }}-migration
