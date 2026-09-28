@@ -1,11 +1,9 @@
-# FILE NÀY SẼ ĐƯỢC TỰ ĐỘNG GHI ĐÈ BỞI TERRAFORM CI (GITHUB ACTIONS)
-# DO NOT EDIT MANUALLY
 global:
-  keyvaultName: "mock-kv"
-  tenantId: "mock-tenant"
+  keyvaultName: "kv-tasktracker-dev-999"
+  tenantId: "2dff09ac-2b3b-4182-9953-2b548e0d0b39"
 keyvault_clients:
-  auth-service: "mock-id"
-  task-service: "mock-id"
-  notification-service: "mock-id"
-  project-service: "mock-id"
-  comment-service: "mock-id"
+  auth-service: be2aef5b-cda2-4f26-82c8-dd790c09b975
+  comment-service: 9c5b3a3d-bfb8-4ae9-9460-73aecc7d2e7d
+  notification-service: 54254ee6-d8cc-470e-abd2-50acd9d2f280
+  project-service: ae3cf3b7-7273-48cc-9c98-648039ff6883
+  task-service: 5b76b053-be7a-4b67-a470-d6802f8acad4
