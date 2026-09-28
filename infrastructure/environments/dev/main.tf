@@ -190,7 +190,8 @@ resource "random_password" "db_passwords" {
 }
 
 resource "azurerm_role_assignment" "terraform_kv_admin" {
-  principal_id         = data.azurerm_client_config.current.object_id
+  count                = var.admin_object_id != "" ? 1 : 0
+  principal_id         = var.admin_object_id
   role_definition_name = "Key Vault Administrator"
   scope                = module.keyvault.kv_id
 }
