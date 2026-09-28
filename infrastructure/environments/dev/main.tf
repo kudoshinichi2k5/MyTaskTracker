@@ -93,16 +93,19 @@ locals {
 
 data "http" "github_user" {
   url = "https://api.github.com/users/${local.github_owner}"
-  request_headers = {
+  
+  # Cấu trúc if-else của Terraform: condition ? true_val : false_val
+  request_headers = var.github_token != "" ? {
     Authorization = "Bearer ${var.github_token}"
-  }
+  } : {}
 }
 
 data "http" "github_repo" {
   url = "https://api.github.com/repos/${var.github_repository}"
-  request_headers = {
+  
+  request_headers = var.github_token != "" ? {
     Authorization = "Bearer ${var.github_token}"
-  }
+  } : {}
 }
 
 locals {
