@@ -75,3 +75,10 @@ variable "github_token" {
   sensitive   = true
   default     = ""
 }
+
+variable "admin_object_id" {
+  description = "Object ID của tài khoản cá nhân (dùng để bootstrap ở local)"
+  type        = string
+  # Bạn có thể để default là rỗng, ta sẽ truyền nó vào khi chạy
+  default     = ""
+}
