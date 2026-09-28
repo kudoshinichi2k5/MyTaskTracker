@@ -37,10 +37,10 @@ variable "k8s_service_account_name" {
   default     = ""
 }
 
-variable "oidc_subject" {
-  description = "Chuỗi subject claim OIDC động được truyền từ môi trường"
-  type        = string
-  default     = "" # Thêm dòng này
+variable "oidc_subjects" {
+  description = "Danh sách các OIDC subject claims được phép xác thực"
+  type        = list(string)
+  default     = []
 }
 
 variable "oidc_audience" {

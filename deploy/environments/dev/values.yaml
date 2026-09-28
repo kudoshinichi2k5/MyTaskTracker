@@ -1,7 +1,7 @@
 global:
   imageRegistry: "acrtasktrackerdev4459.azurecr.io"
   namespace: "dev"
-  keyvaultName: "kv-tasktracker-dev-888" # Tên Key Vault của bạn
+  keyvaultName: "kv-tasktracker-dev-999" # Tên Key Vault của bạn
   tenantId: "2dff09ac-2b3b-4182-9953-2b548e0d0b39" # Lấy từ `az account show`
 
 replicaCount: 1 # Ở dev chỉ cần 1 pod để tiết kiệm tiền
