@@ -1,7 +1,7 @@
 fullnameOverride: "task-service"
 image:
   repository: "backend/taskservice"
-  tag: "2799c0ba65002d535856529009350999c83c6e63"
+  tag: "ee131be837675720448c86b65f6ab4ea7528e32d"
 service:
   port: 80
 env:
