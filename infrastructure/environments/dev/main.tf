@@ -93,7 +93,7 @@ locals {
 
 data "http" "github_user" {
   url = "https://api.github.com/users/${local.github_owner}"
-  
+
   # Cấu trúc if-else của Terraform: condition ? true_val : false_val
   request_headers = var.github_token != "" ? {
     Authorization = "Bearer ${var.github_token}"
@@ -102,7 +102,7 @@ data "http" "github_user" {
 
 data "http" "github_repo" {
   url = "https://api.github.com/repos/${var.github_repository}"
-  
+
   request_headers = var.github_token != "" ? {
     Authorization = "Bearer ${var.github_token}"
   } : {}
@@ -114,9 +114,9 @@ locals {
 
   # Vé cho nhánh main
   oidc_subject_main = "repo:${local.github_owner}@${local.owner_id}/${local.github_repository}@${local.repo_id}:ref:refs/heads/${var.github_ref}"
-  
+
   # Vé cho Pull Request (THÊM MỚI)
-  oidc_subject_pr   = "repo:${local.github_owner}@${local.owner_id}/${local.github_repository}@${local.repo_id}:pull_request"
+  oidc_subject_pr = "repo:${local.github_owner}@${local.owner_id}/${local.github_repository}@${local.repo_id}:pull_request"
 }
 
 module "identity" {
@@ -125,7 +125,7 @@ module "identity" {
   resource_group_name = azurerm_resource_group.shared_rg.name
   location            = azurerm_resource_group.shared_rg.location
 
-  oidc_subjects        = [local.oidc_subject_main, local.oidc_subject_pr]
+  oidc_subjects = [local.oidc_subject_main, local.oidc_subject_pr]
   oidc_audience = var.oidc_audience
   oidc_issuer   = var.oidc_issuer
 }
@@ -195,6 +195,12 @@ resource "azurerm_role_assignment" "terraform_kv_admin" {
   scope                = module.keyvault.kv_id
 }
 
+resource "azurerm_role_assignment" "tf_ci_kv_admin_explicit" {
+  principal_id         = module.terraform_ci_identity.principal_id
+  role_definition_name = "Key Vault Administrator"
+  scope                = module.keyvault.kv_id
+}
+
 # Tạo Connection String và lưu vào Azure Key Vault
 resource "azurerm_key_vault_secret" "db_connection_strings" {
   for_each = toset(local.backend_services)
@@ -207,7 +213,10 @@ resource "azurerm_key_vault_secret" "db_connection_strings" {
 
   key_vault_id = module.keyvault.kv_id
 
-  depends_on = [azurerm_role_assignment.terraform_kv_admin]
+  depends_on = [
+    azurerm_role_assignment.terraform_kv_admin,
+    azurerm_role_assignment.tf_ci_kv_admin_explicit
+  ]
 }
 
 # Sinh Root Password cho MariaDB
@@ -222,7 +231,11 @@ resource "azurerm_key_vault_secret" "root_pass" {
   name         = "mariadb-root-password"
   value        = random_password.mariadb_root.result
   key_vault_id = module.keyvault.kv_id
-  depends_on   = [azurerm_role_assignment.terraform_kv_admin]
+
+  depends_on = [
+    azurerm_role_assignment.terraform_kv_admin,
+    azurerm_role_assignment.tf_ci_kv_admin_explicit
+  ]
 }
 
 # Tạo namespace trước các resource Kubernetes mà Terraform quản lý.
