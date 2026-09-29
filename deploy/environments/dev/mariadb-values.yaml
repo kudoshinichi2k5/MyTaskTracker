@@ -5,7 +5,8 @@ auth:
 
 primary:
   persistence:
-    enabled: false
+    enabled: true  
+    size: "5Gi"    # Dung lượng nhỏ cho môi trường dev
   # Mount các biến môi trường từ K8s Secret vào container MariaDB
   extraEnvVarsSecret: "mariadb-init-secret"
 

@@ -10,3 +10,8 @@ output "acr_id" { value = module.acr.acr_id }
 output "acr_login_server" { value = module.acr.login_server }
 
 output "tf_ci_principal_id" { value = module.terraform_ci_identity.principal_id }
+
+output "backup_storage_account_name" {
+  description = "Tên Storage Account dùng để lưu backup database"
+  value       = azurerm_storage_account.backup.name
+}   

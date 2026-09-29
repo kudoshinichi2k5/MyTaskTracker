@@ -1,0 +1,76 @@
+{{- if .Values.backup.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: tracker-db-backup
+  namespace: {{ .Values.global.namespace | default .Release.Namespace }}
+spec:
+  schedule: "0 2 * * *" # Chạy lúc 2 giờ sáng mỗi ngày
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            azure.workload.identity/use: "true"
+        spec:
+          serviceAccountName: db-backup-sa # Tên SA cấu hình ở Terraform
+          restartPolicy: OnFailure
+          containers:
+          - name: backup-worker
+            # Dùng image có sẵn Azure CLI để tiết kiệm thời gian cài đặt
+            image: mcr.microsoft.com/azure-cli:latest
+            env:
+            - name: AZURE_CLIENT_ID
+              value: "{{ .Values.global.backupClientId }}"
+            - name: AZURE_TENANT_ID
+              value: "{{ .Values.global.tenantId }}"
+            - name: STORAGE_ACCOUNT
+              value: "{{ .Values.global.backupStorageAccount }}"
+            - name: CONTAINER_NAME
+              value: "mariadb-backups"
+            # Lấy mật khẩu Root từ Secret của MariaDB
+            - name: MARIADB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mariadb-init-secret
+                  key: mariadb-root-password
+            command:
+            - /bin/bash
+            - -c
+            - |
+              set -e
+              echo "1. Cài đặt mariadb-client..."
+              apk add --no-cache mariadb-client
+
+              TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+              DUMP_FILE="tracker-backup-${TIMESTAMP}.sql"
+              MANIFEST_FILE="tracker-backup-${TIMESTAMP}.txt"
+
+              echo "2. Thực hiện MariaDB Dump..."
+              mysqldump -h tracker-mariadb.{{ .Values.global.namespace }}.svc.cluster.local -u root -p"${MARIADB_ROOT_PASSWORD}" --all-databases > /tmp/${DUMP_FILE}
+
+              echo "3. Sinh Manifest (Checksum)..."
+              sha256sum /tmp/${DUMP_FILE} > /tmp/${MANIFEST_FILE}
+              echo "Total Lines:" >> /tmp/${MANIFEST_FILE}
+              wc -l < /tmp/${DUMP_FILE} >> /tmp/${MANIFEST_FILE}
+
+              echo "4. Đăng nhập Azure bằng Workload Identity..."
+              az login --federated-token "$(cat $AZURE_FEDERATED_TOKEN_FILE)" --service-principal -u $AZURE_CLIENT_ID -t $AZURE_TENANT_ID
+
+              echo "5. Upload lên Azure Blob Storage..."
+              az storage blob upload --account-name $STORAGE_ACCOUNT --container-name $CONTAINER_NAME --file /tmp/${DUMP_FILE} --name ${DUMP_FILE} --auth-mode login
+              az storage blob upload --account-name $STORAGE_ACCOUNT --container-name $CONTAINER_NAME --file /tmp/${MANIFEST_FILE} --name ${MANIFEST_FILE} --auth-mode login
+
+              echo "6. Backup hoàn tất thành công!"
+{{- end }}
+---
+# Cấu hình ServiceAccount cho bot backup
+{{- if .Values.backup.enabled }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: db-backup-sa
+  namespace: {{ .Values.global.namespace | default .Release.Namespace }}
+  annotations:
+    azure.workload.identity/client-id: "{{ .Values.global.backupClientId }}"
+{{- end }}
