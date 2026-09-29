@@ -1,7 +1,7 @@
 fullnameOverride: "comment-service"
 image:
   repository: "backend/commentservice"
-  tag: "ee131be837675720448c86b65f6ab4ea7528e32d"
+  tag: "4b95111a40620bfb713c9986c21e3d789b1a1355"
 service:
   port: 80
 env:
