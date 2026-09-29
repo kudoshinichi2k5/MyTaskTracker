@@ -119,11 +119,15 @@ jobs:
           terraform output -json > tf_outputs.json
           KV_NAME=$(jq -r '.keyvault_name.value' tf_outputs.json)
           TENANT_ID=$(jq -r '.tenant_id.value' tf_outputs.json)
+          BACKUP_CLIENT_ID=$(jq -r '.backup_client_id.value' tf_outputs.json)
+          BACKUP_SA_NAME=$(jq -r '.backup_storage_account_name.value' tf_outputs.json)
           cd ../../../../
           cat <<EOF > deploy/environments/dev/akv-values.yaml
           global:
             keyvaultName: "$KV_NAME"
             tenantId: "$TENANT_ID"
+            backupClientId: "$BACKUP_CLIENT_ID"
+            backupStorageAccount: "$BACKUP_SA_NAME"
           EOF
           echo "keyvault_clients:" >> deploy/environments/dev/akv-values.yaml
           jq -r '.backend_client_ids.value | to_entries | .[] | "  \(.key): \(.value)"' infrastructure/environments/dev/workloads/tf_outputs.json >> deploy/environments/dev/akv-values.yaml

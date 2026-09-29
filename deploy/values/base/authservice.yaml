@@ -34,3 +34,6 @@ readinessProbe:
     path: /health
     port: http
   initialDelaySeconds: 10
+
+backup:
+  enabled: true

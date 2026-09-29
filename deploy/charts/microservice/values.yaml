@@ -37,3 +37,6 @@ keyvault:
 workloadIdentities: {}
 
 keyvault_clients: {}
+
+backup:
+  enabled: false

@@ -4,8 +4,8 @@ terraform {
     storage_account_name = "tfstate4459"
     container_name       = "tfstate"
     key                  = "dev-persistent.terraform.tfstate" # Tên file state RIÊNG
-  
-    use_oidc             = true
-    use_azuread_auth     = true
+
+    use_oidc         = true
+    use_azuread_auth = true
   }
 }

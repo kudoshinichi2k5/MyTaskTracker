@@ -32,6 +32,7 @@ locals {
   shared_rg_location = data.terraform_remote_state.persistent.outputs.shared_rg_location
   acr_id             = data.terraform_remote_state.persistent.outputs.acr_id
   tf_ci_principal_id = data.terraform_remote_state.persistent.outputs.tf_ci_principal_id
+  backup_sa_name     = data.terraform_remote_state.persistent.outputs.backup_storage_account_name
 }
 
 # 1. Networking (Workload)
@@ -164,4 +165,29 @@ resource "kubernetes_secret_v1" "mariadb_init_secret" {
     "COMMENT_DB_PASSWORD"      = random_password.db_passwords["comment-service"].result
   }
   depends_on = [module.aks]
+}
+
+# Tạo Workload Identity cho Job Backup
+module "backup_workload_identity" {
+  source                   = "../../../modules/identity"
+  identity_name            = "id-db-backup-${var.environment}"
+  resource_group_name      = local.app_rg_name
+  location                 = local.app_rg_location
+  is_workload_identity     = true
+  aks_oidc_issuer_url      = module.aks.oidc_issuer_url
+  k8s_namespace            = var.kubernetes_namespace
+  k8s_service_account_name = "db-backup-sa"
+}
+
+# Lấy thông tin Storage Backup từ resource group shared
+data "azurerm_storage_account" "backup_sa" {
+  name                = local.backup_sa_name
+  resource_group_name = local.shared_rg_name
+}
+
+# Gán quyền ghi vào Storage Backup cho bot Backup
+resource "azurerm_role_assignment" "backup_sa_contributor" {
+  principal_id         = module.backup_workload_identity.principal_id
+  role_definition_name = "Storage Blob Data Contributor"
+  scope                = data.azurerm_storage_account.backup_sa.id
 }
