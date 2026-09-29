@@ -1,5 +1,11 @@
 name: Infrastructure CI/CD
 
+# THÊM KHỐI CONCURRENCY NÀY
+# Đảm bảo chỉ có 1 workflow Infra được chạy tại 1 thời điểm. Các luồng sau phải xếp hàng chờ.
+concurrency:
+  group: terraform-infra
+  cancel-in-progress: false # KHÔNG ĐƯỢC để true, vì hủy ngang lúc đang apply là thảm họa làm kẹt state!
+
 on:
   push:
     branches: [ main ]
