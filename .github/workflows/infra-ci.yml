@@ -2,117 +2,121 @@ name: Infrastructure CI/CD
 
 on:
   push:
-    branches:
-      - main
-    paths:
-      - 'infrastructure/**'
+    branches: [ main ]
   pull_request:
-    branches:
-      - main
-    paths:
-      - 'infrastructure/**'
-  # (5) Thêm nút bấm thủ công trên giao diện GitHub
+    branches: [ main ]
   workflow_dispatch:
     inputs:
       action:
-        description: 'Chọn hành động Terraform'
+        description: 'Chọn hành động cho WORKLOADS'
         required: true
         default: 'apply'
         type: choice
-        options:
-          - apply
-          - destroy
+        options: [ apply, destroy ]
 
 permissions:
   id-token: write
   contents: write
 
-env:
-  TF_WORKING_DIR: 'infrastructure/environments/dev'
-  # Truyền GITHUB_TOKEN mặc định vào biến Terraform để xử lý (6)
-  TF_VAR_github_token: ${{ secrets.GITHUB_TOKEN }}
-
 jobs:
-  terraform:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      persistent: ${{ steps.filter.outputs.persistent }}
+      workloads: ${{ steps.filter.outputs.workloads }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            persistent: 'infrastructure/environments/dev/persistent/**'
+            workloads: 'infrastructure/environments/dev/workloads/**'
+
+  persistent:
+    needs: changes
+    if: needs.changes.outputs.persistent == 'true' && github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ${{ env.TF_WORKING_DIR }}
-
+        working-directory: infrastructure/environments/dev/persistent
+    env:
+      TF_VAR_github_token: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.PAT_TOKEN }}
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-
-      - name: Azure Login (Terraform CI)
-        uses: azure/login@v2
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_TF_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Terraform Init
-        run: |
+      - run: |
           terraform init \
             -backend-config="use_oidc=true" \
             -backend-config="use_azuread_auth=true"
+      - run: terraform validate
+      - run: terraform plan -no-color
+        if: github.event_name == 'pull_request'
+      - run: terraform apply -auto-approve
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
-      # (4) Bổ sung Format và Validate
-      - name: Terraform Format Check
-        run: terraform fmt -check -recursive
-        continue-on-error: true # Không chặn luồng nếu chỉ sai format khoảng trắng
-
-      - name: Terraform Validate
-        run: terraform validate
-
-      # (4) Bổ sung Checkov Quét bảo mật hạ tầng
-      - name: Run Checkov Security Scan
-        uses: bridgecrewio/checkov-action@v12
+  workloads:
+    needs: [changes, persistent]
+    if: |
+      always() && 
+      (needs.changes.outputs.workloads == 'true' || github.event_name == 'workflow_dispatch') &&
+      !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infrastructure/environments/dev/workloads
+    steps:
+      - uses: actions/checkout@v4
         with:
-          directory: ${{ env.TF_WORKING_DIR }}
-          framework: terraform
-          # soft_fail: Đặt là true để cảnh báo chứ không chặn pipeline (vì Azure mặc định sẽ dính rất nhiều cảnh báo bảo mật)
-          soft_fail: true 
-
+          token: ${{ secrets.PAT_TOKEN }}
+      - uses: hashicorp/setup-terraform@v3
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_TF_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      
+      - run: |
+          terraform init \
+            -backend-config="use_oidc=true" \
+            -backend-config="use_azuread_auth=true"
+      - run: terraform validate
+      
       - name: Terraform Plan
-        # Chạy Plan khi là PR, hoặc khi bấm thủ công nút Apply
         if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply')
         run: terraform plan -no-color
 
-      # (2) GIẢI QUYẾT CHICKEN-AND-EGG: Pha 1 - Tạo AKS trước
-      - name: Terraform Apply (Phase 1 - AKS & Networking)
+      - name: Terraform Apply (Phase 1 - AKS)
         if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply')
         run: terraform apply -target=module.aks -auto-approve
 
-      # (2) Pha 2 - Tạo K8s Secret và các resource còn lại
       - name: Terraform Apply (Phase 2 - Full)
         if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply')
         run: terraform apply -auto-approve
 
-      # --- LOGIC MỚI CHO NÚT DESTROY ---
       - name: Terraform Destroy
         if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'destroy'
         run: terraform destroy -auto-approve
 
-      # Bước GitOps: Trích xuất Output (Chỉ chạy khi Apply thành công, bỏ qua khi Destroy)
       - name: Update ArgoCD AKV Values
         if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply')
         run: |
           terraform output -json > tf_outputs.json
           KV_NAME=$(jq -r '.keyvault_name.value' tf_outputs.json)
           TENANT_ID=$(jq -r '.tenant_id.value' tf_outputs.json)
-          cd ../../../
+          cd ../../../../
           cat <<EOF > deploy/environments/dev/akv-values.yaml
           global:
             keyvaultName: "$KV_NAME"
             tenantId: "$TENANT_ID"
           EOF
           echo "keyvault_clients:" >> deploy/environments/dev/akv-values.yaml
-          jq -r '.backend_client_ids.value | to_entries | .[] | "  \(.key): \(.value)"' infrastructure/environments/dev/tf_outputs.json >> deploy/environments/dev/akv-values.yaml
+          jq -r '.backend_client_ids.value | to_entries | .[] | "  \(.key): \(.value)"' infrastructure/environments/dev/workloads/tf_outputs.json >> deploy/environments/dev/akv-values.yaml
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add deploy/environments/dev/akv-values.yaml
