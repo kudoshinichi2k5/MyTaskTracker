@@ -65,3 +65,17 @@ variable "admin_object_id" {
   type        = string
   default     = ""
 }
+
+# ĐỌC OUTPUT TỪ PERSISTENT STATE
+data "terraform_remote_state" "persistent" {
+  backend = "azurerm"
+  config = {
+    resource_group_name  = "TaskTrackerRG"
+    storage_account_name = "tfstate4459"
+    container_name       = "tfstate"
+    key                  = "persistent.dev.terraform.tfstate"
+
+    use_oidc             = true
+    use_azuread_auth     = true
+  }
+}

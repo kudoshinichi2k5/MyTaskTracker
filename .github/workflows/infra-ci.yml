@@ -70,6 +70,10 @@ jobs:
     defaults:
       run:
         working-directory: infrastructure/environments/dev/workloads
+    env:
+      TF_VAR_arm_client_id: ${{ secrets.AZURE_TF_CLIENT_ID }}
+      TF_VAR_arm_tenant_id: ${{ secrets.AZURE_TENANT_ID }}
+      TF_VAR_arm_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
     steps:
       - uses: actions/checkout@v4
         with:

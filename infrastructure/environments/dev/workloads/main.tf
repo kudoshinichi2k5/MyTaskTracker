@@ -11,6 +11,10 @@ data "terraform_remote_state" "persistent" {
 
     use_oidc             = true
     use_azuread_auth     = true
+
+    client_id            = var.arm_client_id
+    tenant_id            = var.arm_tenant_id
+    subscription_id      = var.arm_subscription_id
   }
 }
 
