@@ -7,7 +7,7 @@ data "terraform_remote_state" "persistent" {
     resource_group_name  = "TaskTrackerRG"
     storage_account_name = "tfstate4459"
     container_name       = "tfstate"
-    key                  = "persistent.dev.terraform.tfstate"
+    key                  = "dev-persistent.terraform.tfstate"
 
     use_oidc             = true
     use_azuread_auth     = true
