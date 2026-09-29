@@ -8,6 +8,9 @@ data "terraform_remote_state" "persistent" {
     storage_account_name = "tfstate4459"
     container_name       = "tfstate"
     key                  = "persistent.dev.terraform.tfstate"
+
+    use_oidc             = true
+    use_azuread_auth     = true
   }
 }
 
