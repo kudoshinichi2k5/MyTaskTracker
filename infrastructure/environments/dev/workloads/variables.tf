@@ -1,8 +1,3 @@
-variable "location" {
-  description = "Azure Region"
-  type        = string
-}
-
 variable "environment" {
   description = "Environment name (dev, staging, prod)"
   type        = string
@@ -13,9 +8,7 @@ variable "project_name" {
   type        = string
 }
 
-variable "acr_sku" { type = string }
-variable "acr_admin_enabled" { type = bool }
-
+# --- CẤU HÌNH NETWORKING ---
 variable "vnet_address_space" { type = list(string) }
 variable "aks_subnet_address_prefix" { type = list(string) }
 variable "db_subnet_address_prefix" { type = list(string) }
@@ -23,11 +16,7 @@ variable "aks_subnet_name" { type = string }
 variable "db_subnet_name" { type = string }
 variable "db_nsg_name" { type = string }
 
-variable "oidc_audience" { type = list(string) }
-variable "oidc_issuer" { type = string }
-variable "github_repository" { type = string }
-variable "github_ref" { type = string }
-
+# --- CẤU HÌNH AKS ---
 variable "aks_oidc_issuer_enabled" { type = bool }
 variable "aks_node_pool_name" { type = string }
 variable "aks_node_vm_size" { type = string }
@@ -40,6 +29,7 @@ variable "aks_load_balancer_sku" { type = string }
 variable "aks_service_cidr" { type = string }
 variable "aks_dns_service_ip" { type = string }
 
+# --- CẤU HÌNH KUBERNETES WORKLOADS ---
 variable "kubernetes_namespace" {
   description = "Namespace dùng cho các resource Kubernetes của môi trường"
   type        = string
@@ -69,16 +59,9 @@ variable "backend_services_list" {
   }
 }
 
-variable "github_token" {
-  description = "GitHub Token để gọi API tránh rate limit"
-  type        = string
-  sensitive   = true
-  default     = ""
-}
-
+# --- QUẢN TRỊ VIÊN ---
 variable "admin_object_id" {
-  description = "Object ID của tài khoản cá nhân (dùng để bootstrap ở local)"
+  description = "Object ID của tài khoản cá nhân (dùng để bootstrap/kiểm tra ở local nếu cần)"
   type        = string
-  # Bạn có thể để default là rỗng, ta sẽ truyền nó vào khi chạy
   default     = ""
 }
