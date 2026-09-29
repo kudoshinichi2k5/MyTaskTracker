@@ -66,16 +66,20 @@ variable "admin_object_id" {
   default     = ""
 }
 
-# ĐỌC OUTPUT TỪ PERSISTENT STATE
-data "terraform_remote_state" "persistent" {
-  backend = "azurerm"
-  config = {
-    resource_group_name  = "TaskTrackerRG"
-    storage_account_name = "tfstate4459"
-    container_name       = "tfstate"
-    key                  = "persistent.dev.terraform.tfstate"
+variable "arm_client_id" {
+  description = "Client ID của Service Principal (Bot Terraform CI)"
+  type        = string
+  default     = ""
+}
 
-    use_oidc             = true
-    use_azuread_auth     = true
-  }
+variable "arm_tenant_id" {
+  description = "Tenant ID của Azure Active Directory"
+  type        = string
+  default     = ""
+}
+
+variable "arm_subscription_id" {
+  description = "Subscription ID của Azure"
+  type        = string
+  default     = ""
 }
