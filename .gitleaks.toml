@@ -1,6 +1,9 @@
 # Gitleaks Ignore Rules
 # Dùng file này để cấu hình bỏ qua các False Positives (Báo động giả)
 
+[extend]
+useDefault = true
+
 [allowlist]
 description = "Allowlist for GitOps auto-generated Azure Identity fields"
 
