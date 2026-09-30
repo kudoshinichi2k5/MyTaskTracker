@@ -8,6 +8,10 @@ on:
 env:
   TF_WORKING_DIR: 'infrastructure/environments/dev/workloads'
 
+permissions:
+  id-token: write # Bắt buộc để dùng OIDC đăng nhập Azure
+  contents: read  # Bắt buộc để actions/checkout có thể lấy code về
+
 jobs:
   run-drill:
     runs-on: ubuntu-latest
