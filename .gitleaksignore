@@ -1,0 +1,16 @@
+# Gitleaks Ignore Rules
+# Dùng file này để cấu hình bỏ qua các False Positives (Báo động giả)
+
+[allowlist]
+description = "Allowlist for GitOps auto-generated Azure Identity fields"
+
+# Bỏ qua bất kỳ tệp nào nằm trong thư mục này
+# Vì các file akv-values.yaml chứa TenantID, ClientID được bot sinh ra tự động
+paths = [
+    '''deploy/environments/dev/akv-values\.yaml'''
+]
+
+# Hoặc nếu bạn muốn bỏ qua các chuỗi GUID chung chung (Client ID/Tenant ID)
+# regexes = [
+#     '''[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'''
+# ]

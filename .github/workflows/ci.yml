@@ -96,6 +96,27 @@ jobs:
           deploy=$DEPLOY
           EOF
 
+  # === Quét Secret trong mã nguồn ===
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          # BẮT BUỘC: fetch-depth: 0 để gitleaks có thể so sánh giữa các commit trong PR
+          fetch-depth: 0
+
+      - name: Gitleaks Secret Scanner
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          # GITHUB_TOKEN giúp Gitleaks có thể comment thẳng vào dòng code lỗi trên giao diện Pull Request
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # KÍCH HOẠT QUÉT DIFF: 
+          # Khi là PR -> Chỉ quét các commit mới của nhánh này.
+          # Khi là Push lên main -> Chỉ quét đúng cái commit vừa đẩy lên. Không lật lại quá khứ!
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: false
+          GITLEAKS_ENABLE_SUMMARY: true
+
   # Job 2: Build & Test backend (Chỉ chạy nếu có thay đổi Backend)
   build-backend:
     needs: [changes] # Phải đợi check thay đổi 
@@ -236,7 +257,7 @@ jobs:
   # Job 4: Build và Push Docker Image
   build-and-push-docker:
     # Phải đợi build và test pass.
-    needs: [changes, build-backend, build-frontend]
+    needs: [changes, secret-scan, build-backend, build-frontend]
     if: |
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
       !contains(needs.*.result, 'failure') &&
@@ -393,7 +414,7 @@ jobs:
   
   # Job 6: Gatekeeper (Tổng hợp kết quả để Branch Protection kiểm tra)
   ci-gate:
-    needs: [changes, build-backend, build-frontend, build-and-push-docker, update-gitops, validate-helm]
+    needs: [changes, secret-scan, build-backend, build-frontend, build-and-push-docker, update-gitops, validate-helm]
     # BẮT BUỘC: Luôn chạy để hứng kết quả, kể cả khi các job trên bị fail
     if: always() 
     runs-on: ubuntu-latest
