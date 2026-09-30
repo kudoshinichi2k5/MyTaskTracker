@@ -45,6 +45,30 @@ resource "azurerm_storage_container" "mariadb_backup" {
   container_access_type = "private"
 }
 
+# Quản lý vòng đời lưu trữ (Lifecycle Management)
+resource "azurerm_storage_management_policy" "backup_lifecycle" {
+  storage_account_id = azurerm_storage_account.backup.id
+
+  rule {
+    name    = "mariadb-backup-retention"
+    enabled = true
+    filters {
+      # Chỉ áp dụng cho các file nằm trong container mariadb-backups
+      prefix_match = ["mariadb-backups/"]
+      blob_types   = ["blockBlob"]
+    }
+    actions {
+      base_blob {
+        # Sau 7 ngày kể từ lúc upload -> Chuyển sang Tier Cool (Giảm tiền lưu trữ)
+        tier_to_cool_after_days_since_modification_greater_than    = 7
+        
+        # Sau 30 ngày kể từ lúc upload -> Xóa luôn
+        delete_after_days_since_modification_greater_than          = 30
+      }
+    }
+  }
+}
+
 # 3. GitHub Data & OIDC Subjects
 locals {
   github_owner      = split("/", var.github_repository)[0]
