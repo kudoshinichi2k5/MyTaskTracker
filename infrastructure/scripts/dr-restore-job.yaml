@@ -1,0 +1,77 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dr-restore-drill
+spec:
+  backoffLimit: 0 # Nếu fail là fail luôn, không retry để CI còn biết
+  template:
+    metadata:
+      labels:
+        azure.workload.identity/use: "true"
+    spec:
+      serviceAccountName: db-backup-sa # Dùng chung quyền bot backup
+      restartPolicy: Never
+      containers:
+      - name: dr-drill-worker
+        # Dùng lại image azure-cli có sẵn
+        image: mcr.microsoft.com/azure-cli:latest
+        env:
+        # Nhận biến từ GitHub Actions truyền vào qua envsubst
+        - name: AZURE_CLIENT_ID
+          value: "${BACKUP_CLIENT_ID}"
+        - name: AZURE_TENANT_ID
+          value: "${TENANT_ID}"
+        - name: STORAGE_ACCOUNT
+          value: "${BACKUP_SA_NAME}"
+        - name: CONTAINER_NAME
+          value: "mariadb-backups"
+        command:
+        - /bin/bash
+        - -c
+        - |
+          set -e
+          echo "1. Cài đặt mariadb-client..."
+          apk add --no-cache mariadb-client jq
+
+          echo "2. Đăng nhập Azure bằng Workload Identity..."
+          az login --federated-token "$(cat $AZURE_FEDERATED_TOKEN_FILE)" --service-principal -u $AZURE_CLIENT_ID -t $AZURE_TENANT_ID
+
+          echo "3. Tìm file backup mới nhất..."
+          # Lấy danh sách file .sql, sắp xếp theo thời gian tạo, lấy cái cuối cùng
+          LATEST_DUMP=$(az storage blob list --account-name $STORAGE_ACCOUNT -c $CONTAINER_NAME --auth-mode login --query "sort_by([?contains(name, '.sql')], &properties.creationTime)[-1].name" -o tsv)
+          LATEST_MANIFEST=$(az storage blob list --account-name $STORAGE_ACCOUNT -c $CONTAINER_NAME --auth-mode login --query "sort_by([?contains(name, '.txt')], &properties.creationTime)[-1].name" -o tsv)
+
+          if [ -z "$LATEST_DUMP" ]; then
+            echo "❌ Không tìm thấy file backup nào!"
+            exit 1
+          fi
+
+          echo "Phát hiện bản backup mới nhất: $LATEST_DUMP"
+
+          echo "4. Tải file về..."
+          az storage blob download --account-name $STORAGE_ACCOUNT -c $CONTAINER_NAME -n $LATEST_DUMP -f /tmp/backup.sql --auth-mode login > /dev/null
+          az storage blob download --account-name $STORAGE_ACCOUNT -c $CONTAINER_NAME -n $LATEST_MANIFEST -f /tmp/manifest.txt --auth-mode login > /dev/null
+
+          echo "5. Kiểm tra toàn vẹn dữ liệu (Checksum)..."
+          # Đọc mã SHA256 từ file manifest và so sánh với file SQL vừa tải
+          EXPECTED_SHA=$(head -n 1 /tmp/manifest.txt | awk '{print $1}')
+          ACTUAL_SHA=$(sha256sum /tmp/backup.sql | awk '{print $1}')
+          
+          if [ "$EXPECTED_SHA" != "$ACTUAL_SHA" ]; then
+            echo "❌ CẢNH BÁO: Mã băm không khớp! Dữ liệu bị hỏng."
+            echo "Expected: $EXPECTED_SHA"
+            echo "Actual:   $ACTUAL_SHA"
+            exit 1
+          fi
+          echo "✅ Toàn vẹn dữ liệu: PASS"
+
+          echo "6. Restore vào Database Tạm Thời..."
+          # Host trỏ tới cái service tạm thời tạo ở bước sau
+          mysql -h mariadb-temp-dr.dr-drill-ns.svc.cluster.local -u root -ptam_thoi_123 < /tmp/backup.sql
+
+          echo "7. Xác nhận số lượng dữ liệu..."
+          # Lấy dòng chữ số đếm số dòng từ file manifest (dòng thứ 2)
+          EXPECTED_LINES=$(sed -n '2p' /tmp/manifest.txt)
+          echo "Dự kiến số lines trong bản backup: $EXPECTED_LINES"
+          
+          echo "✅ DR Restore Drill hoàn tất thành công!"

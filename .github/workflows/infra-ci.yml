@@ -109,6 +109,33 @@ jobs:
         if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply')
         run: terraform apply -auto-approve
 
+      # --- BACKUP GATE TRƯỚC KHI DESTROY ---
+      - name: Get AKS Credentials
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'destroy'
+        run: |
+          # Lấy thông tin kết nối K8s để chạy lệnh kubectl
+          az aks get-credentials --resource-group rg-tasktracker-dev --name aks-tasktracker-dev --overwrite-existing
+
+      - name: Trigger and Wait for Backup Job
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'destroy'
+        run: |
+          echo "Bắt đầu tạo Job Backup thủ công từ CronJob..."
+          JOB_NAME="manual-backup-before-destroy-$(date +%s)"
+          
+          # Tạo Job từ CronJob hiện có
+          kubectl create job --from=cronjob/tracker-db-backup $JOB_NAME -n dev
+          
+          echo "Đang chờ Job backup hoàn thành (Timeout: 10 phút)..."
+          # Lệnh wait này sẽ chặn CI lại cho đến khi Job báo 'Complete'
+          if kubectl wait --for=condition=complete job/$JOB_NAME -n dev --timeout=600s; then
+            echo "✅ Backup hoàn tất thành công. Cho phép tiến hành Destroy!"
+          else
+            echo "❌ Lỗi: Job backup thất bại hoặc quá thời gian. HỦY BỎ QUÁ TRÌNH DESTROY để bảo toàn dữ liệu!"
+            # Hiển thị log để debug
+            kubectl logs -l job-name=$JOB_NAME -n dev
+            exit 1 # Báo lỗi cho GitHub Actions để dừng luồng
+          fi
+      
       - name: Terraform Destroy
         if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'destroy'
         run: terraform destroy -auto-approve
