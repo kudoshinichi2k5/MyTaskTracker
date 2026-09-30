@@ -44,7 +44,7 @@ jobs:
 
       - name: Get AKS Credentials
         run: |
-          az aks get-credentials --resource-group ${{ env.RG_NAME }} --name aks-tasktracker-dev --overwrite-existing
+          az aks get-credentials --resource-group rg-tasktracker-dev --name aks-tasktracker-dev --overwrite-existing
 
       - name: Setup Temporary DR Environment
         run: |
