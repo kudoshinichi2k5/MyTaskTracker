@@ -3,20 +3,18 @@ kind: Job
 metadata:
   name: dr-restore-drill
 spec:
-  backoffLimit: 0 # Nếu fail là fail luôn, không retry để CI còn biết
+  backoffLimit: 0 
   template:
     metadata:
       labels:
         azure.workload.identity/use: "true"
     spec:
-      serviceAccountName: db-backup-sa # Dùng chung quyền bot backup
+      serviceAccountName: db-backup-sa 
       restartPolicy: Never
       containers:
       - name: dr-drill-worker
-        # Dùng lại image azure-cli có sẵn
-        image: mcr.microsoft.com/azure-cli:latest
+        image: alpine:latest # Đổi sang Alpine
         env:
-        # Nhận biến từ GitHub Actions truyền vào qua envsubst
         - name: AZURE_CLIENT_ID
           value: "${BACKUP_CLIENT_ID}"
         - name: AZURE_TENANT_ID
@@ -26,34 +24,54 @@ spec:
         - name: CONTAINER_NAME
           value: "mariadb-backups"
         command:
-        - /bin/bash
+        - /bin/sh # Dùng /bin/sh chuẩn của Alpine
         - -c
         - |
           set -e
-          echo "1. Cài đặt mariadb-client..."
-          apk add --no-cache mariadb-client jq
+          echo "1. Cài đặt các công cụ cần thiết (mariadb-client, curl, jq, grep)..."
+          apk add --no-cache mariadb-client curl jq coreutils grep sed
 
-          echo "2. Đăng nhập Azure bằng Workload Identity..."
-          az login --federated-token "$(cat $AZURE_FEDERATED_TOKEN_FILE)" --service-principal -u $AZURE_CLIENT_ID -t $AZURE_TENANT_ID
+          echo "2. Đổi Token (Workload Identity -> Azure Access Token)..."
+          FEDERATED_TOKEN=$(cat $AZURE_FEDERATED_TOKEN_FILE)
+          TOKEN_RESPONSE=$(curl -s -X POST "https://login.microsoftonline.com/$AZURE_TENANT_ID/oauth2/v2.0/token" \
+            -d "client_id=$AZURE_CLIENT_ID" \
+            -d "client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer" \
+            -d "client_assertion=$FEDERATED_TOKEN" \
+            -d "grant_type=client_credentials" \
+            -d "scope=https://storage.azure.com/.default")
+          
+          ACCESS_TOKEN=$(echo $TOKEN_RESPONSE | jq -r .access_token)
+          if [ "$ACCESS_TOKEN" = "null" ] || [ -z "$ACCESS_TOKEN" ]; then
+            echo "Lỗi: Không lấy được Access Token!"
+            exit 1
+          fi
 
-          echo "3. Tìm file backup mới nhất..."
-          # Lấy danh sách file .sql, sắp xếp theo thời gian tạo, lấy cái cuối cùng
-          LATEST_DUMP=$(az storage blob list --account-name $STORAGE_ACCOUNT -c $CONTAINER_NAME --auth-mode login --query "sort_by([?contains(name, '.sql')], &properties.creationTime)[-1].name" -o tsv)
-          LATEST_MANIFEST=$(az storage blob list --account-name $STORAGE_ACCOUNT -c $CONTAINER_NAME --auth-mode login --query "sort_by([?contains(name, '.txt')], &properties.creationTime)[-1].name" -o tsv)
+          echo "3. Tìm file backup mới nhất qua REST API..."
+          # Gọi Azure Storage REST API để lấy danh sách Blob (trả về định dạng XML)
+          BLOB_LIST_XML=$(curl -s "https://${STORAGE_ACCOUNT}.blob.core.windows.net/${CONTAINER_NAME}?restype=container&comp=list" \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "x-ms-version: 2021-08-06")
+
+          # Parse XML để lấy tên file. Vì tên file có chứa timestamp, lệnh sort sẽ tự đẩy file mới nhất xuống cuối cùng
+          LATEST_DUMP=$(echo "$BLOB_LIST_XML" | grep -o '<Name>[^<]*\.sql</Name>' | sed -E 's/<Name>(.*)<\/Name>/\1/' | sort | tail -n 1)
+          LATEST_MANIFEST=$(echo "$BLOB_LIST_XML" | grep -o '<Name>[^<]*\.txt</Name>' | sed -E 's/<Name>(.*)<\/Name>/\1/' | sort | tail -n 1)
 
           if [ -z "$LATEST_DUMP" ]; then
             echo "❌ Không tìm thấy file backup nào!"
             exit 1
           fi
-
           echo "Phát hiện bản backup mới nhất: $LATEST_DUMP"
 
-          echo "4. Tải file về..."
-          az storage blob download --account-name $STORAGE_ACCOUNT -c $CONTAINER_NAME -n $LATEST_DUMP -f /tmp/backup.sql --auth-mode login > /dev/null
-          az storage blob download --account-name $STORAGE_ACCOUNT -c $CONTAINER_NAME -n $LATEST_MANIFEST -f /tmp/manifest.txt --auth-mode login > /dev/null
+          echo "4. Tải file về qua REST API..."
+          curl -s -o /tmp/backup.sql "https://${STORAGE_ACCOUNT}.blob.core.windows.net/${CONTAINER_NAME}/${LATEST_DUMP}" \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "x-ms-version: 2021-08-06"
+            
+          curl -s -o /tmp/manifest.txt "https://${STORAGE_ACCOUNT}.blob.core.windows.net/${CONTAINER_NAME}/${LATEST_MANIFEST}" \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "x-ms-version: 2021-08-06"
 
           echo "5. Kiểm tra toàn vẹn dữ liệu (Checksum)..."
-          # Đọc mã SHA256 từ file manifest và so sánh với file SQL vừa tải
           EXPECTED_SHA=$(head -n 1 /tmp/manifest.txt | awk '{print $1}')
           ACTUAL_SHA=$(sha256sum /tmp/backup.sql | awk '{print $1}')
           
@@ -66,12 +84,10 @@ spec:
           echo "✅ Toàn vẹn dữ liệu: PASS"
 
           echo "6. Restore vào Database Tạm Thời..."
-          # Host trỏ tới cái service tạm thời tạo ở bước sau
           mysql -h mariadb-temp-dr.dr-drill-ns.svc.cluster.local -u root -ptam_thoi_123 < /tmp/backup.sql
 
           echo "7. Xác nhận số lượng dữ liệu..."
-          # Lấy dòng chữ số đếm số dòng từ file manifest (dòng thứ 2)
           EXPECTED_LINES=$(sed -n '2p' /tmp/manifest.txt)
           echo "Dự kiến số lines trong bản backup: $EXPECTED_LINES"
           
-          echo "✅ DR Restore Drill hoàn tất thành công!"
+          echo "✅ DR Restore Drill hoàn tất thành công với Alpine + REST API!"
