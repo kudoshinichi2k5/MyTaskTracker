@@ -105,6 +105,8 @@ jobs:
         with:
           # BẮT BUỘC: fetch-depth: 0 để gitleaks có thể so sánh giữa các commit trong PR
           fetch-depth: 0
+          # Ép checkout đúng commit của nhánh PR thay vì merge commit ảo
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Gitleaks Secret Scanner
         uses: gitleaks/gitleaks-action@v2
