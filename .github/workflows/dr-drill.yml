@@ -60,13 +60,15 @@ jobs:
 
       - name: Inject Variables and Run Restore Job
         run: |
-          echo "Tiêm các biến môi trường vào file dr-restore-job.yaml..."
-          envsubst < infrastructure/scripts/dr-restore-job.yaml > /tmp/ready-job.yaml
+          echo "Tiêm CỤ THỂ các biến môi trường vào file dr-restore-job.yaml..."
+          # CHỈ cho phép thay thế 3 biến này. Các dấu $ khác trong file sẽ được giữ nguyên!
+          envsubst '$BACKUP_CLIENT_ID $TENANT_ID $BACKUP_SA_NAME' < infrastructure/scripts/dr-restore-job.yaml > /tmp/ready-job.yaml
           
-          echo "Apply Job vào Kubernetes"
+          echo "Apply Job vào Kubernetes (dev namespace)..."
           kubectl apply -f /tmp/ready-job.yaml -n dev
 
-          echo "Đang chờ Job DR hoàn thành (Timeout: 10 phút)..."
+          echo "Đang chờ Job DR hoàn thành..."
+          # Đợi job báo Complete. Timeout 10 phút.
           if kubectl wait --for=condition=complete job/dr-restore-drill -n dev --timeout=600s; then
             echo "✅ DR Drill thành công! Dữ liệu đã được phục hồi trên CSDL tạm."
           else
