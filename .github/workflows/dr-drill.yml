@@ -48,13 +48,9 @@ jobs:
 
       - name: Setup Temporary DR Environment
         run: |
-          echo "Tạo namespace tạm thời..."
+          echo "Tạo namespace tạm thời để chứa DB..."
           kubectl create namespace dr-drill-ns --dry-run=client -o yaml | kubectl apply -f -
-          
-          echo "Clone ServiceAccount bot backup sang namespace tạm để Job dùng được"
-          kubectl get sa db-backup-sa -n dev -o yaml | sed 's/namespace: dev/namespace: dr-drill-ns/' | kubectl apply -f -
-
-          echo "Dựng MariaDB tạm thời bằng Helm..."
+          echo "Dựng MariaDB tạm thời bằng Helm trong dr-drill-ns..."
           helm repo add bitnami https://charts.bitnami.com/bitnami
           helm install mariadb-temp-dr bitnami/mariadb \
             --namespace dr-drill-ns \
@@ -67,22 +63,24 @@ jobs:
           echo "Tiêm các biến môi trường vào file dr-restore-job.yaml..."
           envsubst < infrastructure/scripts/dr-restore-job.yaml > /tmp/ready-job.yaml
           
-          echo "Apply Job vào Kubernetes..."
-          kubectl apply -f /tmp/ready-job.yaml -n dr-drill-ns
+          echo "Apply Job vào Kubernetes"
+          kubectl apply -f /tmp/ready-job.yaml -n dev
 
           echo "Đang chờ Job DR hoàn thành (Timeout: 10 phút)..."
-          if kubectl wait --for=condition=complete job/dr-restore-drill -n dr-drill-ns --timeout=600s; then
+          if kubectl wait --for=condition=complete job/dr-restore-drill -n dev --timeout=600s; then
             echo "✅ DR Drill thành công! Dữ liệu đã được phục hồi trên CSDL tạm."
           else
             echo "❌ DR Drill thất bại! File backup có thể bị hỏng."
-            kubectl logs -l job-name=dr-restore-drill -n dr-drill-ns
+            kubectl logs -l job-name=dr-restore-drill -n dev
             exit 1
           fi
 
       - name: Cleanup Temporary Environment
-        if: always() # LUÔN CHẠY BƯỚC NÀY ĐỂ DỌN DẸP, kể cả khi Job bị fail
+        if: always()
         run: |
           echo "Dọn dẹp chiến trường..."
           helm uninstall mariadb-temp-dr -n dr-drill-ns || true
           kubectl delete namespace dr-drill-ns --ignore-not-found
+          # Dọn dẹp Job trong namespace dev
+          kubectl delete job dr-restore-drill -n dev --ignore-not-found
           echo "Sạch sẽ!"
