@@ -5,7 +5,7 @@ metadata:
   name: tracker-db-backup
   namespace: {{ .Values.global.namespace | default .Release.Namespace }}
 spec:
-  schedule: "0 2 * * *" # Chạy lúc 2 giờ sáng mỗi ngày
+  schedule: "0 2 * * *" 
   jobTemplate:
     spec:
       template:
@@ -13,12 +13,12 @@ spec:
           labels:
             azure.workload.identity/use: "true"
         spec:
-          serviceAccountName: db-backup-sa # Tên SA cấu hình ở Terraform
+          serviceAccountName: db-backup-sa 
           restartPolicy: OnFailure
           containers:
           - name: backup-worker
-            # Dùng image có sẵn Azure CLI để tiết kiệm thời gian cài đặt
-            image: mcr.microsoft.com/azure-cli:latest
+            # ALPINE SIÊU NHẸ 
+            image: alpine:latest
             env:
             - name: AZURE_CLIENT_ID
               value: "{{ .Values.global.backupClientId }}"
@@ -28,19 +28,18 @@ spec:
               value: "{{ .Values.global.backupStorageAccount }}"
             - name: CONTAINER_NAME
               value: "mariadb-backups"
-            # Lấy mật khẩu Root từ Secret của MariaDB
             - name: MARIADB_ROOT_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: mariadb-init-secret
                   key: mariadb-root-password
             command:
-            - /bin/bash
+            - /bin/sh  # Alpine dùng sh 
             - -c
             - |
               set -e
-              echo "1. Cài đặt mariadb-client..."
-              apk add --no-cache mariadb-client
+              echo "1. Cài đặt các công cụ cần thiết (mariadb-client, curl, jq)..."
+              apk add --no-cache mariadb-client curl jq coreutils
 
               TIMESTAMP=$(date +%Y%m%d-%H%M%S)
               DUMP_FILE="tracker-backup-${TIMESTAMP}.sql"
@@ -49,19 +48,57 @@ spec:
               echo "2. Thực hiện MariaDB Dump..."
               mysqldump -h tracker-mariadb.{{ .Values.global.namespace }}.svc.cluster.local -u root -p"${MARIADB_ROOT_PASSWORD}" --all-databases > /tmp/${DUMP_FILE}
 
-              echo "3. Sinh Manifest (Checksum)..."
+              echo "3. Sinh Manifest (Checksum & Row count)..."
               sha256sum /tmp/${DUMP_FILE} > /tmp/${MANIFEST_FILE}
               echo "Total Lines:" >> /tmp/${MANIFEST_FILE}
               wc -l < /tmp/${DUMP_FILE} >> /tmp/${MANIFEST_FILE}
 
-              echo "4. Đăng nhập Azure bằng Workload Identity..."
-              az login --federated-token "$(cat $AZURE_FEDERATED_TOKEN_FILE)" --service-principal -u $AZURE_CLIENT_ID -t $AZURE_TENANT_ID
+              echo "4. Đổi Token (Workload Identity -> Azure Access Token)..."
+              # Lấy token từ file do Kubernetes mount vào
+              FEDERATED_TOKEN=$(cat $AZURE_FEDERATED_TOKEN_FILE)
+              
+              # Gọi API Azure AD để đổi lấy Access Token cho dịch vụ Storage
+              TOKEN_RESPONSE=$(curl -s -X POST "https://login.microsoftonline.com/$AZURE_TENANT_ID/oauth2/v2.0/token" \
+                -d "client_id=$AZURE_CLIENT_ID" \
+                -d "client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer" \
+                -d "client_assertion=$FEDERATED_TOKEN" \
+                -d "grant_type=client_credentials" \
+                -d "scope=https://storage.azure.com/.default")
+              
+              # Trích xuất Access Token
+              ACCESS_TOKEN=$(echo $TOKEN_RESPONSE | jq -r .access_token)
+              if [ "$ACCESS_TOKEN" = "null" ] || [ -z "$ACCESS_TOKEN" ]; then
+                echo "Lỗi: Không lấy được Access Token! Response: $TOKEN_RESPONSE"
+                exit 1
+              fi
 
-              echo "5. Upload lên Azure Blob Storage..."
-              az storage blob upload --account-name $STORAGE_ACCOUNT --container-name $CONTAINER_NAME --file /tmp/${DUMP_FILE} --name ${DUMP_FILE} --auth-mode login
-              az storage blob upload --account-name $STORAGE_ACCOUNT --container-name $CONTAINER_NAME --file /tmp/${MANIFEST_FILE} --name ${MANIFEST_FILE} --auth-mode login
+              echo "5. Upload lên Azure Blob Storage bằng REST API (Zero Azure-CLI)..."
+              # Hàm gọi REST API của Azure Blob Storage
+              upload_blob() {
+                FILE_PATH=$1
+                FILE_NAME=$2
+                # Định dạng ngày giờ bắt buộc theo chuẩn của Azure REST API
+                DATE_HEADER=$(date -u +"%a, %d %b %Y %H:%M:%S GMT")
+                
+                HTTP_STATUS=$(curl -s -w "%{http_code}" -o /dev/null -X PUT "https://${STORAGE_ACCOUNT}.blob.core.windows.net/${CONTAINER_NAME}/${FILE_NAME}" \
+                  -H "Authorization: Bearer $ACCESS_TOKEN" \
+                  -H "x-ms-version: 2021-08-06" \
+                  -H "x-ms-date: $DATE_HEADER" \
+                  -H "x-ms-blob-type: BlockBlob" \
+                  -H "Content-Type: application/octet-stream" \
+                  -T "$FILE_PATH")
+                  
+                if [ "$HTTP_STATUS" != "201" ]; then
+                  echo "Lỗi upload $FILE_NAME, HTTP Status Code: $HTTP_STATUS"
+                  exit 1
+                fi
+                echo "Đã upload thành công: $FILE_NAME"
+              }
 
-              echo "6. Backup hoàn tất thành công!"
+              upload_blob "/tmp/${DUMP_FILE}" "${DUMP_FILE}"
+              upload_blob "/tmp/${MANIFEST_FILE}" "${MANIFEST_FILE}"
+
+              echo "6. Backup hoàn tất thành công với Alpine + REST API!"
 {{- end }}
 ---
 # Cấu hình ServiceAccount cho bot backup
