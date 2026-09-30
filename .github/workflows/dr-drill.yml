@@ -1,0 +1,84 @@
+name: Disaster Recovery Drill
+
+on:
+  workflow_dispatch: # Bấm tay khi muốn diễn tập
+  schedule:
+    - cron: "0 4 * * 0" # Tự động chạy diễn tập vào 4h sáng Chủ Nhật hàng tuần
+
+env:
+  TF_WORKING_DIR: 'infrastructure/environments/dev/workloads'
+
+jobs:
+  run-drill:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_TF_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Get Azure Resources Info
+        id: info
+        run: |
+          # Dùng terraform output để lấy thông tin kết nối K8s và Storage
+          cd ${{ env.TF_WORKING_DIR }}
+          terraform init -backend-config="use_oidc=true" -backend-config="use_azuread_auth=true"
+          terraform output -json > tf_outputs.json
+          
+          echo "RG_NAME=$(jq -r '.app_rg_name.value' tf_outputs.json)" >> $GITHUB_ENV
+          echo "TENANT_ID=$(jq -r '.tenant_id.value' tf_outputs.json)" >> $GITHUB_ENV
+          echo "BACKUP_CLIENT_ID=$(jq -r '.backup_client_id.value' tf_outputs.json)" >> $GITHUB_ENV
+          echo "BACKUP_SA_NAME=$(jq -r '.backup_storage_account_name.value' tf_outputs.json)" >> $GITHUB_ENV
+
+      - name: Get AKS Credentials
+        run: |
+          az aks get-credentials --resource-group ${{ env.RG_NAME }} --name aks-tasktracker-dev --overwrite-existing
+
+      - name: Setup Temporary DR Environment
+        run: |
+          echo "Tạo namespace tạm thời..."
+          kubectl create namespace dr-drill-ns --dry-run=client -o yaml | kubectl apply -f -
+          
+          echo "Clone ServiceAccount bot backup sang namespace tạm để Job dùng được"
+          kubectl get sa db-backup-sa -n dev -o yaml | sed 's/namespace: dev/namespace: dr-drill-ns/' | kubectl apply -f -
+
+          echo "Dựng MariaDB tạm thời bằng Helm..."
+          helm repo add bitnami https://charts.bitnami.com/bitnami
+          helm install mariadb-temp-dr bitnami/mariadb \
+            --namespace dr-drill-ns \
+            --set auth.rootPassword="tam_thoi_123" \
+            --set primary.persistence.enabled=false \
+            --wait --timeout 300s
+
+      - name: Inject Variables and Run Restore Job
+        run: |
+          echo "Tiêm các biến môi trường vào file dr-restore-job.yaml..."
+          envsubst < infrastructure/scripts/dr-restore-job.yaml > /tmp/ready-job.yaml
+          
+          echo "Apply Job vào Kubernetes..."
+          kubectl apply -f /tmp/ready-job.yaml -n dr-drill-ns
+
+          echo "Đang chờ Job DR hoàn thành (Timeout: 10 phút)..."
+          if kubectl wait --for=condition=complete job/dr-restore-drill -n dr-drill-ns --timeout=600s; then
+            echo "✅ DR Drill thành công! Dữ liệu đã được phục hồi trên CSDL tạm."
+          else
+            echo "❌ DR Drill thất bại! File backup có thể bị hỏng."
+            kubectl logs -l job-name=dr-restore-drill -n dr-drill-ns
+            exit 1
+          fi
+
+      - name: Cleanup Temporary Environment
+        if: always() # LUÔN CHẠY BƯỚC NÀY ĐỂ DỌN DẸP, kể cả khi Job bị fail
+        run: |
+          echo "Dọn dẹp chiến trường..."
+          helm uninstall mariadb-temp-dr -n dr-drill-ns || true
+          kubectl delete namespace dr-drill-ns --ignore-not-found
+          echo "Sạch sẽ!"
