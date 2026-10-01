@@ -1,11 +1,11 @@
 global:
   keyvaultName: "kv-tasktracker-dev-999"
   tenantId: "2dff09ac-2b3b-4182-9953-2b548e0d0b39"
-  backupClientId: "f39d39ac-06a7-48bd-bcd4-bedd9ec16050"
+  backupClientId: "28fd42ac-60b2-4efa-ad92-2f575483de58"
   backupStorageAccount: "sabackuptasktrackerdev"
 keyvault_clients:
-  auth-service: f19da858-1b63-4582-9058-847a7722b311
-  comment-service: 2e6f094b-a2d2-4e78-8dbd-1cfc3733882b
-  notification-service: abf6d980-655a-421a-921d-5d0ed33b7682
-  project-service: f1e7f3bd-b46a-4a07-b37d-9a66a16a910d
-  task-service: 6c28f098-219e-4b8e-b762-d1fbe4881dcd
+  auth-service: 723571f3-bcd4-4e19-896d-28078af8c205
+  comment-service: c3b6e6bd-28b0-4a97-92e1-3fb6bf4ba577
+  notification-service: 003d059e-b8ab-4b9d-a175-8177b33d2f09
+  project-service: 879c0f4d-95d5-4c48-b224-5c16906a6731
+  task-service: e25bced8-69e7-4ad4-8e25-96918202b611
