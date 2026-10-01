@@ -159,3 +159,30 @@ resource "azurerm_role_assignment" "tf_ci_state_reader" {
   role_definition_name = "Reader"
   scope                = data.azurerm_storage_account.tfstate.id
 }
+
+# --- WEEK 9: ROUTING & INGRESS ---
+
+# 1. Tạo Azure DNS Zone (Nơi quản lý các bản ghi DNS tự động sau này)
+resource "azurerm_dns_zone" "main" {
+  name                = var.domain_name
+  resource_group_name = azurerm_resource_group.shared_rg.name
+  
+  # DNS Zone là dịch vụ toàn cầu (Global), nên không cần location cụ thể, 
+  # nhưng Azure bắt buộc nó nằm trong một RG.
+}
+
+# 2. Tạo Static Public IP (Standard SKU)
+resource "azurerm_public_ip" "ingress_ip" {
+  name                = "pip-ingress-${var.project_name}-${var.environment}"
+  resource_group_name = azurerm_resource_group.shared_rg.name
+  location            = azurerm_resource_group.shared_rg.location
+  
+  # Bắt buộc phải là Static để IP không đổi khi deploy lại
+  allocation_method   = "Static"
+  
+  # Bắt buộc là Standard để tương thích với AKS Standard Load Balancer
+  sku                 = "Standard"
+  
+  # Tùy chọn (Nice to have): Gắn domain name label cho IP này (VD: dev-ingress.eastasia.cloudapp.azure.com)
+  domain_name_label   = "${var.project_name}-ingress-${var.environment}"
+}
