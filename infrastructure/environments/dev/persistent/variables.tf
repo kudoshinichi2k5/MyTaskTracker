@@ -51,3 +51,8 @@ variable "github_token" {
   sensitive   = true
   default     = ""
 }
+
+variable "domain_name" {
+  description = "Tên miền chính của dự án (ví dụ: mytasktracker.work.gd)"
+  type        = string
+}

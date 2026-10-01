@@ -8,3 +8,5 @@ oidc_audience     = ["api://AzureADTokenExchange"]
 oidc_issuer       = "https://token.actions.githubusercontent.com"
 github_repository = "kudoshinichi2k5/MyTaskTracker"
 github_ref        = "main"
+
+domain_name = "mytasktracker.work.gd"
