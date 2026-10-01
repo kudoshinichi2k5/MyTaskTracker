@@ -1,0 +1,33 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ingress-nginx
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    # Source 1: Lấy Helm Chart chính thức từ cộng đồng Kubernetes (ingress-nginx)
+    - chart: ingress-nginx
+      repoURL: https://kubernetes.github.io/ingress-nginx
+      targetRevision: 4.10.0 # Pin version để đảm bảo ổn định
+      helm:
+        valueFiles:
+          # Trỏ vào file values nằm ở Source 2
+          - $values/deploy/environments/dev/ingress-nginx-values.yaml
+
+    # Source 2: Lấy file values từ Git Repo của bạn
+    - repoURL: 'https://github.com/kudoshinichi2k5/MyTaskTracker.git'
+      targetRevision: main
+      ref: values # Tên biến nội bộ để Source 1 sử dụng
+      
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: ingress-nginx # NGINX thường được cài trong namespace riêng
+    
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    # ArgoCD sẽ tự tạo namespace 'ingress-nginx' nếu chưa có
+    syncOptions:
+      - CreateNamespace=true
