@@ -1,0 +1,17 @@
+controller:
+  # Số lượng replica của NGINX (để 2 cho High Availability nếu cần, ở dev thì 1 cũng được)
+  replicaCount: 1
+
+  # Cấu hình Service LoadBalancer
+  service:
+    # Gắn Static Public IP mà Terraform đã tạo
+    loadBalancerIP: "65.52.163.27"
+    
+    annotations:
+      # BẮT BUỘC: Báo cho AKS biết IP này nằm ở RG khác (không phải node_resource_group mặc định)
+      service.beta.kubernetes.io/azure-load-balancer-resource-group: "rg-tasktracker-shared"
+
+  ingressClassResource:
+    name: nginx
+    enabled: true
+    default: true
