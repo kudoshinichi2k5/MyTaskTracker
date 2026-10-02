@@ -171,6 +171,19 @@ jobs:
           echo "keyvault_clients:" >> deploy/environments/dev/akv-values.yaml
           jq -r '.backend_client_ids.value | to_entries | .[] | "  \(.key): \(.value)"' infrastructure/environments/dev/workloads/tf_outputs.json >> deploy/environments/dev/akv-values.yaml
 
+          # --- THÊM ĐOẠN NÀY ĐỂ SINH FILE CERT-MANAGER-VALUES TỰ ĐỘNG ---
+          cat <<EOF > deploy/environments/dev/cert-manager-values.yaml
+          installCRDs: true
+          podLabels:
+            azure.workload.identity/use: "true"
+          serviceAccount:
+            create: true
+            name: cert-manager
+            annotations:
+              azure.workload.identity/client-id: "$CERT_MANAGER_CLIENT_ID"
+              azure.workload.identity/tenant-id: "$TENANT_ID"
+          EOF
+
           # Cấu hình git
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"

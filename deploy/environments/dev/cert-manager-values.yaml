@@ -1,9 +1,0 @@
-installCRDs: true
-podLabels:
-  azure.workload.identity/use: "true"
-serviceAccount:
-  create: true
-  name: cert-manager
-  annotations:
-    azure.workload.identity/client-id: "{{ .Values.global.certManagerClientId }}"
-    azure.workload.identity/tenant-id: "{{ .Values.global.tenantId }}"
