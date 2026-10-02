@@ -1,0 +1,25 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tls-config
+  namespace: argocd
+  annotations:
+    # Đảm bảo cài sau khi cert-manager đã cài xong (vì nó phụ thuộc vào CRD của cert-manager)
+    argocd.argoproj.io/sync-wave: "5"
+spec:
+  project: default
+  source:
+    repoURL: 'https://github.com/kudoshinichi2k5/MyTaskTracker.git'
+    targetRevision: main
+    path: deploy/tls-config
+    helm:
+      valueFiles:
+        # Tái sử dụng file cấu hình này để lấy SubscriptionID, ClientID, DomainName
+        - ../environments/dev/akv-values.yaml
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: dev
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

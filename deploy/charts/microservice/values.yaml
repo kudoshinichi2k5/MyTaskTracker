@@ -41,8 +41,3 @@ keyvault_clients: {}
 backup:
   enabled: false
   
-certManager:
-  clusterIssuerEnabled: false
-
-wildcardCert:
-  enabled: false

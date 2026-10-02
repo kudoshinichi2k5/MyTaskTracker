@@ -8,8 +8,3 @@ global:
 
 replicaCount: 1 # Ở dev chỉ cần 1 pod để tiết kiệm tiền
 
-certManager:
-  clusterIssuerEnabled: false
-
-wildcardCert:
-  enabled: false
