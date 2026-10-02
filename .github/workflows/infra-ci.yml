@@ -148,6 +148,12 @@ jobs:
           TENANT_ID=$(jq -r '.tenant_id.value' tf_outputs.json)
           BACKUP_CLIENT_ID=$(jq -r '.backup_client_id.value' tf_outputs.json)
           BACKUP_SA_NAME=$(jq -r '.backup_storage_account_name.value' tf_outputs.json)
+
+          CERT_MANAGER_CLIENT_ID=$(jq -r '.cert_manager_client_id.value' tf_outputs.json)
+          DNS_ZONE_NAME=$(jq -r '.dns_zone_name.value' tf_outputs.json)
+          DNS_RG_NAME=$(jq -r '.shared_rg_name.value' tf_outputs.json)
+          SUB_ID=$(jq -r '.subscription_id.value' tf_outputs.json)
+
           cd ../../../../
           cat <<EOF > deploy/environments/dev/akv-values.yaml
           global:
@@ -158,15 +164,18 @@ jobs:
           EOF
           echo "keyvault_clients:" >> deploy/environments/dev/akv-values.yaml
           jq -r '.backend_client_ids.value | to_entries | .[] | "  \(.key): \(.value)"' infrastructure/environments/dev/workloads/tf_outputs.json >> deploy/environments/dev/akv-values.yaml
-          
+
+          # Nối thêm các giá trị mới
+          echo "certManagerClientId: \"$CERT_MANAGER_CLIENT_ID\"" >> deploy/environments/dev/akv-values.yaml
+          echo "dnsZoneName: \"$DNS_ZONE_NAME\"" >> deploy/environments/dev/akv-values.yaml
+          echo "dnsResourceGroup: \"$DNS_RG_NAME\"" >> deploy/environments/dev/akv-values.yaml
+          echo "subscriptionId: \"$SUB_ID\"" >> deploy/environments/dev/akv-values.yaml
+
           # Cấu hình git
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          
-          # Add file vào stage
+
           git add deploy/environments/dev/akv-values.yaml
-          
-          # LÔ-GIC MỚI: Chỉ commit NẾU file akv-values.yaml thực sự có thay đổi trong stage
           if ! git diff --staged --quiet deploy/environments/dev/akv-values.yaml; then
             git commit -m "chore(infra): sync terraform outputs to argocd values [skip ci]"
             git push

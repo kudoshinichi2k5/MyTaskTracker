@@ -40,3 +40,8 @@ keyvault_clients: {}
 
 backup:
   enabled: false
+
+certManager.clusterIssuerEnabled: true
+
+certManager:
+  clusterIssuerEnabled: false

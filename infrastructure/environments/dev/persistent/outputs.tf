@@ -35,3 +35,11 @@ output "ingress_public_ip_id" {
   description = "Resource ID của Static Public IP"
   value       = azurerm_public_ip.ingress_ip.id
 }
+
+output "dns_zone_id" {
+  description = "Resource ID của DNS Zone để giới hạn Role Assignment"
+  value       = azurerm_dns_zone.main.id
+}
+output "subscription_id" {
+  value = data.azurerm_client_config.current.subscription_id
+}
