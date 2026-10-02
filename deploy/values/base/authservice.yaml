@@ -37,3 +37,7 @@ readinessProbe:
 
 backup:
   enabled: true
+
+# Chỉ giao nhiệm vụ xin chứng chỉ Wildcard cho AuthService đại diện
+wildcardCert:
+  enabled: tru

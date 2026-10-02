@@ -3,5 +3,10 @@ global:
   namespace: "dev"
   keyvaultName: "kv-tasktracker-dev-999" # Tên Key Vault của bạn
   tenantId: "2dff09ac-2b3b-4182-9953-2b548e0d0b39" # Lấy từ `az account show`
+  domainName: "mytasktracker.work.gd"
+  domainPrefix: "tracker"
 
 replicaCount: 1 # Ở dev chỉ cần 1 pod để tiết kiệm tiền
+
+wildcardCert:
+  enabled: false
