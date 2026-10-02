@@ -3,13 +3,13 @@ global:
   tenantId: "2dff09ac-2b3b-4182-9953-2b548e0d0b39"
   backupClientId: "28fd42ac-60b2-4efa-ad92-2f575483de58"
   backupStorageAccount: "sabackuptasktrackerdev"
+  certManagerClientId: "73f7dafa-4436-407e-a8f2-4d2fbf2c35f6"
+  dnsZoneName: "mytasktracker.work.gd"
+  dnsResourceGroup: "rg-tasktracker-shared"
+  subscriptionId: "7d87cfd2-0799-41e4-838a-0ea3b2b7f96d"
 keyvault_clients:
   auth-service: 723571f3-bcd4-4e19-896d-28078af8c205
   comment-service: c3b6e6bd-28b0-4a97-92e1-3fb6bf4ba577
   notification-service: 003d059e-b8ab-4b9d-a175-8177b33d2f09
   project-service: 879c0f4d-95d5-4c48-b224-5c16906a6731
   task-service: e25bced8-69e7-4ad4-8e25-96918202b611
-certManagerClientId: "73f7dafa-4436-407e-a8f2-4d2fbf2c35f6"
-dnsZoneName: "mytasktracker.work.gd"
-dnsResourceGroup: "rg-tasktracker-shared"
-subscriptionId: "7d87cfd2-0799-41e4-838a-0ea3b2b7f96d"
