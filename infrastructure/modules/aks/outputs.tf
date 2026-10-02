@@ -34,3 +34,8 @@ output "kubelet_identity_object_id" {
 output "oidc_issuer_url" {
   value = azurerm_kubernetes_cluster.aks.oidc_issuer_url
 }
+
+output "cluster_identity_principal_id" {
+  description = "Principal ID của System Assigned Identity của AKS (Dùng để quản lý Load Balancer)"
+  value       = azurerm_kubernetes_cluster.aks.identity[0].principal_id
+}
