@@ -158,7 +158,18 @@ jobs:
           EOF
           echo "keyvault_clients:" >> deploy/environments/dev/akv-values.yaml
           jq -r '.backend_client_ids.value | to_entries | .[] | "  \(.key): \(.value)"' infrastructure/environments/dev/workloads/tf_outputs.json >> deploy/environments/dev/akv-values.yaml
+          
+          # Cấu hình git
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Add file vào stage
           git add deploy/environments/dev/akv-values.yaml
-          git diff --quiet && git diff --staged --quiet || (git commit -m "chore(infra): sync terraform outputs to argocd values [skip ci]" && git push)
+          
+          # LÔ-GIC MỚI: Chỉ commit NẾU file akv-values.yaml thực sự có thay đổi trong stage
+          if ! git diff --staged --quiet deploy/environments/dev/akv-values.yaml; then
+            git commit -m "chore(infra): sync terraform outputs to argocd values [skip ci]"
+            git push
+          else
+            echo "✅ File akv-values.yaml không có sự thay đổi. Bỏ qua commit."
+          fi
