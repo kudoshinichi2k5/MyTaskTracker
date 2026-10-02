@@ -33,6 +33,9 @@ locals {
   acr_id             = data.terraform_remote_state.persistent.outputs.acr_id
   tf_ci_principal_id = data.terraform_remote_state.persistent.outputs.tf_ci_principal_id
   backup_sa_name     = data.terraform_remote_state.persistent.outputs.backup_storage_account_name
+  dns_zone_id     = data.terraform_remote_state.persistent.outputs.dns_zone_id
+  dns_zone_name   = data.terraform_remote_state.persistent.outputs.dns_zone_name
+  subscription_id = data.terraform_remote_state.persistent.outputs.subscription_id
 }
 
 # 1. Networking (Workload)
@@ -199,4 +202,23 @@ resource "azurerm_role_assignment" "aks_network_contributor_shared" {
   
   # data.terraform_remote_state.persistent.outputs.shared_rg_id đã được bạn xuất ra ở bài trước!
   scope                = data.terraform_remote_state.persistent.outputs.shared_rg_id
+}
+
+# Tạo Workload Identity cho cert-manager
+module "cert_manager_identity" {
+  source                   = "../../../modules/identity"
+  identity_name            = "id-cert-manager-${var.environment}"
+  resource_group_name      = local.app_rg_name
+  location                 = local.app_rg_location
+  is_workload_identity     = true
+  aks_oidc_issuer_url      = module.aks.oidc_issuer_url
+  k8s_namespace            = "cert-manager" # Chú ý: cert-manager thường chạy ở namespace riêng
+  k8s_service_account_name = "cert-manager"
+}
+
+# Gán quyền SIÊU HẸP: DNS Zone Contributor chỉ trên ĐÚNG cái DNS Zone đó
+resource "azurerm_role_assignment" "cert_manager_dns_contributor" {
+  principal_id         = module.cert_manager_identity.principal_id
+  role_definition_name = "DNS Zone Contributor"
+  scope                = local.dns_zone_id
 }

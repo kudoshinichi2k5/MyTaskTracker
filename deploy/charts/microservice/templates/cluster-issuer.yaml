@@ -1,0 +1,26 @@
+{{- if .Values.certManager.clusterIssuerEnabled }}
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+  # ClusterIssuer không có namespace
+spec:
+  acme:
+    # URL của Let's Encrypt Production. Cẩn thận: Nếu lỗi quá 5 lần 1 giờ sẽ bị ban IP 1 tuần.
+    server: https://acme-v02.api.letsencrypt.org/directory
+    # Nhập email của bạn để Let's Encrypt cảnh báo khi cert sắp hết hạn
+    email: kienlt.t2.2023@gmai.com
+    privateKeySecretRef:
+      name: letsencrypt-prod-account-key
+    solvers:
+    - dns01:
+        azureDNS:
+          # Cấu hình sử dụng Workload Identity
+          environment: AzurePublicCloud
+          subscriptionID: {{ .Values.global.subscriptionId }}
+          resourceGroupName: {{ .Values.global.dnsResourceGroup }}
+          hostedZoneName: {{ .Values.global.dnsZoneName }}
+          # KHÔNG truyền mật khẩu, chỉ dùng Workload Identity
+          managedIdentity:
+            clientID: {{ .Values.global.certManagerClientId }}
+{{- end }}
