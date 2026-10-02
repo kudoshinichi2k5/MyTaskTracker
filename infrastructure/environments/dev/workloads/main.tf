@@ -191,3 +191,12 @@ resource "azurerm_role_assignment" "backup_sa_contributor" {
   role_definition_name = "Storage Blob Data Contributor"
   scope                = data.azurerm_storage_account.backup_sa.id
 }
+
+# Cấp quyền Network Contributor cho AKS trên Shared RG để nó có thể gắn Static Public IP
+resource "azurerm_role_assignment" "aks_network_contributor_shared" {
+  principal_id         = module.aks.cluster_identity_principal_id
+  role_definition_name = "Network Contributor"
+  
+  # data.terraform_remote_state.persistent.outputs.shared_rg_id đã được bạn xuất ra ở bài trước!
+  scope                = data.terraform_remote_state.persistent.outputs.shared_rg_id
+}
