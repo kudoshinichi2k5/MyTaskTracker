@@ -9,3 +9,7 @@ keyvault_clients:
   notification-service: 003d059e-b8ab-4b9d-a175-8177b33d2f09
   project-service: 879c0f4d-95d5-4c48-b224-5c16906a6731
   task-service: e25bced8-69e7-4ad4-8e25-96918202b611
+certManagerClientId: "73f7dafa-4436-407e-a8f2-4d2fbf2c35f6"
+dnsZoneName: "mytasktracker.work.gd"
+dnsResourceGroup: "rg-tasktracker-shared"
+subscriptionId: "7d87cfd2-0799-41e4-838a-0ea3b2b7f96d"
