@@ -1,0 +1,4 @@
+apiVersion: v2
+name: tls-config
+description: Cấu hình ClusterIssuer và Wildcard Certificate
+version: 1.0.0

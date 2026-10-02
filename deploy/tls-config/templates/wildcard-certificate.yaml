@@ -1,0 +1,14 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: tracker-wildcard-cert
+  namespace: dev # Chú ý: Certificate phải nằm cùng namespace với Ingress (dev)
+spec:
+  secretName: wildcard-tls-secret
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+  # Lấy domainName từ akv-values.yaml
+  - "*.{{ .Values.global.domainName }}"
+  - "{{ .Values.global.domainName }}"

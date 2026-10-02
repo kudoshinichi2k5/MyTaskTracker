@@ -24,3 +24,16 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+
+  # THÊM ĐOẠN NÀY ĐỂ FIX LỖI OUT OF SYNC
+  ignoreDifferences:
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      name: cert-manager-webhook
+      jqPathExpressions:
+        - '.webhooks[].clientConfig.caBundle'
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+      name: cert-manager-webhook
+      jqPathExpressions:
+        - '.webhooks[].clientConfig.caBundle'
