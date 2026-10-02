@@ -138,7 +138,7 @@ resource "random_password" "mariadb_root" {
 resource "azurerm_key_vault_secret" "db_connection_strings" {
   for_each     = toset(var.backend_services_list)
   name         = "${each.key}-connection-string"
-  value        = "Server=tracker-mariadb.${var.kubernetes_namespace}.svc.cluster.local;Port=3306;Database=tracker_${split("-", each.key)[0]};User=${replace(each.key, "-", "_")};Password=${random_password.db_passwords[each.key].result};"
+  value        = "Server=tracker-mariadb.${var.kubernetes_namespace}.svc.cluster.local;Port=3306;Database=tracker_${split("-", each.key)[0]};User=${replace(each.key, "-", "_")};Password='${random_password.db_passwords[each.key].result}';"
   key_vault_id = module.keyvault.kv_id
   depends_on   = [azurerm_role_assignment.terraform_kv_admin_local, azurerm_role_assignment.tf_ci_kv_admin_explicit]
 }
