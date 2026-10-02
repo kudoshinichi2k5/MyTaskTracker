@@ -45,3 +45,6 @@ certManager.clusterIssuerEnabled: true
 
 certManager:
   clusterIssuerEnabled: false
+
+wildcardCert:
+  enabled: false
