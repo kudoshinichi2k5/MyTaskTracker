@@ -14,8 +14,9 @@ spec:
     path: deploy/tls-config
     helm:
       valueFiles:
-        # Tái sử dụng file cấu hình này để lấy SubscriptionID, ClientID, DomainName
+        - ../environments/dev/values.yaml
         - ../environments/dev/akv-values.yaml
+        
   destination:
     server: 'https://kubernetes.default.svc'
     namespace: dev
