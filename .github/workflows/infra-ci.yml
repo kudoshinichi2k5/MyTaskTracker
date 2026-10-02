@@ -188,10 +188,14 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add deploy/environments/dev/akv-values.yaml
-          if ! git diff --staged --quiet deploy/environments/dev/akv-values.yaml; then
-            git commit -m "chore(infra): sync terraform outputs to argocd values [skip ci]"
+          # Add cả 2 file vào Staging Area
+          git add deploy/environments/dev/akv-values.yaml deploy/environments/dev/cert-manager-values.yaml
+          
+          # Kiểm tra xem Staging Area có bất kỳ thay đổi nào không (không chỉ định tên file)
+          if ! git diff --staged --quiet; then
+            git commit -m "chore(infra): sync terraform outputs to argocd and cert-manager values [skip ci]"
             git push
+            echo "✅ Đã commit và push cấu hình mới thành công."
           else
-            echo "✅ File akv-values.yaml không có sự thay đổi. Bỏ qua commit."
+            echo "✅ Không có sự thay đổi nào ở các file values. Bỏ qua commit."
           fi
