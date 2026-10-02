@@ -148,28 +148,28 @@ jobs:
           TENANT_ID=$(jq -r '.tenant_id.value' tf_outputs.json)
           BACKUP_CLIENT_ID=$(jq -r '.backup_client_id.value' tf_outputs.json)
           BACKUP_SA_NAME=$(jq -r '.backup_storage_account_name.value' tf_outputs.json)
-
           CERT_MANAGER_CLIENT_ID=$(jq -r '.cert_manager_client_id.value' tf_outputs.json)
           DNS_ZONE_NAME=$(jq -r '.dns_zone_name.value' tf_outputs.json)
           DNS_RG_NAME=$(jq -r '.shared_rg_name.value' tf_outputs.json)
           SUB_ID=$(jq -r '.subscription_id.value' tf_outputs.json)
-
+          
           cd ../../../../
+          # Ghi đè vào file, đẩy tất cả vào thụt lề của global:
           cat <<EOF > deploy/environments/dev/akv-values.yaml
           global:
             keyvaultName: "$KV_NAME"
             tenantId: "$TENANT_ID"
             backupClientId: "$BACKUP_CLIENT_ID"
             backupStorageAccount: "$BACKUP_SA_NAME"
+            certManagerClientId: "$CERT_MANAGER_CLIENT_ID"
+            dnsZoneName: "$DNS_ZONE_NAME"
+            dnsResourceGroup: "$DNS_RG_NAME"
+            subscriptionId: "$SUB_ID"
           EOF
+          
+          # Nối mảng keyvault_clients ở bên ngoài global
           echo "keyvault_clients:" >> deploy/environments/dev/akv-values.yaml
           jq -r '.backend_client_ids.value | to_entries | .[] | "  \(.key): \(.value)"' infrastructure/environments/dev/workloads/tf_outputs.json >> deploy/environments/dev/akv-values.yaml
-
-          # Nối thêm các giá trị mới
-          echo "certManagerClientId: \"$CERT_MANAGER_CLIENT_ID\"" >> deploy/environments/dev/akv-values.yaml
-          echo "dnsZoneName: \"$DNS_ZONE_NAME\"" >> deploy/environments/dev/akv-values.yaml
-          echo "dnsResourceGroup: \"$DNS_RG_NAME\"" >> deploy/environments/dev/akv-values.yaml
-          echo "subscriptionId: \"$SUB_ID\"" >> deploy/environments/dev/akv-values.yaml
 
           # Cấu hình git
           git config --global user.name "github-actions[bot]"
