@@ -1,0 +1,24 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root-app
+  namespace: argocd
+  # Mẹo: App-of-apps thường cài cuối cùng để đảm bảo các CRD có sẵn
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: 'https://github.com/kudoshinichi2k5/MyTaskTracker.git'
+    targetRevision: main
+    path: deploy/argocd-apps  # TRỎ VÀO THƯ MỤC VỪA TẠO
+    # KHÔNG CÓ khối 'helm:' ở đây! Báo cho ArgoCD biết đây chỉ là thư mục chứa raw YAML.
+    directory:
+      recurse: true # Đọc tất cả các file yaml bên trong
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: argocd # Rất quan trọng: App con phải được cài vào namespace argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
