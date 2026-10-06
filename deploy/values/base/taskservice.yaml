@@ -35,3 +35,17 @@ readinessProbe:
     path: /health
     port: http
   initialDelaySeconds: 10
+
+ingress:
+  enabled: true
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$1
+  hosts:
+    - host: api.mytasktracker.work.gd
+      paths:
+        - path: /tasks/(.*)
+          pathType: Prefix
+  tls:
+    - secretName: wildcard-tls-secret
+      hosts:
+        - api.mytasktracker.work.gd
