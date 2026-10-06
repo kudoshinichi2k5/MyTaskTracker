@@ -27,7 +27,6 @@ module "networking" {
   db_subnet_address_prefix  = var.db_subnet_address_prefix
   aks_subnet_name           = var.aks_subnet_name
   db_subnet_name            = var.db_subnet_name
-  db_nsg_name               = var.db_nsg_name
 }
 
 module "aks" {

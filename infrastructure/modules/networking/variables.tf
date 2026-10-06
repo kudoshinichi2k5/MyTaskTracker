@@ -7,4 +7,3 @@ variable "db_subnet_address_prefix" { type = list(string) }
 
 variable "aks_subnet_name" { type = string }
 variable "db_subnet_name" { type = string }
-variable "db_nsg_name" { type = string }
