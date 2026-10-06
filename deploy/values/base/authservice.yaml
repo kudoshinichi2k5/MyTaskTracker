@@ -38,3 +38,17 @@ readinessProbe:
 backup:
   enabled: true
 
+ingress:
+  enabled: true
+  annotations:
+    # Rewrite target để NGINX cắt bỏ chữ /auth trước khi đưa request vào cho .NET
+    nginx.ingress.kubernetes.io/rewrite-target: /$1
+  hosts:
+    - host: api.mytasktracker.work.gd
+      paths:
+        - path: /auth/(.*)
+          pathType: Prefix
+  tls:
+    - secretName: wildcard-tls-secret
+      hosts:
+        - api.mytasktracker.work.gd
