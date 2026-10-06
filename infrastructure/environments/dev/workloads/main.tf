@@ -49,7 +49,18 @@ module "networking" {
   db_subnet_address_prefix  = var.db_subnet_address_prefix
   aks_subnet_name           = var.aks_subnet_name
   db_subnet_name            = var.db_subnet_name
+}
+
+# 1.5 Security (Workload)
+module "security" {
+  source                    = "../../../modules/security"
+  location                  = local.app_rg_location
+  resource_group_name       = local.app_rg_name
+  environment               = var.environment
   db_nsg_name               = var.db_nsg_name
+  aks_subnet_address_prefix = var.aks_subnet_address_prefix
+  db_subnet_id              = module.networking.db_subnet_id
+  aks_subnet_id             = module.networking.aks_subnet_id
 }
 
 # 2. AKS (Workload)
