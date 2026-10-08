@@ -60,7 +60,6 @@ module "security" {
   db_nsg_name               = var.db_nsg_name
   aks_subnet_address_prefix = var.aks_subnet_address_prefix
   db_subnet_id              = module.networking.db_subnet_id
-  aks_subnet_id             = module.networking.aks_subnet_id
 }
 
 # 2. AKS (Workload)
