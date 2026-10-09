@@ -33,7 +33,7 @@
           },
           "configurations": {
             "testing": {
-              "baseHref": "/app2/",
+              "baseHref": "/",
               "fileReplacements": [
                 {
                   "replace": "src/environments/environment.ts",
@@ -42,7 +42,7 @@
               ]
             },
             "staging": {
-              "baseHref": "/app2/",
+              "baseHref": "/",
               "fileReplacements": [
                 {
                   "replace": "src/environments/environment.ts",
@@ -51,7 +51,7 @@
               ]
             },
             "production": {
-              "baseHref": "/app2/",
+              "baseHref": "/",
               "fileReplacements": [
                 {
                   "replace": "src/environments/environment.ts",
