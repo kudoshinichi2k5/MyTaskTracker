@@ -103,8 +103,9 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          # BẮT BUỘC: fetch-depth: 0 để gitleaks có thể so sánh giữa các commit trong PR
-          fetch-depth: 0
+          # Push/PR dùng fetch-depth: 0 để quét diff.
+          # workflow_dispatch dùng fetch-depth: 2 để chỉ quét các thay đổi gần nhất.
+          fetch-depth: ${{ github.event_name == 'workflow_dispatch' && 2 || 0 }}
           # Ép checkout đúng commit của nhánh PR thay vì merge commit ảo
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
