@@ -263,7 +263,6 @@ jobs:
     if: |
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
       !contains(needs.*.result, 'failure') &&
-      !contains(needs.*.result, 'cancelled') &&
       needs.changes.outputs.changed_all != '[]'
     runs-on: ubuntu-latest
     strategy:
