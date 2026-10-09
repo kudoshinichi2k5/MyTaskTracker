@@ -4,6 +4,7 @@ controller:
 
   # Cấu hình Service LoadBalancer
   service:
+    externalTrafficPolicy: Local
     # Gắn Static Public IP mà Terraform đã tạo
     loadBalancerIP: "65.52.163.27"
     
