@@ -1,7 +1,7 @@
 fullnameOverride: "notification-service"
 image:
   repository: "backend/notificationservice"
-  tag: "4b95111a40620bfb713c9986c21e3d789b1a1355"
+  tag: "c035718307ac0601c7cd91bb3fa1f2645e4d0f04"
 service:
   port: 80
 env:
