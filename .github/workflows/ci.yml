@@ -152,12 +152,13 @@ jobs:
         run: dotnet restore app/Backend/Tests/Tracker.${{ matrix.service }}.Tests
 
       - name: Build
-        run: dotnet build app/Backend/Tests/Tracker.${{ matrix.service }}.Tests --no-restore
+        run: dotnet build app/Backend/Tests/Tracker.${{ matrix.service }}.Tests --configuration Release --no-restore
 
       # 1. Chạy test và ép xuất ra report (TRX và Cobertura)
       - name: Test and Collect Coverage
         run: |
           dotnet test app/Backend/Tests/Tracker.${{ matrix.service }}.Tests \
+            --configuration Release \
             --no-build \
             --verbosity normal \
             --logger "trx;LogFileName=test_results.trx" \
@@ -166,14 +167,18 @@ jobs:
 
       # === THÊM MỚI: Publish project chính (không phải Test project) ===
       - name: Publish
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         run: |
           dotnet publish app/Backend/Tracker.${{ matrix.service }} \
             -c Release \
+            --no-restore \
+            --no-build \
             -o ./publish/Tracker.${{ matrix.service }}
 
       # === THÊM MỚI: Upload publish output để Job 4 dùng ===
       - name: Upload Publish Artifact
         uses: actions/upload-artifact@v4
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         with:
           name: publish-${{ matrix.service }}
           path: ./publish/Tracker.${{ matrix.service }}
@@ -235,9 +240,9 @@ jobs:
       - name: Install dependencies (Clean install)
         run: npm ci
 
-      # Chạy build với cấu hình testing như thống nhất
-      - name: Build (Testing Environment)
-        run: npm run build:testing
+      # Build artifact cho Azure dev bằng domain API của môi trường dev.
+      - name: Build (Dev Environment)
+        run: npm run build:dev
 
       # Chạy Jest Test (Tự động Headless nhờ JSDOM)
       - name: Test
@@ -245,12 +250,14 @@ jobs:
 
       # === THÊM MỚI: gom output Angular (dist/<name>/browser) về 1 path cố định ===
       - name: Flatten Angular build output
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         run: |
           mkdir -p dist_out
           cp -r dist/*/browser/* dist_out/
 
       - name: Upload Dist Artifact
         uses: actions/upload-artifact@v4
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         with:
           name: dist-${{ matrix.app }}
           path: app/Frontend/${{ matrix.app }}/dist_out
@@ -261,10 +268,10 @@ jobs:
   build-and-push-docker:
     # Phải đợi build và test pass.
     needs: [changes, secret-scan, build-backend, build-frontend]
-    if: |
+    if: ${{ !cancelled() &&
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
       !contains(needs.*.result, 'failure') &&
-      needs.changes.outputs.changed_all != '[]'
+      needs.changes.outputs.changed_all != '[]' }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -294,8 +301,8 @@ jobs:
       # - name: Set up QEMU
       #   uses: docker/setup-qemu-action@v4
 
-      # 3. Chuẩn bị đường dẫn thư mục, tên image và Build Args
-      - name: Set Image Path, Name and Build Args
+      # 3. Chuẩn bị đường dẫn thư mục, tên image và Docker target
+      - name: Set Image Path, Name and Build Target
         id: prep
         run: |
           SERVICE_LOWER=$(echo "${{ matrix.service }}" | tr '[:upper:]' '[:lower:]')
@@ -305,19 +312,20 @@ jobs:
             IMAGE_NAME="${{ vars.ACR_NAME }}.azurecr.io/frontend/$SERVICE_LOWER"
             ARTIFACT_NAME="dist-${{ matrix.service }}"
             ARTIFACT_SUBDIR="dist"
-            echo "BUILD_ARGS=" >> $GITHUB_ENV   # frontend không còn cần build-arg nào
+            BUILD_TARGET="runtime-artifact"
           else
             CONTEXT_PATH="app/Backend/Tracker.${{ matrix.service }}"
             IMAGE_NAME="${{ vars.ACR_NAME }}.azurecr.io/backend/$SERVICE_LOWER"
             ARTIFACT_NAME="publish-${{ matrix.service }}"
             ARTIFACT_SUBDIR="publish"
-            echo "BUILD_ARGS=SERVICE_NAME=Tracker.${{ matrix.service }}" >> $GITHUB_ENV
+            BUILD_TARGET="runtime-artifact"
           fi
 
           echo "IMAGE_NAME=$IMAGE_NAME" >> $GITHUB_ENV
           echo "CONTEXT_PATH=$CONTEXT_PATH" >> $GITHUB_ENV
           echo "ARTIFACT_NAME=$ARTIFACT_NAME" >> $GITHUB_ENV
           echo "ARTIFACT_SUBDIR=$ARTIFACT_SUBDIR" >> $GITHUB_ENV
+          echo "BUILD_TARGET=$BUILD_TARGET" >> $GITHUB_ENV
 
        # === THÊM MỚI: Tải artifact đã build sẵn ở Job 2/3 vào context ===
       - name: Download Build Artifact
@@ -333,7 +341,7 @@ jobs:
           context: ${{ env.CONTEXT_PATH }}
           push: true
           tags: ${{ env.IMAGE_NAME }}:${{ github.sha }}
-          build-args: ${{ env.BUILD_ARGS }}
+          target: ${{ env.BUILD_TARGET }}
           # Kích hoạt Docker Cache, dùng tên dịch vụ lấy từ matrix làm Scope để không đụng nhau
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
@@ -383,8 +391,8 @@ jobs:
   # === Job 7 - Validate Helm Chart & Values ===
   validate-helm:
     needs: [changes]
-    # Chỉ chạy khi có thay đổi trong thư mục deploy/ hoặc khi chạy workflow_dispatch
-    if: needs.changes.outputs.changed_deploy == 'true' || github.event_name == 'workflow_dispatch'
+    # Manual build_all cũng đặt changed_deploy=true tại job changes.
+    if: needs.changes.outputs.changed_deploy == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -406,7 +414,7 @@ jobs:
           helm template authservice deploy/charts/microservice \
             -f deploy/values/base/authservice.yaml \
             -f deploy/environments/dev/values.yaml \
-            -f deploy/environments/dev/akv-values.yaml # THÊM FILE NÀY
+            -f deploy/environments/dev/akv-values.yaml 
           
             echo "Running helm template dry-run for CustomerApp..."
           helm template customerapp deploy/charts/microservice \

@@ -1,17 +1,15 @@
-# version: '3.8'
-
 services:
   mariadb:
     image: mariadb:11.4
     container_name: tracker-mariadb
     restart: unless-stopped
     environment:
-      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
-      AUTH_DB_PASSWORD: ${AUTH_DB_PASSWORD}
-      TASK_DB_PASSWORD: ${TASK_DB_PASSWORD}
-      NOTIFICATION_DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD}
-      PROJECT_DB_PASSWORD: ${PROJECT_DB_PASSWORD}
-      COMMENT_DB_PASSWORD: ${COMMENT_DB_PASSWORD}
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:?Set MARIADB_ROOT_PASSWORD in app/.env}
+      AUTH_DB_PASSWORD: ${AUTH_DB_PASSWORD:?Set AUTH_DB_PASSWORD in app/.env}
+      TASK_DB_PASSWORD: ${TASK_DB_PASSWORD:?Set TASK_DB_PASSWORD in app/.env}
+      NOTIFICATION_DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD:?Set NOTIFICATION_DB_PASSWORD in app/.env}
+      PROJECT_DB_PASSWORD: ${PROJECT_DB_PASSWORD:?Set PROJECT_DB_PASSWORD in app/.env}
+      COMMENT_DB_PASSWORD: ${COMMENT_DB_PASSWORD:?Set COMMENT_DB_PASSWORD in app/.env}
     ports:
       - "3306:3306"
     volumes:
@@ -26,8 +24,7 @@ services:
   auth-service:
     build:
       context: ./Backend/Tracker.AuthService
-      args:
-        SERVICE_NAME: Tracker.AuthService
+      target: runtime
     container_name: tracker-auth-service
     depends_on:
       mariadb:
@@ -35,7 +32,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
-      ConnectionStrings__AuthDb: "Server=mariadb;Port=3306;Database=tracker_auth;User=auth_service;Password=${AUTH_DB_PASSWORD};"
+      ConnectionStrings__AuthDb: "Server=mariadb;Port=3306;Database=tracker_auth;User=auth_service;Password=${AUTH_DB_PASSWORD:?Set AUTH_DB_PASSWORD in app/.env};"
       AllowedFrontendOrigins: "http://localhost:4200,http://localhost:4300"
     ports:
       - "5001:8080"
@@ -48,8 +45,7 @@ services:
   task-service:
     build:
       context: ./Backend/Tracker.TaskService
-      args:
-        SERVICE_NAME: Tracker.TaskService
+      target: runtime
     container_name: tracker-task-service
     depends_on:
       mariadb:
@@ -59,7 +55,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
-      ConnectionStrings__TaskDb: "Server=mariadb;Port=3306;Database=tracker_tasks;User=task_service;Password=${TASK_DB_PASSWORD};"
+      ConnectionStrings__TaskDb: "Server=mariadb;Port=3306;Database=tracker_tasks;User=task_service;Password=${TASK_DB_PASSWORD:?Set TASK_DB_PASSWORD in app/.env};"
       AuthService__BaseUrl: "http://auth-service:8080"
       AuthService__VerifyPath: "/verify"
       AllowedFrontendOrigins: "http://localhost:4200,http://localhost:4300"
@@ -74,8 +70,7 @@ services:
   notification-service:
     build:
       context: ./Backend/Tracker.NotificationService
-      args:
-        SERVICE_NAME: Tracker.NotificationService
+      target: runtime
     container_name: tracker-notification-service
     depends_on:
       mariadb:
@@ -85,7 +80,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
-      ConnectionStrings__NotificationDb: "Server=mariadb;Port=3306;Database=tracker_notifications;User=notification_service;Password=${NOTIFICATION_DB_PASSWORD};"
+      ConnectionStrings__NotificationDb: "Server=mariadb;Port=3306;Database=tracker_notifications;User=notification_service;Password=${NOTIFICATION_DB_PASSWORD:?Set NOTIFICATION_DB_PASSWORD in app/.env};"
       AuthService__BaseUrl: "http://auth-service:8080"
       AuthService__VerifyPath: "/verify"
       AllowedFrontendOrigins: "http://localhost:4200,http://localhost:4300"
@@ -100,8 +95,7 @@ services:
   project-service:
     build:
       context: ./Backend/Tracker.ProjectService
-      args:
-        SERVICE_NAME: Tracker.ProjectService
+      target: runtime
     container_name: tracker-project-service
     depends_on:
       mariadb:
@@ -111,9 +105,10 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
-      ConnectionStrings__ProjectDb: "Server=mariadb;Port=3306;Database=tracker_projects;User=project_service;Password=${PROJECT_DB_PASSWORD};"
+      ConnectionStrings__ProjectDb: "Server=mariadb;Port=3306;Database=tracker_projects;User=project_service;Password=${PROJECT_DB_PASSWORD:?Set PROJECT_DB_PASSWORD in app/.env};"
       AuthService__BaseUrl: "http://auth-service:8080"
       AuthService__VerifyPath: "/verify"
+      AllowedFrontendOrigins: "http://localhost:4200,http://localhost:4300"
     ports:
       - "5004:8080"
     healthcheck:
@@ -125,8 +120,7 @@ services:
   comment-service:
     build:
       context: ./Backend/Tracker.CommentService
-      args:
-        SERVICE_NAME: Tracker.CommentService
+      target: runtime
     container_name: tracker-comment-service
     depends_on:
       mariadb:
@@ -136,9 +130,10 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
-      ConnectionStrings__CommentDb: "Server=mariadb;Port=3306;Database=tracker_comments;User=comment_service;Password=${COMMENT_DB_PASSWORD};"
+      ConnectionStrings__CommentDb: "Server=mariadb;Port=3306;Database=tracker_comments;User=comment_service;Password=${COMMENT_DB_PASSWORD:?Set COMMENT_DB_PASSWORD in app/.env};"
       AuthService__BaseUrl: "http://auth-service:8080"
       AuthService__VerifyPath: "/verify"
+      AllowedFrontendOrigins: "http://localhost:4200,http://localhost:4300"
     ports:
       - "5005:8080"
     healthcheck:
@@ -150,6 +145,7 @@ services:
   customer-app:
     build:
       context: ./Frontend/CustomerApp
+      target: runtime
       args:
         CONFIGURATION: development
         BASE_HREF: /
@@ -166,6 +162,7 @@ services:
   admin-portal:
     build:
       context: ./Frontend/AdminPortal
+      target: runtime
       args:
         CONFIGURATION: development
         BASE_HREF: /
