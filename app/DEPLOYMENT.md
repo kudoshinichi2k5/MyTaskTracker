@@ -1,47 +1,54 @@
-# IIS deployment
+# Development deployment
 
-This sample has three independently hosted ASP.NET Core services and two Angular applications. Deploy the services as separate IIS applications (or sites) and deploy the Angular `browser` folders as IIS applications named `app1` and `app2`.
+This repository currently has a local development stack and an Azure dev
+deployment path. It does not have a configured production cloud environment.
 
-Do not expose this build to the Internet as-is: AuthService has a hard-coded demo account (`admin` / `123456`) and all tokens, refresh sessions, tasks, notifications, users, and role changes are held only in process memory. An app-pool recycle or deployment invalidates every session and loses all data.
+## Local Docker Compose
 
-## Prerequisites
-
-- IIS with the URL Rewrite module (needed by both Angular `web.config` files).
-- The .NET 8 Hosting Bundle installed on the IIS server; restart IIS after installation.
-- HTTPS bindings and certificates for every public application/API origin.
-- IIS application-pool identities with read/execute access to the deployment directories and write access to a dedicated Data Protection keys directory if cookies or protected data are added later.
-
-## Configure production values
-
-Before building the frontends, replace the `*.yourdomain.com` placeholder URLs in both `src/environments/environment.prod.ts` files with the final HTTPS API origins. They are compiled into the JavaScript bundle.
-
-Set these environment variables for the TaskService and NotificationService IIS applications (or their equivalent IIS `web.config` environment variables):
-
-```text
-ASPNETCORE_ENVIRONMENT=Production
-AuthService__BaseUrl=http://127.0.0.1:5001
-AllowedFrontendOrigins=https://app.yourdomain.com,https://admin.yourdomain.com
-```
-
-`AuthService__BaseUrl` must be reachable from the IIS worker process. If AuthService is hosted behind an HTTPS IIS binding instead of local port 5001, use that HTTPS origin. Do not set a public wildcard for `AllowedFrontendOrigins`.
-
-## Build and publish
-
-Run from the repository root. In PowerShell, use `npm.cmd` if execution policy blocks `npm.ps1`.
+Run from the `app` directory. Create `.env` from `.env.example` if it does not
+exist, then replace the example passwords with local development values:
 
 ```powershell
-dotnet publish Backend/Tracker.AuthService/Tracker.AuthService.csproj -c Release -o .\artifacts\auth
-dotnet publish Backend/Tracker.TaskService/Tracker.TaskService.csproj -c Release -o .\artifacts\tasks
-dotnet publish Backend/Tracker.NotificationService/Tracker.NotificationService.csproj -c Release -o .\artifacts\notifications
-
-Push-Location Frontend\CustomerApp; npm.cmd ci; npm.cmd run build:production; Pop-Location
-Push-Location Frontend\AdminPortal; npm.cmd ci; npm.cmd run build:production; Pop-Location
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+docker compose up --build
 ```
 
-Deploy `.\artifacts\auth`, `.\artifacts\tasks`, and `.\artifacts\notifications` to their respective IIS app roots. Deploy `Frontend\CustomerApp\dist\frontend\browser` to `/app1` and `Frontend\AdminPortal\dist\admin-portal\browser` to `/app2`. Keep the generated `web.config` files; they enable Angular deep links.
+Do not overwrite an existing `.env`; it may contain your local values. The
+Compose stack builds the `runtime` Docker targets and serves the apps at
+`http://localhost:4200` and `http://localhost:4300`. The frontends use
+`environment.ts`, which points to the backend ports exposed on localhost.
+MariaDB and each backend use the matching service password from `.env`.
 
-## IIS layout and verification
+To stop the stack, run `docker compose down` from `app`. Add `-v` only when you
+intend to delete the local MariaDB volume and all local data.
 
-Configure the ASP.NET Core apps with **No Managed Code**, using separate application pools. If hosting them on loopback ports, bind AuthService to `127.0.0.1:5001`, TaskService to `127.0.0.1:5002`, and NotificationService to `127.0.0.1:5003`; expose the APIs through HTTPS reverse-proxy routes or dedicated HTTPS sites.
+## Azure dev deployment
 
-After deployment, verify `/health` for all services, then sign in through both portals and confirm task, notification, and admin-summary requests. A successful login must obtain an opaque token from AuthService; both resource services validate it through AuthService's `/verify` endpoint.
+Pushes to `main` run the CI checks. When app files change, CI publishes backend
+and frontend build artifacts, packages those artifacts with the Docker
+`runtime-artifact` targets, pushes one ARM64 image per changed app/service to
+ACR, and updates the image tags consumed by the Argo CD applications in
+`deploy/argocd-apps/applicationset-services.yaml`.
+
+The cloud frontend artifact uses the Angular `dev` configuration and calls:
+
+- `https://api.mytasktracker.work.gd/auth`
+- `https://api.mytasktracker.work.gd/tasks`
+- `https://api.mytasktracker.work.gd/notifications`
+- `https://api.mytasktracker.work.gd/projects`
+- `https://api.mytasktracker.work.gd/comments`
+
+The API ingress strips each path prefix before forwarding requests to its
+service. The API services allow requests from the dev frontend domains in
+`deploy/values/base/`.
+
+The domain currently resolves to `65.52.163.27`, but HTTPS to the website and
+API did not respond during the latest check. DNS resolution alone does not
+confirm that the dev ingress, TLS certificate, or applications are available.
+
+## Scope and safety
+
+The Azure/Argo CD values in this repository target the `dev` namespace. Do not
+use the current image pipeline or dev domain as a production deployment path.
+The application still contains demo credentials and in-memory authentication
+state; it is not suitable for public production use as-is.

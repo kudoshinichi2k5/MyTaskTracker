@@ -732,15 +732,18 @@ dotnet build Backend/Tracker.ProjectService/Tracker.ProjectService.csproj
 dotnet build Backend/Tracker.CommentService/Tracker.CommentService.csproj
 
 Push-Location Frontend/CustomerApp
-npm.cmd run build:production
+npm.cmd run build -- --configuration=development
 Pop-Location
 
 Push-Location Frontend/AdminPortal
-npm.cmd run build:production
+npm.cmd run build -- --configuration=development
 Pop-Location
 ```
 
-The production Angular builds use their respective `environment.prod.ts` files and do not require build-time Google Fonts access.
+The Angular `development` configuration uses the default environment files,
+which point to localhost. The separate `dev` configuration selects the Azure
+dev domain and is used only by the CI image pipeline; no extra
+`build:development` script is needed.
 
 ## Frontend testing proposal
 
@@ -750,15 +753,13 @@ Both Angular applications now use Jest through Angular's Jest builder. The exist
 2. Auth interceptor tests for bearer header injection, missing-token behavior, and `401` recovery.
 3. Guard tests for anonymous, authenticated, and admin-only navigation.
 4. Focused component tests for login/register validation, task/project forms, comment editing, notification unread state, and admin dashboard summaries.
-5. When frontend CI is enabled later, add one job per Angular app using `npm ci`, `npm test`, and the matching production build.
+5. CI runs each app's tests and packages a `build:dev` artifact for the Azure dev environment.
 
 Frontend tests should mock HTTP requests and environment-specific API origins rather than call live backend services.
 
-## IIS deployment
+## Azure dev deployment
 
-See [DEPLOYMENT.md](DEPLOYMENT.md) for prerequisites, production configuration, publish commands, IIS application-pool settings, frontend deployment paths, and post-deployment verification.
-
-Before any production build, replace the `*.yourdomain.com` placeholders in both frontend `environment.prod.ts` files with the final HTTPS API origins. They are compiled into the bundles.
+See [DEPLOYMENT.md](DEPLOYMENT.md) for local Docker Compose setup and the Azure dev image pipeline. This repository does not currently define a production cloud deployment.
 
 ## Important limitations
 
@@ -774,7 +775,7 @@ This repository is a demonstration, not production-ready identity or data infras
 
 - Replace the demo credential lookup with your own account-provisioning process before exposing the application publicly.
 
-- The current local Docker setup runs MariaDB in a container, while the backend and frontend applications run directly on the host. Full application containerization is a separate deployment step.
+- Local Docker Compose runs MariaDB, all backend services, and both frontend applications in development configuration.
 
 ## Current local UI notes
 

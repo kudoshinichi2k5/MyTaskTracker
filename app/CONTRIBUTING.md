@@ -15,7 +15,7 @@ The script uses the development database accounts created by `infra/mariadb/init
 Push-Location Backend; .\setup-local-secrets.ps1 -Password '<your-password>'; Pop-Location
 ```
 
-Use `ConnectionStrings__<name>` environment variables for staging and production; never use the local script for deployed credentials.
+Use Azure Key Vault-backed secrets for the cloud dev deployment. Do not copy local `.env` values or user secrets into CI or cloud configuration.
 
 ## Git conventions
 
