@@ -153,6 +153,19 @@ resource "azurerm_key_vault_secret" "db_connection_strings" {
   depends_on   = [azurerm_role_assignment.terraform_kv_admin_local, azurerm_role_assignment.tf_ci_kv_admin_explicit]
 }
 
+resource "random_password" "valkey_password" {
+  length           = 20
+  special          = true
+  override_special = "!#$%&*()-_=+[]{}<>:?"
+}
+
+resource "azurerm_key_vault_secret" "valkey_password_secret" {
+  name         = "valkey-password"
+  value        = random_password.valkey_password.result
+  key_vault_id = module.keyvault.kv_id
+  depends_on   = [azurerm_role_assignment.terraform_kv_admin_local, azurerm_role_assignment.tf_ci_kv_admin_explicit]
+}
+
 resource "azurerm_key_vault_secret" "root_pass" {
   name         = "mariadb-root-password"
   value        = random_password.mariadb_root.result

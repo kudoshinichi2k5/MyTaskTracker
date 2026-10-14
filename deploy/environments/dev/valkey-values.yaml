@@ -1,0 +1,16 @@
+global:
+  redis:
+    # Mount mật khẩu từ KeyVault vào biến môi trường của Valkey
+    password: "" # Sẽ bị override bởi env var
+primary:
+  persistence:
+    enabled: true
+    size: 2Gi # Đủ nhỏ cho dev, lưu session
+  podLabels:
+    azure.workload.identity/use: "true"
+  extraEnvVars:
+    - name: REDIS_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: auth-service-synced-secret # Dùng ké cái secret CSI của authservice để lấy mật khẩu
+          key: VALKEY_PASSWORD
