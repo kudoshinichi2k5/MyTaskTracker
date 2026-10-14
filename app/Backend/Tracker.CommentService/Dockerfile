@@ -1,10 +1,22 @@
-FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine
-ARG SERVICE_NAME
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:8.0-alpine AS build
+WORKDIR /src
+
+COPY Tracker.CommentService.csproj ./
+RUN dotnet restore Tracker.CommentService.csproj
+
+COPY . .
+RUN dotnet publish Tracker.CommentService.csproj -c Release -o /app/publish --no-restore
+
+FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine AS runtime-base
 WORKDIR /app
 EXPOSE 8080
 
+FROM runtime-base AS runtime-artifact
 COPY publish/ .
-ENV SERVICE_DLL="${SERVICE_NAME}.dll"
-
 USER app
-ENTRYPOINT dotnet $SERVICE_DLL
+ENTRYPOINT ["dotnet", "Tracker.CommentService.dll"]
+
+FROM runtime-base AS runtime
+COPY --from=build /app/publish .
+USER app
+ENTRYPOINT ["dotnet", "Tracker.CommentService.dll"]

@@ -6,6 +6,7 @@ service:
   port: 80
 env:
   ASPNETCORE_ENVIRONMENT: "Development"
+  AllowedFrontendOrigins: "https://mytasktracker.work.gd,https://www.mytasktracker.work.gd,https://admin.mytasktracker.work.gd"
 
 # secretEnv:
 #   ConnectionStrings__CommentDb: "Server=tracker-mariadb.dev.svc.cluster.local;Port=3306;Database=tracker_comments;User=comment_service;Password=newcommentpassword888;"

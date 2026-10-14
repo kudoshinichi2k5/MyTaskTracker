@@ -4,6 +4,7 @@ image:
   tag: "c035718307ac0601c7cd91bb3fa1f2645e4d0f04"
 env:
   ASPNETCORE_ENVIRONMENT: "Development"
+  AllowedFrontendOrigins: "https://mytasktracker.work.gd,https://www.mytasktracker.work.gd,https://admin.mytasktracker.work.gd"
   # Tên DNS nội bộ của MariaDB sẽ là: <tên-release>-<tên-chart>.<namespace>.svc.cluster.local
   # Trong trường hợp này là: tracker-mariadb.dev.svc.cluster.local
 
