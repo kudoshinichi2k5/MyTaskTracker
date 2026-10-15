@@ -353,12 +353,12 @@ jobs:
   # === Job 5 - Chuyên đảm nhận việc update GitOps ===
   update-gitops:
     needs: [changes, build-and-push-docker]
-    if: |
+    if: ${{ !cancelled() &&
       github.event_name == 'push' &&
       github.ref == 'refs/heads/main' &&
       needs.changes.outputs.changed_all != '[]' &&
       !contains(needs.*.result, 'failure') &&
-      !contains(needs.*.result, 'cancelled')
+      !contains(needs.*.result, 'cancelled') }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
