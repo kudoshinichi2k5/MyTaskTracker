@@ -78,6 +78,7 @@ module "aks" {
   node_max_count            = var.aks_node_max_count
   node_rotation_name        = var.aks_node_rotation_name
   network_plugin            = var.aks_network_plugin
+  network_policy            = var.aks_network_policy
   load_balancer_sku         = var.aks_load_balancer_sku
   service_cidr              = var.aks_service_cidr
   dns_service_ip            = var.aks_dns_service_ip
