@@ -599,7 +599,7 @@ Use `npm.cmd` in PowerShell if the local execution policy blocks `npm.ps1`.
 
 ### Recommended local development setup
 
-At the current development stage, MariaDB and Valkey run inside Docker. The backend and frontend applications run directly on the host. AuthService uses Valkey to persist access-token and refresh-session state; start both dependencies before running it locally.
+For a full local stack, Docker Compose runs MariaDB, Valkey, database migrations/seeding, all backend services, and both frontends. For step-through debugging, you can still run the backend and frontend applications directly on the host while keeping MariaDB and Valkey in Docker.
 
 ```text
                          Docker
@@ -640,30 +640,46 @@ This setup allows the services to be debugged locally while keeping the database
 
 ## Docker Compose commands
 
-### Start MariaDB and Valkey
+### Start the full stack
 
 ```powershell
-docker-compose up -d mariadb valkey
+docker compose up -d --build
 ```
 
-This is the recommended command while backend services are still running with `dotnet run`.
+Compose waits for MariaDB and Valkey to become healthy, runs each service's migration before starting that API, and seeds the default AuthService accounts when its user table is empty. No separate migration command is needed. The default local admin account is `admin` / `123456`.
+
+If a migration fails, inspect its logs with `docker compose logs <service>-migrate` (for example, `docker compose logs auth-migrate`).
+
+### Start only MariaDB and Valkey for host debugging
+
+```powershell
+docker compose up -d mariadb valkey
+```
+
+When running AuthService directly on the host, configure its Valkey address once:
+
+```powershell
+dotnet user-secrets set "ConnectionStrings:Valkey" "localhost:6379" --project Backend/Tracker.AuthService
+```
+
+Run the backend services from the host using `dotnet run` as needed.
 
 ### Stop MariaDB and Valkey
 
 ```powershell
-docker-compose stop mariadb valkey
+docker compose stop mariadb valkey
 ```
 
 ### Start MariaDB and Valkey again
 
 ```powershell
-docker-compose start mariadb valkey
+docker compose start mariadb valkey
 ```
 
 ### View MariaDB logs
 
 ```powershell
-docker-compose logs -f mariadb
+docker compose logs -f mariadb
 ```
 
 ### Check running containers
@@ -675,7 +691,7 @@ docker ps
 ### Stop and remove containers
 
 ```powershell
-docker-compose down
+docker compose down
 ```
 
 This does **not** remove the `mariadb_data` or `valkey_data` volumes.
@@ -683,49 +699,21 @@ This does **not** remove the `mariadb_data` or `valkey_data` volumes.
 ### Completely reset the local database
 
 ```powershell
-docker-compose down -v
-docker-compose up -d mariadb valkey
+docker compose down -v
+docker compose up -d --build
 ```
 
 > **Warning:** This deletes the `mariadb_data` volume and all local MariaDB data, as well as the `valkey_data` volume and local token sessions.
 
 ## Quick start
 
-From the repository root:
+From the `app` directory, start the full stack with one command:
 
 ```powershell
-# 1. Start MariaDB and Valkey
-docker-compose up -d mariadb valkey
-
-# 2. Configure Valkey for AuthService when running it on the host
-dotnet user-secrets set "ConnectionStrings:Valkey" "localhost:6379" --project Backend/Tracker.AuthService
-
-# 3. Verify the dependency containers
-docker ps
-
-# 4. Start AuthService
-dotnet run --project Backend/Tracker.AuthService
-
-# 5. Start TaskService
-dotnet run --project Backend/Tracker.TaskService
-
-# 6. Start NotificationService
-dotnet run --project Backend/Tracker.NotificationService
-
-# 7. Start ProjectService
-dotnet run --project Backend/Tracker.ProjectService
-
-# 8. Start CommentService
-dotnet run --project Backend/Tracker.CommentService
-
-# 9. Start CustomerApp
-cd Frontend/CustomerApp
-npm.cmd start
-
-# 10. Start AdminPortal in another terminal
-cd Frontend/AdminPortal
-npm.cmd start
+docker compose up -d --build
 ```
+
+Compose runs database migrations and seeds the default AuthService accounts before the APIs start. For host-based debugging, start only MariaDB and Valkey and run the services with `dotnet run` as described above.
 
 ## Build
 
