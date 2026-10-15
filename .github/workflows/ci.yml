@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       build_all:
-        description: 'Build & push tất cả service, bỏ qua kiểm tra thay đổi'
+        description: 'Build & push tất cả service trên main, bỏ qua kiểm tra thay đổi'
         type: boolean
         default: false
 
@@ -167,7 +167,7 @@ jobs:
 
       # === THÊM MỚI: Publish project chính (không phải Test project) ===
       - name: Publish
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
         run: |
           dotnet publish app/Backend/Tracker.${{ matrix.service }} \
             -c Release \
@@ -178,7 +178,7 @@ jobs:
       # === THÊM MỚI: Upload publish output để Job 4 dùng ===
       - name: Upload Publish Artifact
         uses: actions/upload-artifact@v4
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
         with:
           name: publish-${{ matrix.service }}
           path: ./publish/Tracker.${{ matrix.service }}
@@ -250,14 +250,14 @@ jobs:
 
       # === THÊM MỚI: gom output Angular (dist/<name>/browser) về 1 path cố định ===
       - name: Flatten Angular build output
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
         run: |
           mkdir -p dist_out
           cp -r dist/*/browser/* dist_out/
 
       - name: Upload Dist Artifact
         uses: actions/upload-artifact@v4
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
         with:
           name: dist-${{ matrix.app }}
           path: app/Frontend/${{ matrix.app }}/dist_out
@@ -269,7 +269,7 @@ jobs:
     # Phải đợi build và test pass.
     needs: [changes, secret-scan, build-backend, build-frontend]
     if: ${{ !cancelled() &&
-      github.event_name == 'push' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
       github.ref == 'refs/heads/main' &&
       !contains(needs.*.result, 'failure') &&
       needs.changes.outputs.changed_all != '[]' }}
@@ -354,7 +354,7 @@ jobs:
   update-gitops:
     needs: [changes, build-and-push-docker]
     if: ${{ !cancelled() &&
-      github.event_name == 'push' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
       github.ref == 'refs/heads/main' &&
       needs.changes.outputs.changed_all != '[]' &&
       !contains(needs.*.result, 'failure') &&
