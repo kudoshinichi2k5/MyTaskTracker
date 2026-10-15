@@ -11,9 +11,14 @@ spec:
     - Ingress
   ingress:
     - from:
+        # 1. Cho phép AuthService gọi vào
         - podSelector:
             matchLabels:
               app.kubernetes.io/name: auth-service
+        # 2. THÊM MỚI: Cho phép các Pod Valkey nói chuyện nội bộ (Replica <-> Primary)
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: valkey
       ports:
         - protocol: TCP
           port: 6379
