@@ -48,7 +48,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__Valkey: "valkey:6379"
-      ConnectionStrings__AuthDb: "Server=mariadb;Port=3306;Database=tracker_auth;User=auth_service;${AUTH_DB_PASSWORD:?Set AUTH_DB_PASSWORD in app/.env};"
+      ConnectionStrings__AuthDb: "Server=mariadb;Port=3306;Database=tracker_auth;User=auth_service;Password=${AUTH_DB_PASSWORD:?Set AUTH_DB_PASSWORD in app/.env};"
 
   auth-service:
     build:
@@ -86,7 +86,7 @@ services:
     command: ["--migrate"]
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__TaskDb: "Server=mariadb;Port=3306;Database=tracker_tasks;User=task_service;${TASK_DB_PASSWORD:?Set TASK_DB_PASSWORD in app/.env};"
+      ConnectionStrings__TaskDb: "Server=mariadb;Port=3306;Database=tracker_tasks;User=task_service;Password=${TASK_DB_PASSWORD:?Set TASK_DB_PASSWORD in app/.env};"
 
   task-service:
     build:
@@ -125,7 +125,7 @@ services:
     command: ["--migrate"]
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__NotificationDb: "Server=mariadb;Port=3306;Database=tracker_notifications;User=notification_service;${NOTIFICATION_DB_PASSWORD:?Set NOTIFICATION_DB_PASSWORD in app/.env};"
+      ConnectionStrings__NotificationDb: "Server=mariadb;Port=3306;Database=tracker_notifications;User=notification_service;Password=${NOTIFICATION_DB_PASSWORD:?Set NOTIFICATION_DB_PASSWORD in app/.env};"
 
   notification-service:
     build:
@@ -164,7 +164,7 @@ services:
     command: ["--migrate"]
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__ProjectDb: "Server=mariadb;Port=3306;Database=tracker_projects;User=project_service;${PROJECT_DB_PASSWORD:?Set PROJECT_DB_PASSWORD in app/.env};"
+      ConnectionStrings__ProjectDb: "Server=mariadb;Port=3306;Database=tracker_projects;User=project_service;Password=${PROJECT_DB_PASSWORD:?Set PROJECT_DB_PASSWORD in app/.env};"
 
   project-service:
     build:
@@ -203,7 +203,7 @@ services:
     command: ["--migrate"]
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__CommentDb: "Server=mariadb;Port=3306;Database=tracker_comments;User=comment_service;${COMMENT_DB_PASSWORD:?Set COMMENT_DB_PASSWORD in app/.env};"
+      ConnectionStrings__CommentDb: "Server=mariadb;Port=3306;Database=tracker_comments;User=comment_service;Password=${COMMENT_DB_PASSWORD:?Set COMMENT_DB_PASSWORD in app/.env};"
 
   comment-service:
     build:
