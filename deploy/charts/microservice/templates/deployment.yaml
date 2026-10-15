@@ -21,6 +21,10 @@ spec:
         {{- if .Values.keyvault.enabled }}
         azure.workload.identity/use: "true"
         {{- end }}
+      {{- if .Values.env }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+      {{- end }}
     spec:
       serviceAccountName: {{ include "microservice.fullname" . }} # Tên ServiceAccount
       containers:
