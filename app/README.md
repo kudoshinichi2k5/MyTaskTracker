@@ -399,7 +399,7 @@ Use secure passwords for environments other than local development.
 
 ### 2. Start MariaDB
 
-From the repository root:
+From the `app` directory:
 
 ```powershell
 docker-compose up -d mariadb
