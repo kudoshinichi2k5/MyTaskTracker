@@ -21,6 +21,20 @@ services:
       timeout: 5s
       retries: 6
 
+  valkey:
+    image: valkey/valkey:8-alpine
+    container_name: tracker-valkey
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - valkey_data:/data
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
   auth-service:
     build:
       context: ./Backend/Tracker.AuthService
@@ -29,9 +43,12 @@ services:
     depends_on:
       mariadb:
         condition: service_healthy
+      valkey:
+        condition: service_healthy
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__Valkey: "valkey:6379"
       ConnectionStrings__AuthDb: "Server=mariadb;Port=3306;Database=tracker_auth;User=auth_service;Password=${AUTH_DB_PASSWORD:?Set AUTH_DB_PASSWORD in app/.env};"
       AllowedFrontendOrigins: "http://localhost:4200,http://localhost:4300"
     ports:
@@ -178,3 +195,4 @@ services:
 
 volumes:
   mariadb_data:
+  valkey_data:
