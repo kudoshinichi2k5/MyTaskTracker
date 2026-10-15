@@ -1,0 +1,31 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-nginx
+  namespace: dev
+spec:
+  # Áp dụng cho tất cả các pod có nhãn app.kubernetes.io/name
+  # (Bao gồm tất cả frontend và backend, TRỪ MariaDB và Valkey do ta sẽ viết luật riêng)
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/name
+        operator: In
+        values: 
+          - customer-app
+          - admin-portal
+          - auth-service
+          - task-service
+          - notification-service
+          - project-service
+          - comment-service
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        # Cho phép traffic đến từ Namespace có nhãn này (namespace ingress-nginx mặc định có nhãn name)
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8080 # Cổng containerPort của ứng dụng

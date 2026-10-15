@@ -1,0 +1,32 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-mariadb
+  namespace: dev
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: mariadb
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        # 1. Từ 5 service
+        - podSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - auth-service
+                  - task-service
+                  - notification-service
+                  - project-service
+                  - comment-service
+        # 2. Từ các Job (Migration, Backup) - Bất kỳ pod nào có nhãn 'job-name'
+        - podSelector:
+            matchExpressions:
+              - key: job-name
+                operator: Exists
+      ports:
+        - protocol: TCP
+          port: 3306
