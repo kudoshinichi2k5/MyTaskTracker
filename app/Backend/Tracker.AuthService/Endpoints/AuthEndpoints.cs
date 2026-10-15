@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.DependencyInjection;
 using Tracker.AuthService.Models;
 using Tracker.AuthService.Services;
 
@@ -30,13 +31,14 @@ public static class AuthEndpoints
             IUserStore users, 
             IPasswordHasher<User> hasher, 
             ITokenStore tokenStore,
-            // Dùng nullable để không gây crash khi chạy Unit Test (môi trường không có Valkey)
-            StackExchange.Redis.IConnectionMultiplexer? redis) =>
+            HttpContext context) =>
         {
             if (string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Password))
                 return Results.BadRequest(new { error = "Username and password are required." });
 
             string attemptsKey = $"bruteforce:username:{request.Username.Trim().ToLowerInvariant()}";
+            var redis = context.RequestServices
+                .GetService<StackExchange.Redis.IConnectionMultiplexer>();
             StackExchange.Redis.IDatabase? db = redis?.GetDatabase();
 
             // 1. Kiểm tra số lần đăng nhập sai (Nếu có kết nối Valkey)
