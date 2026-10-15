@@ -92,6 +92,9 @@ public sealed class AuthEndpointsTests : IDisposable
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var refreshed = await response.Content.ReadFromJsonAsync<TokenResponse>();
         refreshed!.AccessToken.Should().NotBe(original.AccessToken);
+
+        var replay = await _client.PostAsJsonAsync("/api/v1/auth/refresh", new { refreshToken = original.RefreshToken });
+        replay.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
@@ -102,6 +105,12 @@ public sealed class AuthEndpointsTests : IDisposable
 
         var logout = await _client.PostAsJsonAsync("/api/v1/auth/logout", new { refreshToken = original!.RefreshToken });
         logout.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        using var verifyRequest = new HttpRequestMessage(HttpMethod.Get, "/verify");
+        verifyRequest.Headers.Add("Authorization", $"Bearer {original.AccessToken}");
+        var verify = await _client.SendAsync(verifyRequest);
+        var verifyBody = await verify.Content.ReadFromJsonAsync<VerifyResponse>();
+        verifyBody!.Active.Should().BeFalse();
 
         var refresh = await _client.PostAsJsonAsync("/api/v1/auth/refresh", new { refreshToken = original.RefreshToken });
         refresh.StatusCode.Should().Be(HttpStatusCode.Unauthorized);

@@ -331,10 +331,10 @@ To completely reset the local database environment:
 
 ```powershell
 docker-compose down -v
-docker-compose up -d mariadb
+docker-compose up -d mariadb valkey
 ```
 
-> **Warning:** `docker-compose down -v` removes the `mariadb_data` volume and permanently deletes all local MariaDB data.
+> **Warning:** `docker-compose down -v` removes the `mariadb_data` and `valkey_data` volumes, permanently deleting local database data and Valkey token sessions.
 
 ### Database initialization vs. migrations
 
@@ -343,6 +343,7 @@ docker-compose up -d mariadb
 | `01-init-databases.sh` | Creates databases, service users, and database permissions |
 | EF Core migrations | Creates and updates application tables and schemas |
 | `mariadb_data` | Persists MariaDB data between container restarts |
+| `valkey_data` | Persists AuthService token sessions between container restarts |
 
 The initialization script normally runs only when MariaDB starts with an empty data directory.
 
@@ -352,7 +353,7 @@ To completely reinitialize the local database:
 
 ```powershell
 docker-compose down -v
-docker-compose up -d mariadb
+docker-compose up -d mariadb valkey
 ```
 
 Only perform this reset when existing local database data can be discarded.
@@ -398,7 +399,7 @@ Use secure passwords for environments other than local development.
 
 ### 2. Start MariaDB
 
-From the repository root:
+From the `app` directory:
 
 ```powershell
 docker-compose up -d mariadb
@@ -598,7 +599,7 @@ Use `npm.cmd` in PowerShell if the local execution policy blocks `npm.ps1`.
 
 ### Recommended local development setup
 
-At the current development stage, only MariaDB runs inside Docker. The backend and frontend applications run directly on the host.
+For a full local stack, Docker Compose runs MariaDB, Valkey, database migrations/seeding, all backend services, and both frontends. For step-through debugging, you can still run the backend and frontend applications directly on the host while keeping MariaDB and Valkey in Docker.
 
 ```text
                          Docker
@@ -607,6 +608,11 @@ At the current development stage, only MariaDB runs inside Docker. The backend a
                   +------------------+
                   |   MariaDB 11.4   |
                   |     :3306        |
+                  +--------+---------+
+                           |
+                  +--------+---------+
+                  |      Valkey      |
+                  |     :6379        |
                   +--------+---------+
                            |
              +-------------+-------------+
@@ -634,30 +640,46 @@ This setup allows the services to be debugged locally while keeping the database
 
 ## Docker Compose commands
 
-### Start only MariaDB
+### Start the full stack
 
 ```powershell
-docker-compose up -d mariadb
+docker compose up -d --build
 ```
 
-This is the recommended command while backend services are still running with `dotnet run`.
+Compose waits for MariaDB and Valkey to become healthy, runs each service's migration before starting that API, and seeds the default AuthService accounts when its user table is empty. No separate migration command is needed. The default local admin account is `admin` / `123456`.
 
-### Stop MariaDB
+If a migration fails, inspect its logs with `docker compose logs <service>-migrate` (for example, `docker compose logs auth-migrate`).
+
+### Start only MariaDB and Valkey for host debugging
 
 ```powershell
-docker-compose stop mariadb
+docker compose up -d mariadb valkey
 ```
 
-### Start MariaDB again
+When running AuthService directly on the host, configure its Valkey address once:
 
 ```powershell
-docker-compose start mariadb
+dotnet user-secrets set "ConnectionStrings:Valkey" "localhost:6379" --project Backend/Tracker.AuthService
+```
+
+Run the backend services from the host using `dotnet run` as needed.
+
+### Stop MariaDB and Valkey
+
+```powershell
+docker compose stop mariadb valkey
+```
+
+### Start MariaDB and Valkey again
+
+```powershell
+docker compose start mariadb valkey
 ```
 
 ### View MariaDB logs
 
 ```powershell
-docker-compose logs -f mariadb
+docker compose logs -f mariadb
 ```
 
 ### Check running containers
@@ -669,54 +691,29 @@ docker ps
 ### Stop and remove containers
 
 ```powershell
-docker-compose down
+docker compose down
 ```
 
-This does **not** remove the `mariadb_data` volume.
+This does **not** remove the `mariadb_data` or `valkey_data` volumes.
 
 ### Completely reset the local database
 
 ```powershell
-docker-compose down -v
-docker-compose up -d mariadb
+docker compose down -v
+docker compose up -d --build
 ```
 
-> **Warning:** This deletes the `mariadb_data` volume and all local MariaDB data.
+> **Warning:** This deletes the `mariadb_data` volume and all local MariaDB data, as well as the `valkey_data` volume and local token sessions.
 
 ## Quick start
 
-From the repository root:
+From the `app` directory, start the full stack with one command:
 
 ```powershell
-# 1. Start MariaDB
-docker-compose up -d mariadb
-
-# 2. Verify the database container
-docker ps
-
-# 3. Start AuthService
-dotnet run --project Backend/Tracker.AuthService
-
-# 4. Start TaskService
-dotnet run --project Backend/Tracker.TaskService
-
-# 5. Start NotificationService
-dotnet run --project Backend/Tracker.NotificationService
-
-# 6. Start ProjectService
-dotnet run --project Backend/Tracker.ProjectService
-
-# 7. Start CommentService
-dotnet run --project Backend/Tracker.CommentService
-
-# 8. Start CustomerApp
-cd Frontend/CustomerApp
-npm.cmd start
-
-# 9. Start AdminPortal in another terminal
-cd Frontend/AdminPortal
-npm.cmd start
+docker compose up -d --build
 ```
+
+Compose runs database migrations and seeds the default AuthService accounts before the APIs start. For host-based debugging, start only MariaDB and Valkey and run the services with `dotnet run` as described above.
 
 ## Build
 

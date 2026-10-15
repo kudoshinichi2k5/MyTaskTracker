@@ -21,6 +21,35 @@ services:
       timeout: 5s
       retries: 6
 
+  valkey:
+    image: valkey/valkey:8-alpine
+    container_name: tracker-valkey
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - valkey_data:/data
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  auth-migrate:
+    build:
+      context: ./Backend/Tracker.AuthService
+      target: runtime
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+    command: ["--migrate"]
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__Valkey: "valkey:6379"
+      ConnectionStrings__AuthDb: "Server=mariadb;Port=3306;Database=tracker_auth;User=auth_service;Password=${AUTH_DB_PASSWORD:?Set AUTH_DB_PASSWORD in app/.env};"
+
   auth-service:
     build:
       context: ./Backend/Tracker.AuthService
@@ -29,9 +58,14 @@ services:
     depends_on:
       mariadb:
         condition: service_healthy
+      valkey:
+        condition: service_healthy
+      auth-migrate:
+        condition: service_completed_successfully
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__Valkey: "valkey:6379"
       ConnectionStrings__AuthDb: "Server=mariadb;Port=3306;Database=tracker_auth;User=auth_service;Password=${AUTH_DB_PASSWORD:?Set AUTH_DB_PASSWORD in app/.env};"
       AllowedFrontendOrigins: "http://localhost:4200,http://localhost:4300"
     ports:
@@ -41,6 +75,18 @@ services:
       interval: 10s
       timeout: 5s
       retries: 6
+
+  task-migrate:
+    build:
+      context: ./Backend/Tracker.TaskService
+      target: runtime
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    command: ["--migrate"]
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__TaskDb: "Server=mariadb;Port=3306;Database=tracker_tasks;User=task_service;Password=${TASK_DB_PASSWORD:?Set TASK_DB_PASSWORD in app/.env};"
 
   task-service:
     build:
@@ -52,6 +98,8 @@ services:
         condition: service_healthy
       auth-service:
         condition: service_healthy
+      task-migrate:
+        condition: service_completed_successfully
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
@@ -67,6 +115,18 @@ services:
       timeout: 5s
       retries: 6
 
+  notification-migrate:
+    build:
+      context: ./Backend/Tracker.NotificationService
+      target: runtime
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    command: ["--migrate"]
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__NotificationDb: "Server=mariadb;Port=3306;Database=tracker_notifications;User=notification_service;Password=${NOTIFICATION_DB_PASSWORD:?Set NOTIFICATION_DB_PASSWORD in app/.env};"
+
   notification-service:
     build:
       context: ./Backend/Tracker.NotificationService
@@ -77,6 +137,8 @@ services:
         condition: service_healthy
       auth-service:
         condition: service_healthy
+      notification-migrate:
+        condition: service_completed_successfully
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
@@ -92,6 +154,18 @@ services:
       timeout: 5s
       retries: 6
 
+  project-migrate:
+    build:
+      context: ./Backend/Tracker.ProjectService
+      target: runtime
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    command: ["--migrate"]
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__ProjectDb: "Server=mariadb;Port=3306;Database=tracker_projects;User=project_service;Password=${PROJECT_DB_PASSWORD:?Set PROJECT_DB_PASSWORD in app/.env};"
+
   project-service:
     build:
       context: ./Backend/Tracker.ProjectService
@@ -102,6 +176,8 @@ services:
         condition: service_healthy
       auth-service:
         condition: service_healthy
+      project-migrate:
+        condition: service_completed_successfully
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
@@ -117,6 +193,18 @@ services:
       timeout: 5s
       retries: 6
 
+  comment-migrate:
+    build:
+      context: ./Backend/Tracker.CommentService
+      target: runtime
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    command: ["--migrate"]
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__CommentDb: "Server=mariadb;Port=3306;Database=tracker_comments;User=comment_service;Password=${COMMENT_DB_PASSWORD:?Set COMMENT_DB_PASSWORD in app/.env};"
+
   comment-service:
     build:
       context: ./Backend/Tracker.CommentService
@@ -127,6 +215,8 @@ services:
         condition: service_healthy
       auth-service:
         condition: service_healthy
+      comment-migrate:
+        condition: service_completed_successfully
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
@@ -178,3 +268,4 @@ services:
 
 volumes:
   mariadb_data:
+  valkey_data:

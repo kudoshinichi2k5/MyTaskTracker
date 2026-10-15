@@ -1,10 +1,10 @@
-using System.Collections.Concurrent;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using StackExchange.Redis;
 using Tracker.AuthService.Data;
 using Tracker.AuthService.Models;
 using Tracker.AuthService.Services;
@@ -12,9 +12,32 @@ using Tracker.AuthService.Endpoints;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddSingleton<ConcurrentDictionary<string, TokenInfo>>();
-builder.Services.AddSingleton<ConcurrentDictionary<string, RefreshSession>>();
 builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
+
+if (!builder.Environment.IsEnvironment("Testing"))
+{
+    var valkeyConnectionString = builder.Configuration.GetConnectionString("Valkey");
+    if (string.IsNullOrWhiteSpace(valkeyConnectionString))
+    {
+        throw new InvalidOperationException(
+            "Missing ConnectionStrings:Valkey. Set it via dotnet user-secrets (dev) " +
+            "or the ConnectionStrings__Valkey environment variable (staging/production).");
+    }
+
+    var valkeyOptions = ConfigurationOptions.Parse(valkeyConnectionString);
+    var valkeyPassword = builder.Configuration["Valkey:Password"]
+        ?? builder.Configuration["VALKEY_PASSWORD"];
+
+    if (!string.IsNullOrWhiteSpace(valkeyPassword))
+    {
+        valkeyOptions.Password = valkeyPassword;
+    }
+
+    valkeyOptions.AbortOnConnectFail = false;
+    builder.Services.AddSingleton<IConnectionMultiplexer>(_ =>
+        ConnectionMultiplexer.Connect(valkeyOptions));
+    builder.Services.AddSingleton<ITokenStore, ValkeyTokenStore>();
+}
 
 var authDbConnectionString =
     builder.Configuration.GetConnectionString("AuthDb");
@@ -114,26 +137,27 @@ public partial class Program { }
 
 public sealed class InternalAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions>
 {
-    private readonly ConcurrentDictionary<string, TokenInfo> _tokenStore;
+    private readonly ITokenStore _tokenStore;
 
     public InternalAuthHandler(
         IOptionsMonitor<AuthenticationSchemeOptions> options, ILoggerFactory logger,
-        UrlEncoder encoder, ConcurrentDictionary<string, TokenInfo> tokenStore) : base(options, logger, encoder)
+        UrlEncoder encoder, ITokenStore tokenStore) : base(options, logger, encoder)
     {
         _tokenStore = tokenStore;
     }
 
-    protected override Task<AuthenticateResult> HandleAuthenticateAsync()
+    protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
     {
         var authorization = Request.Headers.Authorization.ToString();
         if (!authorization.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-            return Task.FromResult(AuthenticateResult.NoResult());
+            return AuthenticateResult.NoResult();
 
         var token = authorization["Bearer ".Length..].Trim();
         if (string.IsNullOrEmpty(token))
-            return Task.FromResult(AuthenticateResult.Fail("Bearer token is empty."));
+            return AuthenticateResult.Fail("Bearer token is empty.");
 
-        if (_tokenStore.TryGetValue(token, out var info) && info.Expiry > DateTime.UtcNow)
+        var info = await _tokenStore.GetAccessTokenAsync(token);
+        if (info is not null && info.Expiry > DateTime.UtcNow)
         {
             var claims = new List<Claim>
             {
@@ -143,10 +167,15 @@ public sealed class InternalAuthHandler : AuthenticationHandler<AuthenticationSc
             claims.AddRange(info.Roles.Select(role => new Claim(ClaimTypes.Role, role)));
 
             var identity = new ClaimsIdentity(claims, Scheme.Name, ClaimTypes.Name, ClaimTypes.Role);
-            return Task.FromResult(AuthenticateResult.Success(new AuthenticationTicket(new ClaimsPrincipal(identity), Scheme.Name)));
+            return AuthenticateResult.Success(new AuthenticationTicket(new ClaimsPrincipal(identity), Scheme.Name));
         }
 
-        return Task.FromResult(AuthenticateResult.Fail("Token is invalid or expired."));
+        if (info is not null)
+        {
+            await _tokenStore.RevokeAccessTokenAsync(token);
+        }
+
+        return AuthenticateResult.Fail("Token is invalid or expired.");
     }
 }
 
@@ -154,7 +183,7 @@ public class TokenInfo
 {
     public string Username { get; set; } = string.Empty;
     public string[] Roles { get; set; } = Array.Empty<string>();
-    public string RefreshToken { get; set; } = string.Empty;
+    public string RefreshTokenHash { get; set; } = string.Empty;
     public DateTime Expiry { get; set; }
 }
 
