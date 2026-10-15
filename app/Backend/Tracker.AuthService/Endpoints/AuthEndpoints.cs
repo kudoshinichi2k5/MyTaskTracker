@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Identity;
 using Tracker.AuthService.Models;
@@ -13,39 +12,29 @@ public static class AuthEndpoints
 
     public static void MapAuthEndpoints(this IEndpointRouteBuilder app)
     {
-        // Lấy các Stores từ Dependency Injection để dùng chung cho các endpoints
-        var tokenStore = app.ServiceProvider.GetRequiredService<ConcurrentDictionary<string, TokenInfo>>();
-        var refreshStore = app.ServiceProvider.GetRequiredService<ConcurrentDictionary<string, RefreshSession>>();
-
-        app.MapPost("/token", async (HttpContext context, IUserStore users, IPasswordHasher<User> hasher) =>
+        app.MapPost("/token", async Task<IResult> (HttpContext context, IUserStore users, IPasswordHasher<User> hasher, ITokenStore tokenStore) =>
         {
             if (!context.Request.HasFormContentType)
                 return Results.BadRequest(new { error = "invalid_request" });
 
             var form = await context.Request.ReadFormAsync();
-            var grantType = form["grant_type"].ToString();
-            var username = form["username"].ToString();
-            var password = form["password"].ToString();
-
-            if (!string.Equals(grantType, "password", StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(form["grant_type"].ToString(), "password", StringComparison.OrdinalIgnoreCase))
                 return Results.BadRequest(new { error = "unsupported_grant_type" });
 
-            var issueResult = IssueToken(username, password, users, hasher, tokenStore, refreshStore);
-            return issueResult is null
-                ? Results.BadRequest(new { error = "invalid_grant" })
-                : Results.Ok(issueResult);
+            var result = await IssueTokenAsync(form["username"].ToString(), form["password"].ToString(), users, hasher, tokenStore);
+            return result is null ? Results.BadRequest(new { error = "invalid_grant" }) : Results.Ok(result);
         });
 
-        app.MapPost("/api/v1/auth/login", (LoginRequest request, IUserStore users, IPasswordHasher<User> hasher) =>
+        app.MapPost("/api/v1/auth/login", async Task<IResult> (LoginRequest request, IUserStore users, IPasswordHasher<User> hasher, ITokenStore tokenStore) =>
         {
             if (string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Password))
                 return Results.BadRequest(new { error = "Username and password are required." });
 
-            var result = IssueToken(request.Username, request.Password, users, hasher, tokenStore, refreshStore);
+            var result = await IssueTokenAsync(request.Username, request.Password, users, hasher, tokenStore);
             return result is null ? Results.Unauthorized() : Results.Ok(result);
         });
 
-        app.MapPost("/api/v1/auth/register", (RegisterRequest request, IUserStore users, IPasswordHasher<User> hasher) =>
+        app.MapPost("/api/v1/auth/register", async Task<IResult> (RegisterRequest request, IUserStore users, IPasswordHasher<User> hasher, ITokenStore tokenStore) =>
         {
             var username = request.Username?.Trim() ?? string.Empty;
             var email = request.Email?.Trim() ?? string.Empty;
@@ -61,161 +50,150 @@ public static class AuthEndpoints
             if (users.EmailExists(email))
                 return Results.ValidationProblem(new Dictionary<string, string[]> { ["email"] = ["That email is already registered."] });
 
-            var user = new User { Username = username, Email = email, PasswordHash = "" };
+            var user = new User { Username = username, Email = email, PasswordHash = string.Empty };
             user.PasswordHash = hasher.HashPassword(user, request.Password);
             users.Create(user);
 
-            var result = IssueToken(username, request.Password, users, hasher, tokenStore, refreshStore);
+            var result = await IssueTokenAsync(username, request.Password, users, hasher, tokenStore);
             return Results.Ok(result);
         });
 
-        app.MapPost("/api/v1/auth/refresh", (RefreshRequest request) =>
+        app.MapPost("/api/v1/auth/refresh", async Task<IResult> (RefreshRequest request, ITokenStore tokenStore) =>
         {
-            if (string.IsNullOrWhiteSpace(request.RefreshToken)
-                || !refreshStore.TryRemove(request.RefreshToken, out var session)
-                || session.ExpiresAt < DateTime.UtcNow)
-            {
+            if (string.IsNullOrWhiteSpace(request.RefreshToken))
                 return Results.Unauthorized();
-            }
+
+            var session = await tokenStore.ConsumeRefreshSessionAsync(request.RefreshToken);
+            if (session is null || session.ExpiresAt < DateTime.UtcNow)
+                return Results.Unauthorized();
 
             var accessToken = Guid.NewGuid().ToString("N");
-            var newRefreshToken = Guid.NewGuid().ToString("N");
-            var expiresIn = 3600;
+            var refreshToken = Guid.NewGuid().ToString("N");
+            var accessLifetime = TimeSpan.FromHours(1);
+            var refreshLifetime = TimeSpan.FromDays(7);
 
-            tokenStore[accessToken] = new TokenInfo
+            await tokenStore.StoreAccessTokenAsync(accessToken, new TokenInfo
             {
                 Username = session.Username,
                 Roles = session.Roles,
-                RefreshToken = newRefreshToken,
-                Expiry = DateTime.UtcNow.AddSeconds(expiresIn)
-            };
-            refreshStore[newRefreshToken] = session with { ExpiresAt = DateTime.UtcNow.AddDays(7) };
+                RefreshTokenHash = TokenHashing.Compute(refreshToken),
+                Expiry = DateTime.UtcNow.Add(accessLifetime)
+            }, accessLifetime);
+            await tokenStore.StoreRefreshSessionAsync(refreshToken, session with { ExpiresAt = DateTime.UtcNow.Add(refreshLifetime) }, refreshLifetime);
 
             return Results.Ok(new
             {
                 accessToken,
-                refreshToken = newRefreshToken,
-                expiresAt = DateTimeOffset.UtcNow.AddSeconds(expiresIn).ToString("o"),
+                refreshToken,
+                expiresAt = DateTimeOffset.UtcNow.Add(accessLifetime).ToString("o"),
                 username = session.Username,
                 roles = session.Roles
             });
         });
 
-        app.MapPost("/api/v1/auth/logout", (LogoutRequest request) =>
+        app.MapPost("/api/v1/auth/logout", async (LogoutRequest request, ITokenStore tokenStore) =>
         {
-            if (!string.IsNullOrWhiteSpace(request.RefreshToken)
-                && refreshStore.TryRemove(request.RefreshToken, out _))
+            if (!string.IsNullOrWhiteSpace(request.RefreshToken))
             {
-                foreach (var token in tokenStore.Where(pair => pair.Value.RefreshToken == request.RefreshToken))
+                var session = await tokenStore.GetRefreshSessionAsync(request.RefreshToken);
+                if (session is not null)
                 {
-                    tokenStore.TryRemove(token.Key, out _);
+                    await tokenStore.RevokeRefreshSessionAsync(request.RefreshToken);
+                    await tokenStore.RevokeAccessTokensForRefreshTokenAsync(session.Username, request.RefreshToken);
                 }
             }
 
             return Results.Ok(new { success = true });
         });
 
-        app.MapGet("/verify", (HttpContext context) =>
+        app.MapGet("/verify", async Task<IResult> (HttpContext context, ITokenStore tokenStore) =>
         {
             var authorization = context.Request.Headers.Authorization.ToString();
             if (!authorization.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-            {
                 return Results.Ok(new { active = false, username = (string?)null, roles = Array.Empty<string>() });
-            }
 
             var token = authorization["Bearer ".Length..].Trim();
-            if (tokenStore.TryGetValue(token, out var info))
+            var info = await tokenStore.GetAccessTokenAsync(token);
+            if (info is not null)
             {
                 if (info.Expiry > DateTime.UtcNow)
                     return Results.Ok(new { active = true, username = info.Username, roles = info.Roles });
 
-                tokenStore.TryRemove(token, out _);
+                await tokenStore.RevokeAccessTokenAsync(token);
             }
+
             return Results.Ok(new { active = false, username = (string?)null, roles = Array.Empty<string>() });
         });
 
         var adminGroup = app.MapGroup("/api/v1/auth/admin").RequireAuthorization("AdminOnly");
-
         adminGroup.MapGet("/users", IResult (IUserStore users) =>
             Results.Ok(users.GetAll().Select(u => new AdminUserSummary(u.Id, u.Username, u.Email, u.Enabled, u.Roles)).ToList()));
-
         adminGroup.MapGet("/roles", IResult () => Results.Ok(new[] { "admin" }));
 
-        adminGroup.MapPost("/users/{userId}/roles/{role}", IResult (string userId, string role, IUserStore users) =>
+        adminGroup.MapPost("/users/{userId}/roles/{role}", async Task<IResult> (string userId, string role, IUserStore users, ITokenStore tokenStore) =>
         {
             if (!users.AddRole(userId, role)) return Results.NotFound();
-            RevokeRefreshTokensForUser(userId, users, tokenStore, refreshStore);
+            await RevokeSessionsForUserAsync(userId, users, tokenStore);
             return Results.NoContent();
         });
 
-        adminGroup.MapDelete("/users/{userId}/roles/{role}", IResult (string userId, string role, IUserStore users) =>
+        adminGroup.MapDelete("/users/{userId}/roles/{role}", async Task<IResult> (string userId, string role, IUserStore users, ITokenStore tokenStore) =>
         {
             if (!users.RemoveRole(userId, role)) return Results.NotFound();
-            RevokeRefreshTokensForUser(userId, users, tokenStore, refreshStore);
+            await RevokeSessionsForUserAsync(userId, users, tokenStore);
             return Results.NoContent();
         });
 
         app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
     }
 
-    // --- HELPERS BÊN TRONG ENDPOINTS ---
-
-    private static OAuthTokenResponse? IssueToken(
-        string username, string password,
-        IUserStore users, IPasswordHasher<User> hasher,
-        ConcurrentDictionary<string, TokenInfo> tokenStore,
-        ConcurrentDictionary<string, RefreshSession> refreshStore)
+    private static async Task<OAuthTokenResponse?> IssueTokenAsync(string username, string password, IUserStore users, IPasswordHasher<User> hasher, ITokenStore tokenStore)
     {
         if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password)) return null;
 
         var user = users.FindByUsername(username.Trim());
         if (user is null || !user.Enabled) return null;
 
-        var verifyResult = hasher.VerifyHashedPassword(user, user.PasswordHash, password);
-        if (verifyResult == PasswordVerificationResult.Failed) return null;
+        if (hasher.VerifyHashedPassword(user, user.PasswordHash, password) == PasswordVerificationResult.Failed) return null;
 
-        var roles = user.Roles.ToArray();
         var accessToken = Guid.NewGuid().ToString("N");
         var refreshToken = Guid.NewGuid().ToString("N");
-        var expiresIn = 3600;
+        var accessLifetime = TimeSpan.FromHours(1);
+        var refreshLifetime = TimeSpan.FromDays(7);
+        var roles = user.Roles.ToArray();
 
-        tokenStore[accessToken] = new TokenInfo
+        await tokenStore.StoreAccessTokenAsync(accessToken, new TokenInfo
         {
             Username = user.Username,
             Roles = roles,
-            RefreshToken = refreshToken,
-            Expiry = DateTime.UtcNow.AddSeconds(expiresIn)
-        };
-        refreshStore[refreshToken] = new RefreshSession(user.Id, user.Username, roles, DateTime.UtcNow.AddDays(7));
+            RefreshTokenHash = TokenHashing.Compute(refreshToken),
+            Expiry = DateTime.UtcNow.Add(accessLifetime)
+        }, accessLifetime);
+        await tokenStore.StoreRefreshSessionAsync(
+            refreshToken,
+            new RefreshSession(user.Id, user.Username, roles, DateTime.UtcNow.Add(refreshLifetime)),
+            refreshLifetime);
 
         return new OAuthTokenResponse
         {
-            AccessToken = accessToken, RefreshToken = refreshToken, TokenType = "bearer",
-            ExpiresIn = expiresIn, Username = user.Username, Roles = roles,
-            ExpiresAt = DateTimeOffset.UtcNow.AddSeconds(expiresIn).ToString("o")
+            AccessToken = accessToken,
+            RefreshToken = refreshToken,
+            TokenType = "bearer",
+            ExpiresIn = (int)accessLifetime.TotalSeconds,
+            Username = user.Username,
+            Roles = roles,
+            ExpiresAt = DateTimeOffset.UtcNow.Add(accessLifetime).ToString("o")
         };
     }
 
-    private static void RevokeRefreshTokensForUser(
-        string userId, IUserStore users,
-        ConcurrentDictionary<string, TokenInfo> tokenStore,
-        ConcurrentDictionary<string, RefreshSession> refreshStore)
+    private static async Task RevokeSessionsForUserAsync(string userId, IUserStore users, ITokenStore tokenStore)
     {
         var user = users.FindById(userId);
-        if (user is null) return;
-
-        foreach (var kvp in refreshStore.Where(kvp => kvp.Value.UserId == user.Id).ToList())
-        {
-            refreshStore.TryRemove(kvp.Key, out _);
-        }
-        foreach (var kvp in tokenStore.Where(kvp => string.Equals(kvp.Value.Username, user.Username, StringComparison.OrdinalIgnoreCase)).ToList())
-        {
-            tokenStore.TryRemove(kvp.Key, out _);
-        }
+        if (user is not null)
+            await tokenStore.RevokeAllSessionsForUserAsync(user.Id, user.Username);
     }
 }
 
-// --- DTOs DÀNH RIÊNG CHO ENDPOINTS ---
 public record LoginRequest(string Username, string Password);
 public record RefreshRequest(string RefreshToken);
 public record LogoutRequest(string RefreshToken);
