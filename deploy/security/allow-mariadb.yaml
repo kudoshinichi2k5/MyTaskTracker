@@ -27,6 +27,10 @@ spec:
             matchExpressions:
               - key: job-name
                 operator: Exists
+        # 3. THÊM MỚI: Cho phép MariaDB nội bộ nói chuyện với nhau
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: mariadb
       ports:
         - protocol: TCP
           port: 3306
