@@ -43,6 +43,10 @@ ingress:
   enabled: true
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /$1
+    # --- RATE LIMITING THOÁNG HƠN CHO COMMENT SERVICE ---
+    nginx.ingress.kubernetes.io/limit-rps: "20"
+    nginx.ingress.kubernetes.io/limit-burst-multiplier: "3"
+    nginx.ingress.kubernetes.io/limit-req-status-code: "429"
   hosts:
     - host: api.mytasktracker.work.gd
       paths:

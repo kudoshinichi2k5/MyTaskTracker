@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.DependencyInjection;
 using Tracker.AuthService.Models;
 using Tracker.AuthService.Services;
 
@@ -25,13 +26,54 @@ public static class AuthEndpoints
             return result is null ? Results.BadRequest(new { error = "invalid_grant" }) : Results.Ok(result);
         });
 
-        app.MapPost("/api/v1/auth/login", async Task<IResult> (LoginRequest request, IUserStore users, IPasswordHasher<User> hasher, ITokenStore tokenStore) =>
+        app.MapPost("/api/v1/auth/login", async Task<IResult> (
+            LoginRequest request, 
+            IUserStore users, 
+            IPasswordHasher<User> hasher, 
+            ITokenStore tokenStore,
+            HttpContext context) =>
         {
             if (string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Password))
                 return Results.BadRequest(new { error = "Username and password are required." });
 
+            string attemptsKey = $"bruteforce:username:{request.Username.Trim().ToLowerInvariant()}";
+            var redis = context.RequestServices
+                .GetService<StackExchange.Redis.IConnectionMultiplexer>();
+            StackExchange.Redis.IDatabase? db = redis?.GetDatabase();
+
+            // 1. Kiểm tra số lần đăng nhập sai (Nếu có kết nối Valkey)
+            if (db != null)
+            {
+                var attemptsStr = await db.StringGetAsync(attemptsKey);
+                if (int.TryParse(attemptsStr, out int attempts) && attempts >= 5)
+                {
+                    return Results.Problem(
+                        detail: "Tài khoản đã bị khóa tạm thời do nhập sai mật khẩu quá 5 lần. Vui lòng thử lại sau 15 phút.", 
+                        statusCode: 429); // 429: Too Many Requests
+                }
+            }
+
+            // Gọi logic cấp phát token
             var result = await IssueTokenAsync(request.Username, request.Password, users, hasher, tokenStore);
-            return result is null ? Results.Unauthorized() : Results.Ok(result);
+            
+            if (result is null)
+            {
+                // 2. Đăng nhập sai: Tăng bộ đếm và đặt thời gian hết hạn (TTL) 15 phút
+                if (db != null)
+                {
+                    await db.StringIncrementAsync(attemptsKey);
+                    await db.KeyExpireAsync(attemptsKey, TimeSpan.FromMinutes(15));
+                }
+                return Results.Unauthorized();
+            }
+
+            // 3. Đăng nhập thành công: Xóa bộ đếm lỗi
+            if (db != null)
+            {
+                await db.KeyDeleteAsync(attemptsKey);
+            }
+            
+            return Results.Ok(result);
         });
 
         app.MapPost("/api/v1/auth/register", async Task<IResult> (RegisterRequest request, IUserStore users, IPasswordHasher<User> hasher, ITokenStore tokenStore) =>
