@@ -9,12 +9,12 @@ data "terraform_remote_state" "persistent" {
     container_name       = "tfstate"
     key                  = "dev-persistent.terraform.tfstate"
 
-    use_oidc             = true
-    use_azuread_auth     = true
+    use_oidc         = true
+    use_azuread_auth = true
 
-    client_id            = var.arm_client_id
-    tenant_id            = var.arm_tenant_id
-    subscription_id      = var.arm_subscription_id
+    client_id       = var.arm_client_id
+    tenant_id       = var.arm_tenant_id
+    subscription_id = var.arm_subscription_id
   }
 }
 
@@ -33,9 +33,9 @@ locals {
   acr_id             = data.terraform_remote_state.persistent.outputs.acr_id
   tf_ci_principal_id = data.terraform_remote_state.persistent.outputs.tf_ci_principal_id
   backup_sa_name     = data.terraform_remote_state.persistent.outputs.backup_storage_account_name
-  dns_zone_id     = data.terraform_remote_state.persistent.outputs.dns_zone_id
-  dns_zone_name   = data.terraform_remote_state.persistent.outputs.dns_zone_name
-  subscription_id = data.terraform_remote_state.persistent.outputs.subscription_id
+  dns_zone_id        = data.terraform_remote_state.persistent.outputs.dns_zone_id
+  dns_zone_name      = data.terraform_remote_state.persistent.outputs.dns_zone_name
+  subscription_id    = data.terraform_remote_state.persistent.outputs.subscription_id
 }
 
 # 1. Networking (Workload)
@@ -223,9 +223,9 @@ resource "azurerm_role_assignment" "backup_sa_contributor" {
 resource "azurerm_role_assignment" "aks_network_contributor_shared" {
   principal_id         = module.aks.cluster_identity_principal_id
   role_definition_name = "Network Contributor"
-  
+
   # data.terraform_remote_state.persistent.outputs.shared_rg_id đã được bạn xuất ra ở bài trước!
-  scope                = data.terraform_remote_state.persistent.outputs.shared_rg_id
+  scope = data.terraform_remote_state.persistent.outputs.shared_rg_id
 }
 
 # Tạo Workload Identity cho cert-manager

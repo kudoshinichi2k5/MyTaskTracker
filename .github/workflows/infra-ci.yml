@@ -67,9 +67,9 @@ jobs:
             -backend-config="use_oidc=true" \
             -backend-config="use_azuread_auth=true"
       - run: terraform validate
-      - run: terraform plan -no-color
+      - run: terraform plan -input=false -no-color
         if: github.event_name == 'pull_request'
-      - run: terraform apply -auto-approve
+      - run: terraform apply -input=false -auto-approve
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
   workloads:
@@ -105,15 +105,15 @@ jobs:
       
       - name: Terraform Plan
         if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply')
-        run: terraform plan -no-color
+        run: terraform plan -input=false -no-color
 
       - name: Terraform Apply (Phase 1 - AKS)
         if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply')
-        run: terraform apply -target=module.aks -auto-approve
+        run: terraform apply -input=false -target=module.aks -auto-approve
 
       - name: Terraform Apply (Phase 2 - Full)
         if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply')
-        run: terraform apply -auto-approve
+        run: terraform apply -input=false -auto-approve
 
       # --- BACKUP GATE TRƯỚC KHI DESTROY ---
       - name: Get AKS Credentials
@@ -144,7 +144,7 @@ jobs:
       
       - name: Terraform Destroy
         if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'destroy'
-        run: terraform destroy -auto-approve
+        run: terraform destroy -input=false -auto-approve
 
       - name: Update ArgoCD AKV Values
         if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply')
