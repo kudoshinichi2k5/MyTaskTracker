@@ -405,6 +405,21 @@ jobs:
         with:
           version: 'latest'
 
+      - name: Validate Valkey chart and values
+        run: |
+          VALKEY_CHART_VERSION="$(awk '/chart: valkey/{found=1} found && /targetRevision:/{print $2; exit}' deploy/argocd-apps/app-valkey.yaml)"
+          if [[ -z "$VALKEY_CHART_VERSION" ]]; then
+            echo "Could not read Valkey chart targetRevision from deploy/argocd-apps/app-valkey.yaml"
+            exit 1
+          fi
+
+          helm repo add bitnami https://charts.bitnami.com/bitnami
+          helm repo update bitnami
+          helm template tracker-valkey bitnami/valkey \
+            --version "$VALKEY_CHART_VERSION" \
+            --namespace dev \
+            --values deploy/environments/dev/valkey-values.yaml
+
       - name: Lint Helm Chart
         run: |
           echo "Running helm lint..."
