@@ -10,9 +10,11 @@ import { Router } from '@angular/router';
 import {
   Observable,
   catchError,
+  finalize,
   firstValueFrom,
   map,
   of,
+  shareReplay,
   tap,
   throwError
 } from 'rxjs';
@@ -46,6 +48,7 @@ export class AuthService {
   private readonly storageKey = 'adminportal_session';
 
   private session: Session | null = this.loadSession();
+  private refreshRequest: Observable<AuthResponse> | null = null;
 
   /*
    * AuthGuard waits for this promise before checking authentication.
@@ -215,16 +218,24 @@ export class AuthService {
       );
     }
 
-    return this.http.post<AuthResponse>(
+    if (this.refreshRequest) {
+      return this.refreshRequest;
+    }
+
+    this.refreshRequest = this.http.post<AuthResponse>(
       `${environment.authApi}/auth/refresh`,
       {
         refreshToken: this.session.refreshToken
       }
     ).pipe(
-      tap((res) => {
-        this.saveSession(res);
-      })
+      tap((res) => this.saveSession(res)),
+      finalize(() => {
+        this.refreshRequest = null;
+      }),
+      shareReplay({ bufferSize: 1, refCount: false })
     );
+
+    return this.refreshRequest;
   }
 
   /*
