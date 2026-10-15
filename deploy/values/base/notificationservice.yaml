@@ -6,6 +6,8 @@ service:
   port: 80
 env:
   ASPNETCORE_ENVIRONMENT: "Development"
+  AuthService__BaseUrl: "http://auth-service.dev.svc.cluster.local"
+  AuthService__VerifyPath: "/verify"
   AllowedFrontendOrigins: "https://mytasktracker.work.gd,https://www.mytasktracker.work.gd,https://admin.mytasktracker.work.gd"
 
 # secretEnv:
