@@ -1,0 +1,12 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: dev
+spec:
+  # Rỗng nghĩa là chọn TẤT CẢ các pod trong namespace dev
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  # Phần ingress để trống = KHÔNG CHO PHÉP AI (Deny All)
+  # Chúng ta không chặn Egress để Pod vẫn có thể gọi ra ngoài Internet (API Azure/KeyVault) và gọi DNS nội bộ
