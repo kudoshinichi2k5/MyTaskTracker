@@ -43,6 +43,16 @@ ingress:
   annotations:
     # Rewrite target để NGINX cắt bỏ chữ /auth trước khi đưa request vào cho .NET
     nginx.ingress.kubernetes.io/rewrite-target: /$1
+    # --- THÊM CẤU HÌNH RATE LIMITING CHO AUTH SERVICE ---
+    # Giới hạn số lượng kết nối đồng thời từ 1 IP: 10 kết nối
+    nginx.ingress.kubernetes.io/limit-connections: "10"
+    
+    # Giới hạn tốc độ request: 5 request/giây trên mỗi IP (Cho phép burst thêm 10 request)
+    nginx.ingress.kubernetes.io/limit-rps: "5"
+    nginx.ingress.kubernetes.io/limit-burst-multiplier: "2"
+    
+    # Khi vượt hạn mức, trả về lỗi 429 (Too Many Requests)
+    nginx.ingress.kubernetes.io/limit-req-status-code: "429"
   hosts:
     - host: api.mytasktracker.work.gd
       paths:
