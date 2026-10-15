@@ -9,3 +9,6 @@ primary:
     size: 2Gi # Đủ nhỏ cho dev, lưu session
   podLabels:
     azure.workload.identity/use: "true"
+
+networkPolicy:
+  enabled: false

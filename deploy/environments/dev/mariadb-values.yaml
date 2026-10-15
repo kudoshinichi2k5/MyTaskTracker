@@ -10,6 +10,9 @@ primary:
   # Mount các biến môi trường từ K8s Secret vào container MariaDB
   extraEnvVarsSecret: "mariadb-init-secret"
 
+networkPolicy:
+  enabled: false
+
 initdbScripts:
   01-init-databases.sh: |
     #!/usr/bin/env bash
