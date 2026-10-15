@@ -77,3 +77,8 @@ variable "dns_service_ip" {
   description = "Kubernetes DNS service IP"
   type        = string
 }
+
+variable "network_policy" {
+  description = "AKS network policy"
+  type        = string
+}

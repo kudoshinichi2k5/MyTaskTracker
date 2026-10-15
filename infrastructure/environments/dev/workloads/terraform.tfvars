@@ -15,6 +15,7 @@ aks_node_min_count            = 1
 aks_node_max_count            = 2
 aks_node_rotation_name        = "tmppool"
 aks_network_plugin            = "azure"
+aks_network_policy            = "azure"
 aks_load_balancer_sku         = "standard"
 aks_service_cidr              = "192.168.0.0/16"
 aks_dns_service_ip            = "192.168.0.10"

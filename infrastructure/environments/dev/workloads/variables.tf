@@ -35,6 +35,10 @@ variable "kubernetes_namespace" {
   type        = string
   default     = "dev"
 }
+variable "aks_network_policy" {
+  description = "AKS network policy"
+  type        = string
+}
 
 variable "backend_services_list" {
   description = "Danh sách các backend services cần tạo Workload Identity"

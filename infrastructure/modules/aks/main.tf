@@ -23,6 +23,7 @@ resource "azurerm_kubernetes_cluster" "aks" {
 
   network_profile {
     network_plugin    = var.network_plugin
+    network_policy    = var.network_policy
     load_balancer_sku = var.load_balancer_sku
     service_cidr      = var.service_cidr
     dns_service_ip    = var.dns_service_ip
