@@ -1,41 +1,51 @@
 name: Infrastructure CI/CD
 
-# THÊM KHỐI CONCURRENCY NÀY
-# Đảm bảo chỉ có 1 workflow Infra được chạy tại 1 thời điểm. Các luồng sau phải xếp hàng chờ.
-concurrency:
-  group: terraform-infra
-  cancel-in-progress: false # KHÔNG ĐƯỢC để true, vì hủy ngang lúc đang apply là thảm họa làm kẹt state!
-
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review, closed]
   workflow_dispatch:
     inputs:
       action:
-        description: 'Chọn hành động cho WORKLOADS'
+        description: Action to perform on the dev workloads stack
         required: true
-        default: 'apply'
+        default: apply-workloads-plan
         type: choice
-        options: [ apply, destroy ]
+        options:
+          - apply-workloads-plan
+          - destroy
+      plan_run_id:
+        description: Successful post-merge plan run ID (required for apply-workloads-plan)
+        required: false
+        type: string
 
 permissions:
-  id-token: write
-  contents: write
+  contents: read
+
+env:
+  PLAN_STORAGE_ACCOUNT: tfstate4459
+  PLAN_STORAGE_CONTAINER: tfstate
 
 jobs:
   changes:
+    if: github.event_name != 'pull_request' || github.event.action != 'closed'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
     outputs:
-      persistent: ${{ steps.filter.outputs.persistent }}
-      workloads: ${{ steps.filter.outputs.workloads }}
+      persistent: ${{ steps.filter.outputs.persistent || 'false' }}
+      workloads: ${{ steps.filter.outputs.workloads || 'false' }}
+      combined: ${{ steps.filter.outputs.persistent == 'true' && steps.filter.outputs.workloads == 'true' }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - uses: dorny/paths-filter@v3
         id: filter
+        if: github.event_name != 'workflow_dispatch'
         with:
           filters: |
             persistent:
@@ -45,40 +55,556 @@ jobs:
               - 'infrastructure/environments/dev/workloads/**'
               - 'infrastructure/modules/**'
 
-  persistent:
+  persistent-pr-plan:
     needs: changes
-    if: needs.changes.outputs.persistent == 'true' && github.event_name != 'workflow_dispatch'
+    if: github.event_name == 'pull_request' && needs.changes.outputs.persistent == 'true'
     runs-on: ubuntu-latest
+    concurrency:
+      group: terraform-dev-persistent
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
     defaults:
       run:
         working-directory: infrastructure/environments/dev/persistent
     env:
       TF_VAR_github_token: ${{ secrets.GITHUB_TOKEN }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: hashicorp/setup-terraform@v3
       - uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_TF_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      - run: |
-          terraform init \
+      - name: Initialize and validate
+        run: |
+          terraform init -input=false \
             -backend-config="use_oidc=true" \
             -backend-config="use_azuread_auth=true"
-      - run: terraform validate
-      - run: terraform plan -input=false -no-color
-        if: github.event_name == 'pull_request'
-      - run: terraform apply -input=false -auto-approve
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+          terraform validate
+      - name: Create reviewed plan
+        run: terraform plan -input=false -no-color -out=tfplan
+      - name: Store private plan for post-merge apply
+        env:
+          STACK: persistent
+        run: |
+          set -euo pipefail
+          prefix="plans/dev/pr/${PR_NUMBER}/${PR_HEAD_SHA}"
+          source_sha="$(git rev-parse HEAD)"
+          root_tree="$(git rev-parse HEAD:infrastructure/environments/dev/persistent)"
+          modules_tree="$(git rev-parse HEAD:infrastructure/modules)"
+          jq -n \
+            --arg stack "$STACK" \
+            --arg pr "$PR_NUMBER" \
+            --arg pr_head_sha "$PR_HEAD_SHA" \
+            --arg source_sha "$source_sha" \
+            --arg root_tree "$root_tree" \
+            --arg modules_tree "$modules_tree" \
+            '{stack:$stack, pr:$pr, pr_head_sha:$pr_head_sha, source_sha:$source_sha, root_tree:$root_tree, modules_tree:$modules_tree}' \
+            > plan-metadata.json
+          az storage blob upload \
+            --auth-mode login \
+            --account-name "$PLAN_STORAGE_ACCOUNT" \
+            --container-name "$PLAN_STORAGE_CONTAINER" \
+            --name "${prefix}/persistent.tfplan" \
+            --file tfplan \
+            --overwrite true \
+            --only-show-errors \
+            --output none
+          az storage blob upload \
+            --auth-mode login \
+            --account-name "$PLAN_STORAGE_ACCOUNT" \
+            --container-name "$PLAN_STORAGE_CONTAINER" \
+            --name "${prefix}/persistent.json" \
+            --file plan-metadata.json \
+            --overwrite true \
+            --only-show-errors \
+            --output none
 
-  workloads:
-    needs: [changes, persistent]
-    if: |
-      always() && 
-      (needs.changes.outputs.workloads == 'true' || github.event_name == 'workflow_dispatch') &&
-      !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
+  persistent-checkov:
+    needs: changes
+    if: github.event_name == 'pull_request' && needs.changes.outputs.persistent == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Checkov - persistent
+        uses: bridgecrewio/checkov-action@6f26dc90000b74feb589a906cdfae540f5119895 # v12
+        with:
+          directory: infrastructure/environments/dev/persistent
+          framework: terraform
+          soft_fail: false
+
+  workloads-pr-plan:
+    needs: changes
+    if: github.event_name == 'pull_request' && needs.changes.outputs.workloads == 'true'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: terraform-dev-workloads
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: infrastructure/environments/dev/workloads
+    outputs:
+      deferred: ${{ steps.defer.outputs.deferred }}
+      advisory_result: ${{ steps.advisory.outputs.result }}
+    env:
+      TF_VAR_arm_client_id: ${{ secrets.AZURE_TF_CLIENT_ID }}
+      TF_VAR_arm_tenant_id: ${{ secrets.AZURE_TENANT_ID }}
+      TF_VAR_arm_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: hashicorp/setup-terraform@v3
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_TF_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Initialize and validate
+        run: |
+          terraform init -input=false \
+            -backend-config="use_oidc=true" \
+            -backend-config="use_azuread_auth=true"
+          terraform validate
+      - name: Create reviewed plan for workloads-only PR
+        if: needs.changes.outputs.persistent != 'true'
+        run: terraform plan -input=false -no-color -out=tfplan
+      - name: Store private plan for post-merge apply
+        if: needs.changes.outputs.persistent != 'true'
+        env:
+          STACK: workloads
+        run: |
+          set -euo pipefail
+          prefix="plans/dev/pr/${PR_NUMBER}/${PR_HEAD_SHA}"
+          source_sha="$(git rev-parse HEAD)"
+          root_tree="$(git rev-parse HEAD:infrastructure/environments/dev/workloads)"
+          modules_tree="$(git rev-parse HEAD:infrastructure/modules)"
+          jq -n \
+            --arg stack "$STACK" \
+            --arg pr "$PR_NUMBER" \
+            --arg pr_head_sha "$PR_HEAD_SHA" \
+            --arg source_sha "$source_sha" \
+            --arg root_tree "$root_tree" \
+            --arg modules_tree "$modules_tree" \
+            '{stack:$stack, pr:$pr, pr_head_sha:$pr_head_sha, source_sha:$source_sha, root_tree:$root_tree, modules_tree:$modules_tree}' \
+            > plan-metadata.json
+          az storage blob upload \
+            --auth-mode login \
+            --account-name "$PLAN_STORAGE_ACCOUNT" \
+            --container-name "$PLAN_STORAGE_CONTAINER" \
+            --name "${prefix}/workloads.tfplan" \
+            --file tfplan \
+            --overwrite true \
+            --only-show-errors \
+            --output none
+          az storage blob upload \
+            --auth-mode login \
+            --account-name "$PLAN_STORAGE_ACCOUNT" \
+            --container-name "$PLAN_STORAGE_CONTAINER" \
+            --name "${prefix}/workloads.json" \
+            --file plan-metadata.json \
+            --overwrite true \
+            --only-show-errors \
+            --output none
+      - name: Best-effort workloads plan for combined PR
+        id: advisory
+        if: needs.changes.outputs.persistent == 'true'
+        shell: bash
+        run: |
+          set +e
+          terraform plan -input=false -no-color > "$RUNNER_TEMP/workloads-advisory-plan.log" 2>&1
+          result=$?
+          set -e
+          if [ "$result" -eq 0 ]; then
+            echo "result=succeeded (advisory only)" >> "$GITHUB_OUTPUT"
+          else
+            echo "result=failed (deferred as expected until persistent is applied)" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Mark workloads plan as deferred
+        id: defer
+        if: needs.changes.outputs.persistent == 'true'
+        run: |
+          echo "deferred=true" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Workloads plan deferred"
+            echo "This combined-stack PR ran a best-effort advisory plan. Result: ${{ steps.advisory.outputs.result }}."
+            echo "This plan is not eligible for apply. After merge, persistent will apply first; workloads will then be planned again from main and wait for a manual workflow dispatch before applying."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  workloads-checkov:
+    needs: changes
+    if: github.event_name == 'pull_request' && needs.changes.outputs.workloads == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Checkov - workloads
+        uses: bridgecrewio/checkov-action@6f26dc90000b74feb589a906cdfae540f5119895 # v12
+        with:
+          directory: infrastructure/environments/dev/workloads
+          framework: terraform
+          soft_fail: false
+
+  resolve-merged-pr:
+    needs: changes
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      (needs.changes.outputs.persistent == 'true' || needs.changes.outputs.workloads == 'true')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      number: ${{ steps.pr.outputs.number }}
+      head_sha: ${{ steps.pr.outputs.head_sha }}
+    steps:
+      - uses: actions/github-script@v7
+        id: pr
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const response = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+              owner,
+              repo,
+              commit_sha: context.sha
+            });
+            const merged = response.data.find(pr => pr.base.ref === "main" && pr.merged_at);
+            if (!merged) {
+              core.setFailed("Could not identify the merged PR for this main-branch commit; refusing to apply an unreviewed plan.");
+              return;
+            }
+            core.setOutput("number", String(merged.number));
+            core.setOutput("head_sha", merged.head.sha);
+
+  persistent-apply:
+    needs: [changes, resolve-merged-pr]
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      needs.changes.outputs.persistent == 'true'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: terraform-dev-persistent
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: infrastructure/environments/dev/persistent
+    env:
+      TF_VAR_github_token: ${{ secrets.GITHUB_TOKEN }}
+      PR_NUMBER: ${{ needs.resolve-merged-pr.outputs.number }}
+      PR_HEAD_SHA: ${{ needs.resolve-merged-pr.outputs.head_sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: hashicorp/setup-terraform@v3
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_TF_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Initialize
+        run: |
+          terraform init -input=false \
+            -backend-config="use_oidc=true" \
+            -backend-config="use_azuread_auth=true"
+      - name: Download and verify reviewed plan
+        run: |
+          set -euo pipefail
+          prefix="plans/dev/pr/${PR_NUMBER}/${PR_HEAD_SHA}"
+          az storage blob download \
+            --auth-mode login \
+            --account-name "$PLAN_STORAGE_ACCOUNT" \
+            --container-name "$PLAN_STORAGE_CONTAINER" \
+            --name "${prefix}/persistent.tfplan" \
+            --file tfplan \
+            --only-show-errors \
+            --output none
+          az storage blob download \
+            --auth-mode login \
+            --account-name "$PLAN_STORAGE_ACCOUNT" \
+            --container-name "$PLAN_STORAGE_CONTAINER" \
+            --name "${prefix}/persistent.json" \
+            --file plan-metadata.json \
+            --only-show-errors \
+            --output none
+          root_tree="$(git rev-parse HEAD:infrastructure/environments/dev/persistent)"
+          modules_tree="$(git rev-parse HEAD:infrastructure/modules)"
+          jq -e \
+            --arg pr "$PR_NUMBER" \
+            --arg source_sha "$PR_HEAD_SHA" \
+            --arg root_tree "$root_tree" \
+            --arg modules_tree "$modules_tree" \
+            '.stack == "persistent" and .pr == $pr and .pr_head_sha == $source_sha and .root_tree == $root_tree and .modules_tree == $modules_tree' \
+            plan-metadata.json > /dev/null || {
+              echo "Reviewed persistent plan does not match the merged Terraform source; refusing to apply." >&2
+              exit 1
+            }
+      - name: Apply reviewed plan
+        run: terraform apply -input=false -auto-approve tfplan
+      - name: Delete applied reviewed plan
+        if: success()
+        run: |
+          prefix="plans/dev/pr/${PR_NUMBER}/${PR_HEAD_SHA}"
+          az storage blob delete --auth-mode login --account-name "$PLAN_STORAGE_ACCOUNT" --container-name "$PLAN_STORAGE_CONTAINER" --name "${prefix}/persistent.tfplan" --only-show-errors --output none
+          az storage blob delete --auth-mode login --account-name "$PLAN_STORAGE_ACCOUNT" --container-name "$PLAN_STORAGE_CONTAINER" --name "${prefix}/persistent.json" --only-show-errors --output none
+
+  workloads-delivery:
+    needs: [changes, resolve-merged-pr, persistent-apply]
+    if: >-
+      always() &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      needs.changes.outputs.workloads == 'true' &&
+      needs.resolve-merged-pr.result == 'success' &&
+      (needs.persistent-apply.result == 'success' || needs.persistent-apply.result == 'skipped')
+    runs-on: ubuntu-latest
+    concurrency:
+      group: terraform-dev-workloads
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: infrastructure/environments/dev/workloads
+    env:
+      TF_VAR_arm_client_id: ${{ secrets.AZURE_TF_CLIENT_ID }}
+      TF_VAR_arm_tenant_id: ${{ secrets.AZURE_TENANT_ID }}
+      TF_VAR_arm_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      PR_NUMBER: ${{ needs.resolve-merged-pr.outputs.number }}
+      PR_HEAD_SHA: ${{ needs.resolve-merged-pr.outputs.head_sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: hashicorp/setup-terraform@v3
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_TF_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Initialize
+        run: |
+          terraform init -input=false \
+            -backend-config="use_oidc=true" \
+            -backend-config="use_azuread_auth=true"
+      - name: Apply reviewed workloads-only plan
+        if: needs.changes.outputs.persistent != 'true'
+        run: |
+          set -euo pipefail
+          prefix="plans/dev/pr/${PR_NUMBER}/${PR_HEAD_SHA}"
+          az storage blob download \
+            --auth-mode login \
+            --account-name "$PLAN_STORAGE_ACCOUNT" \
+            --container-name "$PLAN_STORAGE_CONTAINER" \
+            --name "${prefix}/workloads.tfplan" \
+            --file tfplan \
+            --only-show-errors \
+            --output none
+          az storage blob download \
+            --auth-mode login \
+            --account-name "$PLAN_STORAGE_ACCOUNT" \
+            --container-name "$PLAN_STORAGE_CONTAINER" \
+            --name "${prefix}/workloads.json" \
+            --file plan-metadata.json \
+            --only-show-errors \
+            --output none
+          root_tree="$(git rev-parse HEAD:infrastructure/environments/dev/workloads)"
+          modules_tree="$(git rev-parse HEAD:infrastructure/modules)"
+          jq -e \
+            --arg pr "$PR_NUMBER" \
+            --arg source_sha "$PR_HEAD_SHA" \
+            --arg root_tree "$root_tree" \
+            --arg modules_tree "$modules_tree" \
+            '.stack == "workloads" and .pr == $pr and .pr_head_sha == $source_sha and .root_tree == $root_tree and .modules_tree == $modules_tree' \
+            plan-metadata.json > /dev/null || {
+              echo "Reviewed workloads plan does not match the merged Terraform source; refusing to apply." >&2
+              exit 1
+            }
+          terraform apply -input=false -auto-approve tfplan
+          az storage blob delete --auth-mode login --account-name "$PLAN_STORAGE_ACCOUNT" --container-name "$PLAN_STORAGE_CONTAINER" --name "${prefix}/workloads.tfplan" --only-show-errors --output none
+          az storage blob delete --auth-mode login --account-name "$PLAN_STORAGE_ACCOUNT" --container-name "$PLAN_STORAGE_CONTAINER" --name "${prefix}/workloads.json" --only-show-errors --output none
+      - name: Create fresh workloads plan after persistent apply
+        id: post-merge-plan
+        if: needs.changes.outputs.persistent == 'true'
+        run: |
+          set -euo pipefail
+          terraform plan -input=false -no-color -out=tfplan
+          source_sha="$(git rev-parse HEAD)"
+          root_tree="$(git rev-parse HEAD:infrastructure/environments/dev/workloads)"
+          modules_tree="$(git rev-parse HEAD:infrastructure/modules)"
+          jq -n \
+            --arg stack workloads \
+            --arg source_sha "$source_sha" \
+            --arg run_id "$GITHUB_RUN_ID" \
+            --arg root_tree "$root_tree" \
+            --arg modules_tree "$modules_tree" \
+            '{stack:$stack, source_sha:$source_sha, run_id:$run_id, root_tree:$root_tree, modules_tree:$modules_tree}' \
+            > plan-metadata.json
+          prefix="plans/dev/post-merge/${GITHUB_RUN_ID}"
+          az storage blob upload \
+            --auth-mode login \
+            --account-name "$PLAN_STORAGE_ACCOUNT" \
+            --container-name "$PLAN_STORAGE_CONTAINER" \
+            --name "${prefix}/workloads.tfplan" \
+            --file tfplan \
+            --overwrite true \
+            --only-show-errors \
+            --output none
+          az storage blob upload \
+            --auth-mode login \
+            --account-name "$PLAN_STORAGE_ACCOUNT" \
+            --container-name "$PLAN_STORAGE_CONTAINER" \
+            --name "${prefix}/workloads.json" \
+            --file plan-metadata.json \
+            --overwrite true \
+            --only-show-errors \
+            --output none
+          {
+            echo "### Workloads plan is ready for manual apply"
+            echo "Persistent applied first. Review this run's Terraform plan, then dispatch **Infrastructure CI/CD** on \`main\` with action \`apply-workloads-plan\` and plan run ID \`${GITHUB_RUN_ID}\`."
+            echo "The dispatch verifies the source commit and Terraform tree, and applies only this saved plan. It never applies a workloads plan created in the PR."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  manual-workloads-apply:
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/main' &&
+      inputs.action == 'apply-workloads-plan'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: terraform-dev-workloads
+      cancel-in-progress: false
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: infrastructure/environments/dev/workloads
+    env:
+      TF_VAR_arm_client_id: ${{ secrets.AZURE_TF_CLIENT_ID }}
+      TF_VAR_arm_tenant_id: ${{ secrets.AZURE_TENANT_ID }}
+      TF_VAR_arm_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      PLAN_RUN_ID: ${{ inputs.plan_run_id }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Validate plan run ID
+        run: |
+          if ! [[ "$PLAN_RUN_ID" =~ ^[0-9]+$ ]]; then
+            echo "plan_run_id must be the numeric ID shown in the successful post-merge plan run." >&2
+            exit 1
+          fi
+      - name: Verify successful post-merge plan run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${PLAN_RUN_ID}" > "$RUNNER_TEMP/plan-run.json"
+          jq -e '
+            .path == ".github/workflows/infra-ci.yml" and
+            .event == "push" and
+            .head_branch == "main" and
+            .conclusion == "success"
+          ' "$RUNNER_TEMP/plan-run.json" > /dev/null || {
+            echo "The supplied run is not a successful Infrastructure CI/CD run from main." >&2
+            exit 1
+          }
+      - uses: hashicorp/setup-terraform@v3
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_TF_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Initialize
+        run: |
+          terraform init -input=false \
+            -backend-config="use_oidc=true" \
+            -backend-config="use_azuread_auth=true"
+      - name: Download and verify post-merge plan
+        run: |
+          set -euo pipefail
+          prefix="plans/dev/post-merge/${PLAN_RUN_ID}"
+          az storage blob download \
+            --auth-mode login \
+            --account-name "$PLAN_STORAGE_ACCOUNT" \
+            --container-name "$PLAN_STORAGE_CONTAINER" \
+            --name "${prefix}/workloads.tfplan" \
+            --file tfplan \
+            --only-show-errors \
+            --output none
+          az storage blob download \
+            --auth-mode login \
+            --account-name "$PLAN_STORAGE_ACCOUNT" \
+            --container-name "$PLAN_STORAGE_CONTAINER" \
+            --name "${prefix}/workloads.json" \
+            --file plan-metadata.json \
+            --only-show-errors \
+            --output none
+          plan_sha="$(jq -r .source_sha plan-metadata.json)"
+          recorded_run_id="$(jq -r .run_id plan-metadata.json)"
+          if [ "$recorded_run_id" != "$PLAN_RUN_ID" ] || [ "$(jq -r .stack plan-metadata.json)" != "workloads" ]; then
+            echo "The stored plan metadata does not match the requested run ID and stack." >&2
+            exit 1
+          fi
+          git merge-base --is-ancestor "$plan_sha" "$GITHUB_SHA" || {
+            echo "The plan commit is not an ancestor of current main; generate a new plan." >&2
+            exit 1
+          }
+          planned_root_tree="$(jq -r .root_tree plan-metadata.json)"
+          planned_modules_tree="$(jq -r .modules_tree plan-metadata.json)"
+          current_root_tree="$(git rev-parse HEAD:infrastructure/environments/dev/workloads)"
+          current_modules_tree="$(git rev-parse HEAD:infrastructure/modules)"
+          if [ "$planned_root_tree" != "$current_root_tree" ] || [ "$planned_modules_tree" != "$current_modules_tree" ]; then
+            echo "Terraform source changed after this plan was created; refusing to apply it. Re-run the post-merge plan." >&2
+            exit 1
+          fi
+      - name: Apply the reviewed post-merge plan
+        run: terraform apply -input=false -auto-approve tfplan
+      - name: Delete applied plan
+        if: success()
+        run: |
+          prefix="plans/dev/post-merge/${PLAN_RUN_ID}"
+          az storage blob delete --auth-mode login --account-name "$PLAN_STORAGE_ACCOUNT" --container-name "$PLAN_STORAGE_CONTAINER" --name "${prefix}/workloads.tfplan" --only-show-errors --output none
+          az storage blob delete --auth-mode login --account-name "$PLAN_STORAGE_ACCOUNT" --container-name "$PLAN_STORAGE_CONTAINER" --name "${prefix}/workloads.json" --only-show-errors --output none
+
+  workloads-destroy:
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/main' &&
+      inputs.action == 'destroy'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: terraform-dev-workloads
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
     defaults:
       run:
         working-directory: infrastructure/environments/dev/workloads
@@ -89,96 +615,98 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          token: ${{ secrets.PAT_TOKEN }}
+          ref: main
+          fetch-depth: 0
       - uses: hashicorp/setup-terraform@v3
       - uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_TF_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      
-      - run: |
-          terraform init \
+      - name: Initialize
+        run: |
+          terraform init -input=false \
             -backend-config="use_oidc=true" \
             -backend-config="use_azuread_auth=true"
-      - run: terraform validate
-      
-      - name: Terraform Plan
-        if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply')
-        run: terraform plan -input=false -no-color
-
-      - name: Terraform Apply (Phase 1 - AKS)
-        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply')
-        run: terraform apply -input=false -target=module.aks -auto-approve
-
-      - name: Terraform Apply (Phase 2 - Full)
-        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply')
-        run: terraform apply -input=false -auto-approve
-
-      # --- BACKUP GATE TRƯỚC KHI DESTROY ---
-      - name: Get AKS Credentials
-        if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'destroy'
+      - name: Get AKS credentials
+        run: az aks get-credentials --resource-group rg-tasktracker-dev --name aks-tasktracker-dev --overwrite-existing
+      - name: Trigger and wait for backup job
         run: |
-          # Lấy thông tin kết nối K8s để chạy lệnh kubectl
-          az aks get-credentials --resource-group rg-tasktracker-dev --name aks-tasktracker-dev --overwrite-existing
-
-      - name: Trigger and Wait for Backup Job
-        if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'destroy'
-        run: |
-          echo "Bắt đầu tạo Job Backup thủ công từ CronJob..."
-          JOB_NAME="manual-backup-before-destroy-$(date +%s)"
-          
-          # Tạo Job từ CronJob hiện có
-          kubectl create job --from=cronjob/tracker-db-backup $JOB_NAME -n dev
-          
-          echo "Đang chờ Job backup hoàn thành (Timeout: 10 phút)..."
-          # Lệnh wait này sẽ chặn CI lại cho đến khi Job báo 'Complete'
-          if kubectl wait --for=condition=complete job/$JOB_NAME -n dev --timeout=600s; then
-            echo "✅ Backup hoàn tất thành công. Cho phép tiến hành Destroy!"
-          else
-            echo "❌ Lỗi: Job backup thất bại hoặc quá thời gian. HỦY BỎ QUÁ TRÌNH DESTROY để bảo toàn dữ liệu!"
-            # Hiển thị log để debug
-            kubectl logs -l job-name=$JOB_NAME -n dev
-            exit 1 # Báo lỗi cho GitHub Actions để dừng luồng
+          set -euo pipefail
+          job_name="manual-backup-before-destroy-$(date +%s)"
+          kubectl create job --from=cronjob/tracker-db-backup "$job_name" -n dev
+          if ! kubectl wait --for=condition=complete "job/$job_name" -n dev --timeout=600s; then
+            kubectl logs -l "job-name=$job_name" -n dev
+            echo "Backup failed or timed out; destroy was cancelled." >&2
+            exit 1
           fi
-      
-      - name: Terraform Destroy
-        if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'destroy'
+      - name: Destroy workloads stack
         run: terraform destroy -input=false -auto-approve
 
-      - name: Update ArgoCD AKV Values
-        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply')
+  sync-gitops:
+    needs: [changes, workloads-delivery, manual-workloads-apply]
+    if: >-
+      always() &&
+      ((github.event_name == 'push' && github.ref == 'refs/heads/main' &&
+        needs.changes.outputs.workloads == 'true' &&
+        needs.changes.outputs.persistent != 'true' &&
+        needs.workloads-delivery.result == 'success') ||
+       (github.event_name == 'workflow_dispatch' &&
+        inputs.action == 'apply-workloads-plan' &&
+        needs.manual-workloads-apply.result == 'success'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    defaults:
+      run:
+        working-directory: infrastructure/environments/dev/workloads
+    env:
+      TF_VAR_arm_client_id: ${{ secrets.AZURE_TF_CLIENT_ID }}
+      TF_VAR_arm_tenant_id: ${{ secrets.AZURE_TENANT_ID }}
+      TF_VAR_arm_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.PAT_TOKEN }}
+          fetch-depth: 0
+      - uses: hashicorp/setup-terraform@v3
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_TF_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Read outputs and synchronize GitOps values
         run: |
+          set -euo pipefail
+          terraform init -input=false \
+            -backend-config="use_oidc=true" \
+            -backend-config="use_azuread_auth=true"
           terraform output -json > tf_outputs.json
-          KV_NAME=$(jq -r '.keyvault_name.value' tf_outputs.json)
-          TENANT_ID=$(jq -r '.tenant_id.value' tf_outputs.json)
-          BACKUP_CLIENT_ID=$(jq -r '.backup_client_id.value' tf_outputs.json)
-          BACKUP_SA_NAME=$(jq -r '.backup_storage_account_name.value' tf_outputs.json)
-          CERT_MANAGER_CLIENT_ID=$(jq -r '.cert_manager_client_id.value' tf_outputs.json)
-          DNS_ZONE_NAME=$(jq -r '.dns_zone_name.value' tf_outputs.json)
-          DNS_RG_NAME=$(jq -r '.shared_rg_name.value' tf_outputs.json)
-          SUB_ID=$(jq -r '.subscription_id.value' tf_outputs.json)
-          
+          kv_name="$(jq -r '.keyvault_name.value' tf_outputs.json)"
+          tenant_id="$(jq -r '.tenant_id.value' tf_outputs.json)"
+          backup_client_id="$(jq -r '.backup_client_id.value' tf_outputs.json)"
+          backup_storage_account="$(jq -r '.backup_storage_account_name.value' tf_outputs.json)"
+          cert_manager_client_id="$(jq -r '.cert_manager_client_id.value' tf_outputs.json)"
+          dns_zone_name="$(jq -r '.dns_zone_name.value' tf_outputs.json)"
+          dns_resource_group="$(jq -r '.shared_rg_name.value' tf_outputs.json)"
+          subscription_id="$(jq -r '.subscription_id.value' tf_outputs.json)"
           cd ../../../../
-          # Ghi đè vào file, đẩy tất cả vào thụt lề của global:
-          cat <<EOF > deploy/environments/dev/akv-values.yaml
+          cat > deploy/environments/dev/akv-values.yaml <<EOF
           global:
-            keyvaultName: "$KV_NAME"
-            tenantId: "$TENANT_ID"
-            backupClientId: "$BACKUP_CLIENT_ID"
-            backupStorageAccount: "$BACKUP_SA_NAME"
-            certManagerClientId: "$CERT_MANAGER_CLIENT_ID"
-            dnsZoneName: "$DNS_ZONE_NAME"
-            dnsResourceGroup: "$DNS_RG_NAME"
-            subscriptionId: "$SUB_ID"
+            keyvaultName: "$kv_name"
+            tenantId: "$tenant_id"
+            backupClientId: "$backup_client_id"
+            backupStorageAccount: "$backup_storage_account"
+            certManagerClientId: "$cert_manager_client_id"
+            dnsZoneName: "$dns_zone_name"
+            dnsResourceGroup: "$dns_resource_group"
+            subscriptionId: "$subscription_id"
           EOF
-          
-          # Nối mảng keyvault_clients ở bên ngoài global
           echo "keyvault_clients:" >> deploy/environments/dev/akv-values.yaml
           jq -r '.backend_client_ids.value | to_entries | .[] | "  \(.key): \(.value)"' infrastructure/environments/dev/workloads/tf_outputs.json >> deploy/environments/dev/akv-values.yaml
-
-          # --- THÊM ĐOẠN NÀY ĐỂ SINH FILE CERT-MANAGER-VALUES TỰ ĐỘNG ---
-          cat <<EOF > deploy/environments/dev/cert-manager-values.yaml
+          cat > deploy/environments/dev/cert-manager-values.yaml <<EOF
           installCRDs: true
           podLabels:
             azure.workload.identity/use: "true"
@@ -186,22 +714,198 @@ jobs:
             create: true
             name: cert-manager
             annotations:
-              azure.workload.identity/client-id: "$CERT_MANAGER_CLIENT_ID"
-              azure.workload.identity/tenant-id: "$TENANT_ID"
+              azure.workload.identity/client-id: "$cert_manager_client_id"
+              azure.workload.identity/tenant-id: "$tenant_id"
           EOF
-
-          # Cấu hình git
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-
-          # Add cả 2 file vào Staging Area
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
           git add deploy/environments/dev/akv-values.yaml deploy/environments/dev/cert-manager-values.yaml
-          
-          # Kiểm tra xem Staging Area có bất kỳ thay đổi nào không (không chỉ định tên file)
           if ! git diff --staged --quiet; then
-            git commit -m "chore(infra): sync terraform outputs to argocd and cert-manager values [skip ci]"
-            git push
-            echo "✅ Đã commit và push cấu hình mới thành công."
-          else
-            echo "✅ Không có sự thay đổi nào ở các file values. Bỏ qua commit."
+            git commit -m "chore(infra): sync terraform outputs to gitops values [skip ci]"
+            git push origin HEAD:main
           fi
+
+  comment-on-pr:
+    needs:
+      - changes
+      - persistent-pr-plan
+      - persistent-checkov
+      - workloads-pr-plan
+      - workloads-checkov
+    if: >-
+      always() &&
+      github.event_name == 'pull_request' &&
+      github.event.action != 'closed' &&
+      (needs.changes.outputs.persistent == 'true' || needs.changes.outputs.workloads == 'true')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/github-script@v7
+        env:
+          PERSISTENT_CHANGED: ${{ needs.changes.outputs.persistent }}
+          WORKLOADS_CHANGED: ${{ needs.changes.outputs.workloads }}
+          COMBINED: ${{ needs.changes.outputs.combined }}
+          PERSISTENT_PLAN: ${{ needs.persistent-pr-plan.result }}
+          PERSISTENT_CHECKOV: ${{ needs.persistent-checkov.result }}
+          WORKLOADS_PLAN: ${{ needs.workloads-pr-plan.result }}
+          WORKLOADS_DEFERRED: ${{ needs.workloads-pr-plan.outputs.deferred }}
+          WORKLOADS_ADVISORY: ${{ needs.workloads-pr-plan.outputs.advisory_result }}
+          WORKLOADS_CHECKOV: ${{ needs.workloads-checkov.result }}
+        with:
+          script: |
+            const env = process.env;
+            const status = (changed, result) => changed === "true" ? result : "not changed";
+            const workloadsPlan = env.COMBINED === "true"
+              ? `deferred (best-effort result: ${env.WORKLOADS_ADVISORY || "unavailable"}; not applyable)`
+              : status(env.WORKLOADS_CHANGED, env.WORKLOADS_PLAN);
+            const body = [
+              "<!-- terraform-infra-plan -->",
+              "## Terraform PR validation",
+              "",
+              "| Stack | Plan | Checkov |",
+              "|---|---|---|",
+              `| persistent | ${status(env.PERSISTENT_CHANGED, env.PERSISTENT_PLAN)} | ${status(env.PERSISTENT_CHANGED, env.PERSISTENT_CHECKOV)} |`,
+              `| workloads | ${workloadsPlan} | ${status(env.WORKLOADS_CHANGED, env.WORKLOADS_CHECKOV)} |`,
+              "",
+              env.COMBINED === "true"
+                ? "This PR changes both roots. The workloads plan is informational only because it reads persistent remote-state outputs that are not written until persistent applies. After merge: apply the reviewed persistent plan, create a fresh workloads plan from main, then manually dispatch that plan by run ID. The PR workloads plan will never be applied."
+                : "After merge, the affected stack applies the saved plan created by this PR.",
+              ""
+            ].join("\n");
+            const { owner, repo } = context.repo;
+            const comments = await github.rest.issues.listComments({
+              owner, repo, issue_number: context.issue.number
+            });
+            const existing = comments.data.find(comment =>
+              comment.user.type === "Bot" && comment.body.includes("<!-- terraform-infra-plan -->")
+            );
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner, repo, comment_id: existing.id, body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner, repo, issue_number: context.issue.number, body
+              });
+            }
+
+  cleanup-closed-pr-plans:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.action == 'closed' &&
+      github.event.pull_request.merged != true
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_TF_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Delete private plans for closed PR
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          az storage blob delete-batch \
+            --auth-mode login \
+            --account-name "$PLAN_STORAGE_ACCOUNT" \
+            --source "$PLAN_STORAGE_CONTAINER" \
+            --pattern "plans/dev/pr/${PR_NUMBER}/*" \
+            --only-show-errors \
+            --output none
+
+  infra-gate:
+    needs:
+      - changes
+      - persistent-pr-plan
+      - persistent-checkov
+      - workloads-pr-plan
+      - workloads-checkov
+      - resolve-merged-pr
+      - persistent-apply
+      - workloads-delivery
+      - manual-workloads-apply
+      - workloads-destroy
+      - sync-gitops
+      - comment-on-pr
+      - cleanup-closed-pr-plans
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Verify expected stack results
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_ACTION: ${{ github.event.action }}
+          PR_MERGED: ${{ github.event.pull_request.merged }}
+          WORKFLOW_ACTION: ${{ inputs.action }}
+          PERSISTENT_CHANGED: ${{ needs.changes.outputs.persistent }}
+          WORKLOADS_CHANGED: ${{ needs.changes.outputs.workloads }}
+          COMBINED: ${{ needs.changes.outputs.combined }}
+          PERSISTENT_PLAN_RESULT: ${{ needs.persistent-pr-plan.result }}
+          PERSISTENT_CHECKOV_RESULT: ${{ needs.persistent-checkov.result }}
+          WORKLOADS_PLAN_RESULT: ${{ needs.workloads-pr-plan.result }}
+          WORKLOADS_DEFERRED: ${{ needs.workloads-pr-plan.outputs.deferred }}
+          WORKLOADS_CHECKOV_RESULT: ${{ needs.workloads-checkov.result }}
+          MERGED_PR_RESULT: ${{ needs.resolve-merged-pr.result }}
+          PERSISTENT_APPLY_RESULT: ${{ needs.persistent-apply.result }}
+          WORKLOADS_DELIVERY_RESULT: ${{ needs.workloads-delivery.result }}
+          MANUAL_APPLY_RESULT: ${{ needs.manual-workloads-apply.result }}
+          DESTROY_RESULT: ${{ needs.workloads-destroy.result }}
+          GITOPS_SYNC_RESULT: ${{ needs.sync-gitops.result }}
+          COMMENT_RESULT: ${{ needs.comment-on-pr.result }}
+          CLEANUP_RESULT: ${{ needs.cleanup-closed-pr-plans.result }}
+        run: |
+          set -euo pipefail
+          fail() { echo "$1" | tee -a "$GITHUB_STEP_SUMMARY"; exit 1; }
+          if [[ "$EVENT_NAME" == "pull_request" && "$EVENT_ACTION" == "closed" ]]; then
+            if [[ "$PR_MERGED" != "true" ]]; then
+              [[ "$CLEANUP_RESULT" == "success" ]] || fail "Closed-PR plan cleanup did not complete."
+            fi
+          elif [[ "$EVENT_NAME" == "pull_request" ]]; then
+            if [[ "$PERSISTENT_CHANGED" == "true" ]]; then
+              [[ "$PERSISTENT_PLAN_RESULT" == "success" ]] || fail "Persistent PR plan failed."
+              [[ "$PERSISTENT_CHECKOV_RESULT" == "success" ]] || fail "Persistent Checkov failed."
+            fi
+            if [[ "$WORKLOADS_CHANGED" == "true" ]]; then
+              [[ "$WORKLOADS_PLAN_RESULT" == "success" ]] || fail "Workloads PR validation failed."
+              [[ "$WORKLOADS_CHECKOV_RESULT" == "success" ]] || fail "Workloads Checkov failed."
+            fi
+            if [[ "$COMBINED" == "true" ]]; then
+              [[ "$WORKLOADS_DEFERRED" == "true" ]] || fail "Combined-stack PR has no explicit workloads deferral status."
+              [[ "$PERSISTENT_PLAN_RESULT" == "success" ]] || fail "Workloads deferral is invalid because persistent did not plan successfully."
+            fi
+            if [[ "$PERSISTENT_CHANGED" == "true" || "$WORKLOADS_CHANGED" == "true" ]]; then
+              [[ "$COMMENT_RESULT" == "success" ]] || fail "Terraform PR status comment was not posted."
+            fi
+          elif [[ "$EVENT_NAME" == "push" ]]; then
+            if [[ "$PERSISTENT_CHANGED" == "true" ]]; then
+              [[ "$MERGED_PR_RESULT" == "success" ]] || fail "Could not resolve the merged PR plan."
+              [[ "$PERSISTENT_APPLY_RESULT" == "success" ]] || fail "Reviewed persistent plan did not apply."
+            fi
+            if [[ "$WORKLOADS_CHANGED" == "true" ]]; then
+              [[ "$MERGED_PR_RESULT" == "success" ]] || fail "Could not resolve the merged PR plan."
+              [[ "$WORKLOADS_DELIVERY_RESULT" == "success" ]] || fail "Workloads delivery or post-merge planning failed."
+            fi
+            if [[ "$WORKLOADS_CHANGED" == "true" && "$PERSISTENT_CHANGED" != "true" ]]; then
+              [[ "$GITOPS_SYNC_RESULT" == "success" ]] || fail "GitOps output synchronization failed."
+            fi
+          elif [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            if [[ "$WORKFLOW_ACTION" == "apply-workloads-plan" ]]; then
+              [[ "$MANUAL_APPLY_RESULT" == "success" ]] || fail "Manual apply of the selected post-merge workloads plan failed."
+              [[ "$GITOPS_SYNC_RESULT" == "success" ]] || fail "GitOps output synchronization failed."
+            elif [[ "$WORKFLOW_ACTION" == "destroy" ]]; then
+              [[ "$DESTROY_RESULT" == "success" ]] || fail "Workloads destroy did not complete."
+            else
+              fail "Unsupported workflow_dispatch action or dispatch was not run on main."
+            fi
+          else
+            echo "No infrastructure action was required for this event." | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "Terraform infrastructure gate passed." | tee -a "$GITHUB_STEP_SUMMARY"
