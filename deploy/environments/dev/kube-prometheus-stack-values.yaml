@@ -1,0 +1,42 @@
+# 1. CẤU HÌNH PROMETHEUS (Bộ não thu thập dữ liệu)
+prometheus:
+  prometheusSpec:
+    # RẤT QUAN TRỌNG: Thiết lập retention (thời gian giữ dữ liệu) cực ngắn để không tốn đĩa
+    retention: 3d
+    retentionSize: "1GB"
+    # Giới hạn tài nguyên để không ăn hết RAM của Node
+    resources:
+      requests:
+        cpu: 100m
+        memory: 512Mi
+      limits:
+        cpu: 500m
+        memory: 1024Mi
+    # Bật Persistence với dung lượng nhỏ (2Gi)
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 2Gi
+    # Cho phép Prometheus tự động tìm các ServiceMonitor ở TẤT CẢ namespaces (để xíu nữa gom log Ingress)
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+
+# 2. CẤU HÌNH GRAFANA (Giao diện hiển thị)
+grafana:
+  # Tắt persistence của Grafana (Mất pod thì mất dashboard tự tạo tay, nhưng ta sẽ code dashboard bằng IaC sau)
+  persistence:
+    enabled: false
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+# 3. TẮT CÁC THÀNH PHẦN KHÔNG CẦN THIẾT HOẶC QUÁ NẶNG CHO DEV
+alertmanager:
+  enabled: false # Tạm tắt Alertmanager ở Day 1 cho nhẹ, sẽ bật ở các bài sau nếu cần

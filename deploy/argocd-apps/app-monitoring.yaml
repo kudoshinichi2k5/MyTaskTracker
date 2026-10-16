@@ -1,0 +1,25 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monitoring
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    targetRevision: 65.2.0 # Phiên bản mới và ổn định của kube-prometheus-stack
+    chart: kube-prometheus-stack
+    helm:
+      valueFiles:
+        # Đường dẫn tuyệt đối trong kho lưu trữ của bạn
+        - https://raw.githubusercontent.com/kudoshinichi2k5/MyTaskTracker/main/deploy/environments/dev/kube-prometheus-stack-values.yaml
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: monitoring # Tách biệt hoàn toàn khỏi dev
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true # Tránh lỗi "Too long annotation" của các CRD Prometheus

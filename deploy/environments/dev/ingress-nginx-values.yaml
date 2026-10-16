@@ -16,3 +16,11 @@ controller:
     name: nginx
     enabled: true
     default: true
+
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+      # Thêm nhãn này để Prometheus của chúng ta nhận diện được ServiceMonitor này
+      additionalLabels:
+        release: monitoring
