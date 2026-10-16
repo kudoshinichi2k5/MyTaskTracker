@@ -26,16 +26,18 @@ locals {
   keyvault_name = "kv-${local.app_prefix}-999"
 
   # Trích xuất giá trị từ remote state
-  app_rg_name        = data.terraform_remote_state.persistent.outputs.app_rg_name
-  app_rg_location    = data.terraform_remote_state.persistent.outputs.app_rg_location
-  shared_rg_name     = data.terraform_remote_state.persistent.outputs.shared_rg_name
-  shared_rg_location = data.terraform_remote_state.persistent.outputs.shared_rg_location
-  acr_id             = data.terraform_remote_state.persistent.outputs.acr_id
-  tf_ci_principal_id = data.terraform_remote_state.persistent.outputs.tf_ci_principal_id
-  backup_sa_name     = data.terraform_remote_state.persistent.outputs.backup_storage_account_name
-  dns_zone_id        = data.terraform_remote_state.persistent.outputs.dns_zone_id
-  dns_zone_name      = data.terraform_remote_state.persistent.outputs.dns_zone_name
-  subscription_id    = data.terraform_remote_state.persistent.outputs.subscription_id
+  app_rg_name                = data.terraform_remote_state.persistent.outputs.app_rg_name
+  app_rg_location            = data.terraform_remote_state.persistent.outputs.app_rg_location
+  shared_rg_name             = data.terraform_remote_state.persistent.outputs.shared_rg_name
+  shared_rg_location         = data.terraform_remote_state.persistent.outputs.shared_rg_location
+  acr_id                     = data.terraform_remote_state.persistent.outputs.acr_id
+  tf_ci_principal_id         = data.terraform_remote_state.persistent.outputs.tf_ci_principal_id
+  backup_sa_name             = data.terraform_remote_state.persistent.outputs.backup_storage_account_name
+  loki_storage_account_name  = data.terraform_remote_state.persistent.outputs.loki_storage_account_name
+  loki_chunks_container_name = data.terraform_remote_state.persistent.outputs.loki_chunks_container_name
+  dns_zone_id                = data.terraform_remote_state.persistent.outputs.dns_zone_id
+  dns_zone_name              = data.terraform_remote_state.persistent.outputs.dns_zone_name
+  subscription_id            = data.terraform_remote_state.persistent.outputs.subscription_id
 }
 
 # 1. Networking (Workload)
@@ -217,6 +219,24 @@ resource "azurerm_role_assignment" "backup_sa_contributor" {
   principal_id         = module.backup_workload_identity.principal_id
   role_definition_name = "Storage Blob Data Contributor"
   scope                = data.azurerm_storage_account.backup_sa.id
+}
+
+# Workload Identity for Loki in the monitoring namespace
+module "loki_workload_identity" {
+  source                   = "../../../modules/identity"
+  identity_name            = "id-loki-${var.environment}"
+  resource_group_name      = local.app_rg_name
+  location                 = local.app_rg_location
+  is_workload_identity     = true
+  aks_oidc_issuer_url      = module.aks.oidc_issuer_url
+  k8s_namespace            = "monitoring"
+  k8s_service_account_name = "loki-sa"
+}
+
+resource "azurerm_role_assignment" "loki_blob_contributor" {
+  principal_id         = module.loki_workload_identity.principal_id
+  role_definition_name = "Storage Blob Data Contributor"
+  scope                = data.terraform_remote_state.persistent.outputs.loki_chunks_container_resource_manager_id
 }
 
 # Cấp quyền Network Contributor cho AKS trên Shared RG để nó có thể gắn Static Public IP

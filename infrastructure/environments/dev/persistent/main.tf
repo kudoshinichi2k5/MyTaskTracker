@@ -60,10 +60,10 @@ resource "azurerm_storage_management_policy" "backup_lifecycle" {
     actions {
       base_blob {
         # Sau 7 ngày kể từ lúc upload -> Chuyển sang Tier Cool (Giảm tiền lưu trữ)
-        tier_to_cool_after_days_since_modification_greater_than    = 7
-        
+        tier_to_cool_after_days_since_modification_greater_than = 7
+
         # Sau 30 ngày kể từ lúc upload -> Xóa luôn
-        delete_after_days_since_modification_greater_than          = 30
+        delete_after_days_since_modification_greater_than = 30
       }
     }
   }
@@ -166,7 +166,7 @@ resource "azurerm_role_assignment" "tf_ci_state_reader" {
 resource "azurerm_dns_zone" "main" {
   name                = var.domain_name
   resource_group_name = azurerm_resource_group.shared_rg.name
-  
+
   # DNS Zone là dịch vụ toàn cầu (Global), nên không cần location cụ thể, 
   # nhưng Azure bắt buộc nó nằm trong một RG.
 }
@@ -176,13 +176,33 @@ resource "azurerm_public_ip" "ingress_ip" {
   name                = "pip-ingress-${var.project_name}-${var.environment}"
   resource_group_name = azurerm_resource_group.shared_rg.name
   location            = azurerm_resource_group.shared_rg.location
-  
+
   # Bắt buộc phải là Static để IP không đổi khi deploy lại
-  allocation_method   = "Static"
-  
+  allocation_method = "Static"
+
   # Bắt buộc là Standard để tương thích với AKS Standard Load Balancer
-  sku                 = "Standard"
-  
+  sku = "Standard"
+
   # Tùy chọn (Nice to have): Gắn domain name label cho IP này (VD: dev-ingress.eastasia.cloudapp.azure.com)
-  domain_name_label   = "${var.project_name}-ingress-${var.environment}"
+  domain_name_label = "${var.project_name}-ingress-${var.environment}"
+}
+
+# --- WEEK 10: LOKI OBSERVABILITY STORAGE ---
+
+resource "azurerm_storage_account" "loki" {
+  name                            = "saloki${var.project_name}${var.environment}"
+  resource_group_name             = azurerm_resource_group.shared_rg.name
+  location                        = azurerm_resource_group.shared_rg.location
+  account_tier                    = "Standard"
+  account_replication_type        = "LRS"
+  account_kind                    = "StorageV2"
+  https_traffic_only_enabled      = true
+  min_tls_version                 = "TLS1_2"
+  allow_nested_items_to_be_public = false
+}
+
+resource "azurerm_storage_container" "loki_chunks" {
+  name                  = "loki-chunks"
+  storage_account_name  = azurerm_storage_account.loki.name
+  container_access_type = "private"
 }
