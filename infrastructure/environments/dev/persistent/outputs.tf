@@ -43,3 +43,7 @@ output "dns_zone_id" {
 output "subscription_id" {
   value = data.azurerm_client_config.current.subscription_id
 }
+
+output "loki_client_id" {
+  value = module.loki_workload_identity.client_id
+}

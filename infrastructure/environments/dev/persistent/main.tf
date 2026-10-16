@@ -186,3 +186,28 @@ resource "azurerm_public_ip" "ingress_ip" {
   # Tùy chọn (Nice to have): Gắn domain name label cho IP này (VD: dev-ingress.eastasia.cloudapp.azure.com)
   domain_name_label   = "${var.project_name}-ingress-${var.environment}"
 }
+
+# --- WEEK 10: LOKI OBSERVABILITY STORAGE ---
+
+resource "azurerm_storage_container" "loki_chunks" {
+  name                  = "loki-chunks"
+  storage_account_name  = azurerm_storage_account.backup.name
+  container_access_type = "private"
+}
+
+module "loki_workload_identity" {
+  source                   = "../../../modules/identity"
+  identity_name            = "id-loki-${var.environment}"
+  resource_group_name      = azurerm_resource_group.app_rg.name
+  location                 = azurerm_resource_group.app_rg.location
+  is_workload_identity     = true
+  aks_oidc_issuer_url      = var.aks_oidc_issuer_url
+  k8s_namespace            = "monitoring"
+  k8s_service_account_name = "loki-sa"
+}
+
+resource "azurerm_role_assignment" "loki_blob_contributor" {
+  principal_id         = module.loki_workload_identity.principal_id
+  role_definition_name = "Storage Blob Data Contributor"
+  scope                = azurerm_storage_container.loki_chunks.resource_manager_id
+}
