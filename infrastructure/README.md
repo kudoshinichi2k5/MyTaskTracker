@@ -52,7 +52,7 @@ flowchart LR
 
 | Layer | Resources and purpose |
 | --- | --- |
-| Persistent foundation | Creates the app and shared Resource Groups, ACR, private MariaDB backup container, storage lifecycle policy, GitHub Actions and Terraform CI user-assigned identities, and their scoped role assignments. |
+| Persistent foundation | Creates the app and shared Resource Groups, ACR, private MariaDB backup container and dedicated private Loki storage account/container, storage lifecycle policy, GitHub Actions and Terraform CI user-assigned identities, and their scoped role assignments. |
 | Public networking foundation | Creates the Azure DNS zone and a static Standard Public IP in the shared Resource Group. The DNS zone name servers are output for registrar delegation. |
 | AKS workloads | Creates the VNet, AKS and database subnets, database NSG, AKS cluster, and the AKS-to-ACR `AcrPull` assignment. Current dev address ranges are `10.0.0.0/16`, `10.0.1.0/24` (AKS), and `10.0.2.0/24` (DB subnet). |
 | Application platform | Creates a Key Vault, per-backend workload identities and Key Vault access, database passwords and connection-string secrets, Kubernetes namespace/initialization Secret, backup identity/storage permission, and cert-manager identity with DNS Zone Contributor scoped to the project's DNS zone. |
@@ -61,8 +61,9 @@ flowchart LR
 ### Network and identity flow
 
 - AKS uses a system-assigned cluster identity and a separate kubelet identity. The kubelet identity receives `AcrPull` on the ACR; the cluster identity receives `Network Contributor` on the shared Resource Group so the cluster can use the static public IP.
-- AKS OIDC issuer and workload identity are enabled. Each backend service, the backup job, and cert-manager have a user-assigned identity federated to the matching Kubernetes service account.
+- AKS OIDC issuer and workload identity are enabled. Each backend service, the backup job, Loki, and cert-manager have a user-assigned identity federated to the matching Kubernetes service account.
 - Backend identities receive `Key Vault Secrets User` on the workload Key Vault. The backup identity receives `Storage Blob Data Contributor` on the backup storage account. The cert-manager identity receives `DNS Zone Contributor` only on the configured DNS zone.
+- The Loki identity is created in the workloads state using the AKS OIDC issuer and receives `Storage Blob Data Contributor` only on the Loki chunks container. Loki storage is separate from MariaDB backups; its client ID is output by the workloads root for Kubernetes/GitOps configuration.
 - GitHub authentication uses Azure federated credentials rather than a stored client secret. The persistent stack discovers GitHub owner/repository IDs through the GitHub API; an optional `github_token` can be supplied through a secure environment variable to avoid unauthenticated API rate limits.
 - The Kubernetes provider in the workloads root gets its connection data from the AKS module outputs. Those outputs are marked sensitive because they contain cluster credentials.
 
@@ -118,7 +119,7 @@ The dev stacks use distinct keys in the existing Azure Blob backend (`TaskTracke
 | Root | State key | Depends on |
 | --- | --- | --- |
 | `environments/dev/persistent` | `dev-persistent.terraform.tfstate` | The pre-existing remote state Storage Account and container. |
-| `environments/dev/workloads` | `dev-workloads.terraform.tfstate` | The persistent state, including Resource Group names/locations, ACR ID, CI identity principal ID, backup account name, DNS zone ID/name, and subscription ID. |
+| `environments/dev/workloads` | `dev-workloads.terraform.tfstate` | The persistent state, including Resource Group names/locations, ACR ID, CI identity principal ID, backup and Loki storage details, Loki container resource ID, DNS zone ID/name, and subscription ID. |
 
 Apply the persistent root before workloads. Workloads cannot resolve its remote-state outputs until the persistent state exists and contains those outputs. Keep state files separate; do not point both roots at the same backend key. Backend configuration belongs in `backend.tf`, not `terraform.tfvars`, because Terraform initializes the backend before loading input variables.
 

@@ -14,7 +14,22 @@ output "tf_ci_principal_id" { value = module.terraform_ci_identity.principal_id 
 output "backup_storage_account_name" {
   description = "Tên Storage Account dùng để lưu backup database"
   value       = azurerm_storage_account.backup.name
-}   
+}
+
+output "loki_storage_account_name" {
+  description = "Storage Account dành riêng cho dữ liệu Loki"
+  value       = azurerm_storage_account.loki.name
+}
+
+output "loki_chunks_container_name" {
+  description = "Blob container dành cho Loki chunks"
+  value       = azurerm_storage_container.loki_chunks.name
+}
+
+output "loki_chunks_container_resource_manager_id" {
+  description = "Azure Resource Manager ID của container Loki, dùng để giới hạn RBAC"
+  value       = azurerm_storage_container.loki_chunks.resource_manager_id
+}
 
 output "dns_zone_name_servers" {
   description = "Danh sách 4 NameServers để cấu hình DNS Delegation trên Registrar"

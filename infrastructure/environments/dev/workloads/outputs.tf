@@ -11,6 +11,19 @@ output "backup_storage_account_name" {
   value = local.backup_sa_name
 }
 
+output "loki_client_id" {
+  description = "Client ID của Workload Identity gắn với monitoring/loki-sa"
+  value       = module.loki_workload_identity.client_id
+}
+
+output "loki_storage_account_name" {
+  value = local.loki_storage_account_name
+}
+
+output "loki_chunks_container_name" {
+  value = local.loki_chunks_container_name
+}
+
 output "cert_manager_client_id" { value = module.cert_manager_identity.client_id }
 output "dns_zone_name" { value = local.dns_zone_name }
 output "shared_rg_name" { value = local.shared_rg_name }

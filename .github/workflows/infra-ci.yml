@@ -104,8 +104,14 @@ jobs:
       - run: terraform validate
       
       - name: Terraform Plan
-        if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply')
+        if: |
+          (github.event_name == 'pull_request' && needs.changes.outputs.persistent != 'true') ||
+          (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply')
         run: terraform plan -input=false -no-color
+
+      - name: Explain skipped workloads plan
+        if: github.event_name == 'pull_request' && needs.changes.outputs.persistent == 'true'
+        run: echo "Skipping workloads plan because persistent outputs are not available in remote state until persistent is applied."
 
       - name: Terraform Apply (Phase 1 - AKS)
         if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply')
