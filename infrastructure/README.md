@@ -122,24 +122,21 @@ The dev stacks use distinct keys in the existing Azure Blob backend (`TaskTracke
 
 Apply the persistent root before workloads. Workloads cannot resolve its remote-state outputs until the persistent state exists and contains those outputs. Keep state files separate; do not point both roots at the same backend key. Backend configuration belongs in `backend.tf`, not `terraform.tfvars`, because Terraform initializes the backend before loading input variables.
 
-### Terraform GitHub Actions flow
+### Terraform workflow for changes to both stacks
 
-The `Infrastructure CI/CD` workflow treats persistent and workloads as independent state locks and uses a separate, non-cancelling GitHub Actions concurrency group for each stack. Shared module changes mark both stacks as changed.
+The infrastructure workflow uses separate non-cancelling concurrency groups for the persistent and workloads state files. Changes to shared Terraform modules count as changes to both roots. PRs run Checkov for each changed root.
 
-- A PR that changes only one stack gets a Terraform plan and Checkov scan for that stack. The merge-triggered workflow applies the private saved plan from that PR, after verifying that the Terraform source trees still match the reviewed plan.
-- A PR that changes both stacks gets a persistent plan and Checkov scans for both roots. The workloads plan is best-effort only: its result is reported as deferred, is never eligible for apply, and does not block the PR if the new persistent outputs are not yet in remote state.
-- After a combined PR is merged, CI applies the reviewed persistent plan first. Only if that succeeds does CI create a new workloads plan from `main`. Review that post-merge plan in its Actions run, then manually dispatch `Infrastructure CI/CD` on `main` with action `apply-workloads-plan` and that run's ID. The dispatch verifies the plan metadata and Terraform source trees before applying it. It never applies the combined PR's workloads plan.
-- A failed persistent apply prevents the post-merge workloads job from running. The `infra-gate` job checks the expected plans, Checkov results, explicit deferral, comment, applies, and cleanup results.
+When one root changes, the existing post-merge apply behavior is unchanged. Note that the current workflow runs a PR plan for review, then runs `terraform apply` after merge; it does not save and apply the exact binary plan created by the PR.
 
-Terraform plan files can contain sensitive values. Because this repository is public, CI does not publish binary plans as GitHub artifacts; it stores them temporarily in the existing private Azure Blob state container under `plans/dev/`. The existing Terraform CI identity's `Storage Blob Data Contributor` assignment on the state Storage Account is used; this workflow does not create or widen Azure role assignments. Unmerged PR plan blobs are deleted when the PR closes; merged PR plans are deleted after successful apply. A post-merge workloads plan remains private until applied; if it becomes stale, CI refuses to apply it and a fresh plan is required.
+When a PR changes both roots, the workloads PR plan is best-effort and explicitly marked deferred; it is never applied. Persistent applies first after merge. Only if that succeeds does CI run a fresh workloads plan from `main`. Review the plan in the Actions run, then manually dispatch `Infrastructure CI/CD` on `main` with action `apply-workloads-plan` and that run's ID. CI checks the plan still matches the current Terraform source before applying. A failed persistent apply prevents the workloads plan.
 
-The repository has no configured GitHub Environment. The Terraform configuration declares federated credentials for the existing `main` and `pull_request` OIDC subjects; no live Azure credential was changed or broadened. Therefore the combined-stack approval uses the manual `workflow_dispatch` path instead of an Environment that would change the OIDC subject. The current `main` branch protection requires the application workflow's `ci-gate`, not this Terraform workflow. Add `infra-gate` as a required status check in branch protection/rulesets so Terraform PR validation is enforced; this GitHub repository setting is not managed by the workflow.
+The post-merge plan is stored in the existing private Azure Blob state container because Terraform plans can contain sensitive values and this repository is public. The current Terraform CI identity already has `Storage Blob Data Contributor` on that storage account; the workflow does not add or broaden Azure permissions. No GitHub Environment is used, so the existing OIDC subject is unchanged. Configure `infra-gate` as a required check in branch protection; the workflow cannot change that repository setting.
 
 ## Working With Dev
 
 Run commands from the root directory of the stack being changed. Azure credentials must be available to the AzureRM provider and backend. CI uses OIDC; local authentication must be configured with an authorized Azure identity. `terraform.tfvars` contains non-secret environment settings; provide secrets such as `github_token` through `TF_VAR_github_token` or another secret manager, not by committing them.
 
-For a local read-only review, plan the persistent stack first:
+Initialize, validate, and plan persistent resources first:
 
 ```powershell
 Set-Location infrastructure/environments/dev/persistent
@@ -148,7 +145,7 @@ terraform validate
 terraform plan -var-file=terraform.tfvars
 ```
 
-Then plan the workload stack:
+Then initialize, validate, and plan the workload stack:
 
 ```powershell
 Set-Location infrastructure/environments/dev/workloads
@@ -157,7 +154,7 @@ terraform validate
 terraform plan -var-file=terraform.tfvars
 ```
 
-Apply and destroy through the GitHub Actions flow described above so the reviewed plan and state ordering are preserved. Do not apply, destroy, import, or otherwise modify Terraform state from a local workstation. To inspect stack outputs, run `terraform output` from that stack directory. Treat outputs and state as sensitive: the workloads state contains generated database credentials and Kubernetes Secrets even when particular Terraform outputs are marked sensitive. Avoid printing or publishing raw state.
+Run apply and destroy through GitHub Actions; do not apply, destroy, import, or modify Terraform state locally. To inspect stack outputs, run `terraform output` from that stack directory. Treat outputs and state as sensitive: the workloads state contains generated database credentials and Kubernetes Secrets even when particular Terraform outputs are marked sensitive. Avoid printing or publishing raw state.
 
 For `staging` or `prod`, first review that environment's backend configuration and values. Their backend must use a unique state key; initialize and operate on one environment directory at a time.
 
