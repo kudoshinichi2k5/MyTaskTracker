@@ -15,6 +15,7 @@ builder.Logging.AddJsonConsole(options =>
     options.JsonWriterOptions = new System.Text.Json.JsonWriterOptions
     {
         Indented = false 
+    };
 });
 
 builder.Services.AddHttpClient("AuthServiceVerify");
