@@ -56,3 +56,9 @@ variable "domain_name" {
   description = "Tên miền chính của dự án (ví dụ: mytasktracker.work.gd)"
   type        = string
 }
+
+variable "aks_oidc_issuer_enabled" {
+  description = "Bật/Tắt OIDC Issuer cho AKS"
+  type        = bool
+}
+
