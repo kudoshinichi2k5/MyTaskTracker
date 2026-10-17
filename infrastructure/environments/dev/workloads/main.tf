@@ -266,24 +266,3 @@ resource "azurerm_role_assignment" "cert_manager_dns_contributor" {
   role_definition_name = "DNS Zone Contributor"
   scope                = local.dns_zone_id
 }
-
-# --- WEEK 10: LOKI OBSERVABILITY IDENTITY ---
-
-module "loki_workload_identity" {
-  source                   = "../../../modules/identity"
-  identity_name            = "id-loki-${var.environment}"
-  resource_group_name      = local.app_rg_name
-  location                 = local.app_rg_location
-  is_workload_identity     = true
-  aks_oidc_issuer_url      = module.aks.oidc_issuer_url
-  k8s_namespace            = "monitoring"
-  k8s_service_account_name = "loki-sa"
-}
-
-# Cấp quyền ghi Blob vào đúng Container loki-chunks
-resource "azurerm_role_assignment" "loki_blob_contributor" {
-  principal_id         = module.loki_workload_identity.principal_id
-  role_definition_name = "Storage Blob Data Contributor"
-  # data.azurerm_storage_account.backup_sa.id đã được định nghĩa ở bài Backup Week 8
-  scope                = "${data.azurerm_storage_account.backup_sa.id}/blobServices/default/containers/loki-chunks"
-}
