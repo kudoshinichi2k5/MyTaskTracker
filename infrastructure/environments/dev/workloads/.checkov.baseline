@@ -1,0 +1,112 @@
+{
+    "failed_checks": [
+        {
+            "file": "\\..\\..\\..\\modules\\aks\\main.tf",
+            "findings": [
+                {
+                    "resource": "module.aks.azurerm_kubernetes_cluster.aks",
+                    "check_ids": [
+                        "CKV_AZURE_115",
+                        "CKV_AZURE_116",
+                        "CKV_AZURE_117",
+                        "CKV_AZURE_141",
+                        "CKV_AZURE_168",
+                        "CKV_AZURE_170",
+                        "CKV_AZURE_171",
+                        "CKV_AZURE_226",
+                        "CKV_AZURE_227",
+                        "CKV_AZURE_232",
+                        "CKV_AZURE_4",
+                        "CKV_AZURE_6"
+                    ]
+                }
+            ]
+        },
+        {
+            "file": "\\..\\..\\..\\modules\\keyvault\\main.tf",
+            "findings": [
+                {
+                    "resource": "module.keyvault.azurerm_key_vault.kv",
+                    "check_ids": [
+                        "CKV2_AZURE_32",
+                        "CKV_AZURE_109",
+                        "CKV_AZURE_110",
+                        "CKV_AZURE_189",
+                        "CKV_AZURE_42"
+                    ]
+                }
+            ]
+        },
+        {
+            "file": "\\..\\..\\..\\modules\\networking\\main.tf",
+            "findings": [
+                {
+                    "resource": "module.networking.azurerm_subnet.aks_subnet",
+                    "check_ids": [
+                        "CKV2_AZURE_31"
+                    ]
+                },
+                {
+                    "resource": "module.networking.azurerm_subnet.db_subnet",
+                    "check_ids": [
+                        "CKV2_AZURE_31"
+                    ]
+                }
+            ]
+        },
+        {
+            "file": "\\main.tf",
+            "findings": [
+                {
+                    "resource": "azurerm_key_vault_secret.db_connection_strings[\"auth-service\"]",
+                    "check_ids": [
+                        "CKV_AZURE_114",
+                        "CKV_AZURE_41"
+                    ]
+                },
+                {
+                    "resource": "azurerm_key_vault_secret.db_connection_strings[\"comment-service\"]",
+                    "check_ids": [
+                        "CKV_AZURE_114",
+                        "CKV_AZURE_41"
+                    ]
+                },
+                {
+                    "resource": "azurerm_key_vault_secret.db_connection_strings[\"notification-service\"]",
+                    "check_ids": [
+                        "CKV_AZURE_114",
+                        "CKV_AZURE_41"
+                    ]
+                },
+                {
+                    "resource": "azurerm_key_vault_secret.db_connection_strings[\"project-service\"]",
+                    "check_ids": [
+                        "CKV_AZURE_114",
+                        "CKV_AZURE_41"
+                    ]
+                },
+                {
+                    "resource": "azurerm_key_vault_secret.db_connection_strings[\"task-service\"]",
+                    "check_ids": [
+                        "CKV_AZURE_114",
+                        "CKV_AZURE_41"
+                    ]
+                },
+                {
+                    "resource": "azurerm_key_vault_secret.root_pass",
+                    "check_ids": [
+                        "CKV_AZURE_114",
+                        "CKV_AZURE_41"
+                    ]
+                },
+                {
+                    "resource": "azurerm_key_vault_secret.valkey_password_secret",
+                    "check_ids": [
+                        "CKV_AZURE_114",
+                        "CKV_AZURE_41"
+                    ]
+                }
+            ]
+        }
+    ]
+}

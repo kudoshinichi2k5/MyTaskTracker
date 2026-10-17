@@ -125,7 +125,7 @@ Apply the persistent root before workloads. Workloads cannot resolve its remote-
 
 ### Terraform workflow for changes to both stacks
 
-The infrastructure workflow uses separate non-cancelling concurrency groups for the persistent and workloads state files. Changes to shared Terraform modules count as changes to both roots. PRs run Checkov for each changed root.
+The infrastructure workflow uses separate non-cancelling concurrency groups for the persistent and workloads state files. Changes to shared Terraform modules count as changes to both roots. PRs run Checkov for each changed root. Each root has a Checkov baseline for findings that existed when enforcement was introduced; scans still fail for findings outside that baseline. Review and remediate baseline findings incrementally, and do not regenerate a baseline automatically.
 
 When one root changes, the existing post-merge apply behavior is unchanged. Note that the current workflow runs a PR plan for review, then runs `terraform apply` after merge; it does not save and apply the exact binary plan created by the PR.
 
