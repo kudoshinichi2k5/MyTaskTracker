@@ -65,6 +65,7 @@ jobs:
         with:
           directory: infrastructure/environments/dev/persistent
           framework: terraform
+          baseline: infrastructure/environments/dev/persistent/.checkov.baseline
           soft_fail: false
       - uses: hashicorp/setup-terraform@v3
       - uses: azure/login@v2
@@ -118,6 +119,7 @@ jobs:
         with:
           directory: infrastructure/environments/dev/workloads
           framework: terraform
+          baseline: infrastructure/environments/dev/workloads/.checkov.baseline
           soft_fail: false
       - uses: hashicorp/setup-terraform@v3
       - uses: azure/login@v2
