@@ -9,18 +9,17 @@ loki:
   commonConfig:
     replication_factor: 1
 
-  # CHÚ Ý: Tất cả cấu hình storage gom về chung khối này
   storage:
     type: azure
     bucketNames:
       chunks: loki-chunks
-      ruler: loki-chunks # Gom chung 1 container cho tiết kiệm (tùy chọn)
+      ruler: loki-chunks
       admin: loki-chunks
     azure:
       container_name: loki-chunks
-      storage_account_name: "salokitasktrackerdev" # Tên SA thật của bạn
+      account_name: "salokitasktrackerdev" # Đã sửa từ 'storage_account_name' thành 'account_name'
       use_managed_identity: true
-      user_assigned_id: "f7ddc777-ddb1-4756-87c9-b092e7d2d1b3" # Tên ClientID thật của bạn
+      user_assigned_id: "f7ddc777-ddb1-4756-87c9-b092e7d2d1b3"
   
   schemaConfig:
     configs:
@@ -58,3 +57,20 @@ backend:
   replicas: 0
 test:
   enabled: false
+
+# ---- THÊM ĐOẠN DƯỚI ĐÂY ĐỂ FIX LỖI THIẾU RAM CỦA LOKI CACHE ----
+chunksCache:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+
+resultsCache:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
