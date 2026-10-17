@@ -56,3 +56,4 @@ variable "domain_name" {
   description = "Tên miền chính của dự án (ví dụ: mytasktracker.work.gd)"
   type        = string
 }
+
