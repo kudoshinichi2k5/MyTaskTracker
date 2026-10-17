@@ -12,6 +12,17 @@ using Tracker.AuthService.Endpoints;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Logging.ClearProviders();
+builder.Logging.AddJsonConsole(options =>
+{
+    options.IncludeScopes = true;
+    options.TimestampFormat = "yyyy-MM-dd HH:mm:ss.fff ";
+    options.JsonWriterOptions = new System.Text.Json.JsonWriterOptions
+    {
+        Indented = false 
+    };
+});
+
 builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
 
 if (!builder.Environment.IsEnvironment("Testing"))
