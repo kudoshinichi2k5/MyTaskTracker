@@ -1,14 +1,9 @@
-auth_enabled: false
-
-server:
-  http_listen_port: 3100
-
-common:
-  replication_factor: 1
-
-# Ép hoàn toàn sang chế độ SingleBinary, tắt các subchart phân tán gây lỗi PVC
 deploymentMode: SingleBinary
 
+# ==========================================
+# PHẦN 1: CẤU HÌNH POD VÀ TẮT COMPONENT PHỤ
+# (Nằm ở cấp ngoài cùng)
+# ==========================================
 singleBinary:
   replicas: 1
   persistence:
@@ -25,10 +20,11 @@ singleBinary:
     create: true
     name: loki-sa
     annotations:
-      azure.workload.identity/client-id: "f7ddc777-ddb1-4756-87c9-b092e7d2d1b3" # Thay bằng Client ID thực tế từ Terraform output nếu cần
+      azure.workload.identity/client-id: "f7ddc777-ddb1-4756-87c9-b092e7d2d1b3"
   podLabels:
     azure.workload.identity/use: "true"
 
+# Tắt các chế độ phân tán
 backend:
   replicas: 0
 read:
@@ -36,37 +32,54 @@ read:
 write:
   replicas: 0
 
-# Tắt hoàn toàn cache để tránh lỗi thiếu RAM trên node ARM64
+# Tắt hoàn toàn Cache và Canary để tiết kiệm RAM
 chunksCache:
   enabled: false
 resultsCache:
   enabled: false
-
-schema_config:
-  configs:
-    - from: "2024-04-01"
-      store: tsdb
-      object_store: azure
-      schema: v13
-      index:
-        prefix: loki_index_
-        period: 24h
-
-storage_config:
-  azure:
-    container_name: loki-chunks
-    account_name: "sabackupvalkeydev" # Thay bằng Storage Account thực tế của bạn
-    use_managed_identity: true
-    user_assigned_id: "f7ddc777-ddb1-4756-87c9-b092e7d2d1b3"
-
-limits_config:
-  enforce_metric_name: false
-  reject_old_samples: true
-  reject_old_samples_max_age: 168h
-  allow_structured_metadata: false
-
-# Tắt canary và test để tiết kiệm tài nguyên
 lokiCanary:
   enabled: false
 test:
   enabled: false
+
+# ==========================================
+# PHẦN 2: CẤU HÌNH LÕI CỦA PHẦN MỀM LOKI
+# (BẮT BUỘC phải thụt lề trong block `loki:`)
+# ==========================================
+loki:
+  auth_enabled: false
+  
+  server:
+    http_listen_port: 3100
+    
+  commonConfig:
+    replication_factor: 1
+
+  # Cấu hình Storage đẩy về Azure Blob
+  storage:
+    type: azure
+    bucketNames:
+      chunks: loki-chunks
+      ruler: loki-chunks
+      admin: loki-chunks
+    azure:
+      container_name: loki-chunks
+      account_name: "sabackupvalkeydev" # Đã update theo Storage Account mới của bạn
+      use_managed_identity: true
+      user_assigned_id: "f7ddc777-ddb1-4756-87c9-b092e7d2d1b3"
+
+  schemaConfig:
+    configs:
+      - from: "2024-04-01"
+        store: tsdb
+        object_store: azure
+        schema: v13
+        index:
+          prefix: loki_index_
+          period: 24h
+
+  limits_config:
+    # Tuyệt đối KHÔNG gõ thêm `enforce_metric_name` vào đây
+    reject_old_samples: true
+    reject_old_samples_max_age: 168h
+    allow_structured_metadata: false
