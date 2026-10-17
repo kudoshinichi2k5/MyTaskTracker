@@ -2,42 +2,43 @@ deploymentMode: SingleBinary
 
 loki:
   auth_enabled: false
+  
   server:
     http_listen_port: 3100
-  common:
+    
+  commonConfig:
     replication_factor: 1
-  schema_config:
+
+  # CHÚ Ý: Tất cả cấu hình storage gom về chung khối này
+  storage:
+    type: azure
+    bucketNames:
+      chunks: loki-chunks
+      ruler: loki-chunks # Gom chung 1 container cho tiết kiệm (tùy chọn)
+      admin: loki-chunks
+    azure:
+      container_name: loki-chunks
+      storage_account_name: "salokitasktrackerdev" # Tên SA thật của bạn
+      use_managed_identity: true
+      user_assigned_id: "f7ddc777-ddb1-4756-87c9-b092e7d2d1b3" # Tên ClientID thật của bạn
+  
+  schemaConfig:
     configs:
-      - from: 2024-04-01
+      - from: "2024-04-01"
         store: tsdb
         object_store: azure
         schema: v13
         index:
           prefix: loki_index_
           period: 24h
-  storage:
-    type: azure
-    bucketNames:
-      chunks: loki-chunks
-      ruler: loki-ruler
-      admin: loki-admin
-    azure:
-      container_name: loki-chunks
-      storage_account_name: "salokitasktrackerdev"
-      use_managed_identity: true
-      user_assigned_id: "f7ddc777-ddb1-4756-87c9-b092e7d2d1b3"
-  storage_config:
-    azure:
-      container_name: loki-chunks
-      storage_account_name: "salokitasktrackerdev"
-      use_managed_identity: true
-      user_assigned_id: "f7ddc777-ddb1-4756-87c9-b092e7d2d1b3"
+
   limits_config:
     enforce_metric_name: false
     reject_old_samples: true
     reject_old_samples_max_age: 168h
     allow_structured_metadata: false
 
+# Cấu hình Pod SingleBinary
 singleBinary:
   replicas: 1
   serviceAccount:
@@ -47,3 +48,13 @@ singleBinary:
       azure.workload.identity/client-id: "f7ddc777-ddb1-4756-87c9-b092e7d2d1b3"
   podLabels:
     azure.workload.identity/use: "true"
+
+# Tắt các components dư thừa trong SingleBinary mode
+read:
+  replicas: 0
+write:
+  replicas: 0
+backend:
+  replicas: 0
+test:
+  enabled: false
