@@ -6,6 +6,17 @@ using Tracker.NotificationService.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Logging.ClearProviders();
+builder.Logging.AddJsonConsole(options =>
+{
+    options.IncludeScopes = true;
+    options.TimestampFormat = "yyyy-MM-dd HH:mm:ss.fff ";
+    options.JsonWriterOptions = new System.Text.Json.JsonWriterOptions
+    {
+        Indented = false 
+    };
+});
+
 var authServiceBaseUrl =
     builder.Configuration["AuthService:BaseUrl"]
     ?? "http://localhost:5001";
