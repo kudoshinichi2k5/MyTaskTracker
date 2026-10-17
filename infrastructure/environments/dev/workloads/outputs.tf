@@ -28,3 +28,7 @@ output "cert_manager_client_id" { value = module.cert_manager_identity.client_id
 output "dns_zone_name" { value = local.dns_zone_name }
 output "shared_rg_name" { value = local.shared_rg_name }
 output "subscription_id" { value = local.subscription_id }
+
+output "loki_client_id" {
+  value = module.loki_workload_identity.client_id
+}
