@@ -37,6 +37,16 @@ grafana:
       cpu: 200m
       memory: 256Mi
 
+  # TỰ ĐỘNG THÊM LOKI LÀM DATASOURCE TRONG GRAFANA
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      access: proxy
+      url: http://loki-gateway.monitoring.svc.cluster.local
+      isDefault: false
+      jsonData:
+        maxLines: 1000
+
 # 3. TẮT CÁC THÀNH PHẦN KHÔNG CẦN THIẾT HOẶC QUÁ NẶNG CHO DEV
 alertmanager:
   enabled: false # Tạm tắt Alertmanager ở Day 1 cho nhẹ, sẽ bật ở các bài sau nếu cần
