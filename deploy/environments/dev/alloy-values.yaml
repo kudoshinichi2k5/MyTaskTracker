@@ -1,0 +1,57 @@
+controller:
+  type: daemonset
+
+alloy:
+  configMap:
+    create: true
+    content: |
+      // Khám phá các pod đang chạy trên cùng node với Alloy
+      discovery.kubernetes "pods" {
+        role = "pod"
+      }
+
+      // Lọc log từ các pod trong namespace dev và ingress-nginx
+      discovery.relabel "pod_logs" {
+        targets = discovery.kubernetes.pods.targets
+
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          action = "keep"
+          regex = "dev|ingress-nginx"
+        }
+
+        // THIẾT KẾ NHÃN CARDINALITY THẤP (Task 3): Chỉ giữ lại namespace, app, container
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
+          target_label  = "app"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_container_name"]
+          target_label  = "container"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_name"]
+          target_label  = "pod"
+        }
+      }
+
+      // Đọc file log từ đường dẫn chuẩn của Kubernetes trên node
+      lokiprocess.pod_logs "kubernetes_logs" {
+        stages {
+          json {
+            expressions = {output = "output", level = "Level", message = "Message"}
+          }
+        }
+        forward_to = [loki.write.endpoint.receiver]
+      }
+
+      // Đẩy log về Loki Gateway trong namespace monitoring
+      loki.write "endpoint" {
+        endpoint {
+          url = "http://loki-gateway.monitoring.svc.cluster.local/loki/api/v1/push"
+        }
+      }
