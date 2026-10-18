@@ -5,12 +5,12 @@ alloy:
   configMap:
     create: true
     content: |
-      // Khám phá các pod đang chạy trên cùng node với Alloy
+      // 1. Khám phá các pod đang chạy trên cùng node với Alloy
       discovery.kubernetes "pods" {
         role = "pod"
       }
 
-      // Lọc log từ các pod trong namespace dev và ingress-nginx
+      // 2. Lọc log từ các pod trong namespace dev và ingress-nginx
       discovery.relabel "pod_logs" {
         targets = discovery.kubernetes.pods.targets
 
@@ -20,7 +20,7 @@ alloy:
           regex = "dev|ingress-nginx"
         }
 
-        // THIẾT KẾ NHÃN CARDINALITY THẤP (Task 3): Chỉ giữ lại namespace, app, container
+        // THIẾT KẾ NHÃN CARDINALITY THẤP (Task 3)
         rule {
           source_labels = ["__meta_kubernetes_namespace"]
           target_label  = "namespace"
@@ -39,17 +39,28 @@ alloy:
         }
       }
 
-      // Đọc file log từ đường dẫn chuẩn của Kubernetes trên node
-      lokiprocess.pod_logs "kubernetes_logs" {
-        stages {
-          json {
-            expressions = {output = "output", level = "Level", message = "Message"}
-          }
+      // 3. Đọc file log từ K8s
+      loki.source.kubernetes "pod_logs" {
+        targets    = discovery.relabel.pod_logs.output
+        forward_to = [loki.process.kubernetes_logs.receiver]
+      }
+
+      // 4. Xử lý log
+      loki.process "kubernetes_logs" {
+        // Đã bọc ngoặc kép an toàn tuyệt đối
+        stage.json {
+          expressions = { "output" = "output", "level" = "Level", "message" = "Message" }
         }
+
+        // (Tùy chọn) Chỉ in ra trường message trên Grafana cho dễ đọc, bỏ qua đoạn JSON thô
+        stage.output {
+          source = "message"
+        }
+
         forward_to = [loki.write.endpoint.receiver]
       }
 
-      // Đẩy log về Loki Gateway trong namespace monitoring
+      // 5. Đẩy log về Loki Gateway
       loki.write "endpoint" {
         endpoint {
           url = "http://loki-gateway.monitoring.svc.cluster.local/loki/api/v1/push"
