@@ -1,0 +1,17 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-monitoring-scrape
+  namespace: dev
+spec:
+  # Rỗng nghĩa là áp dụng cho TẤT CẢ các pod trong namespace dev
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        # Cho phép traffic đến từ BẤT KỲ pod nào nằm trong namespace "monitoring"
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      # Không chỉ định ports, Prometheus có quyền quét mọi cổng (thường là 8080 hoặc các cổng metrics)
