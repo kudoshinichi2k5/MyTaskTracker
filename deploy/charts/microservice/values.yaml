@@ -56,10 +56,16 @@ ingress:
   #    hosts:
   #      - chart-example.local
 
-resources: {}
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    cpu: 200m
+    memory: 256Mi
 
 autoscaling:
-  enabled: false
+  enabled: false # Tắt mặc định, service nào cần mới tự bật ở thư mục base
   minReplicas: 1
   maxReplicas: 5
   targetCPUUtilizationPercentage: 70
