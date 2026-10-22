@@ -56,3 +56,19 @@ ingress:
     - secretName: wildcard-tls-secret
       hosts:
         - api.mytasktracker.work.gd
+
+# KHAI BÁO RESOURCES BẮT BUỘC ĐỂ HPA HOẠT ĐỘNG
+resources:
+  requests:
+    cpu: 100m      # 0.1 vCPU
+    memory: 128Mi
+  limits:
+    cpu: 300m      # Tối đa 0.3 vCPU
+    memory: 256Mi
+
+# BẬT HPA
+autoscaling:
+  enabled: true
+  minReplicas: 2   # Luôn chạy ít nhất 2 pod để test tính stateless và sẵn sàng (HA)
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 60 # Nếu 2 pod đều chạy hơn 60% CPU -> Tạo thêm pod số 3
