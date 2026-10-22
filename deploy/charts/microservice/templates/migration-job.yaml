@@ -8,8 +8,11 @@ metadata:
     {{- include "microservice.labels" . | nindent 4 }}
   annotations:
     argocd.argoproj.io/sync-wave: "1"
+    # --- THÊM MỚI 1: Cấu hình Argo CD Hook để dọn dẹp Job ngay khi chạy xong ---
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
 spec:
-  ttlSecondsAfterFinished: 300 # Thêm field tự động dọn dẹp Job sau 300 giây (5 phút)
+  ttlSecondsAfterFinished: 300 # Giữ làm fallback an toàn (ArgoCD sẽ xóa trước khi bộ đếm này kích hoạt)
   template:
     metadata:
       name: {{ include "microservice.fullname" . }}-migration
@@ -20,15 +23,21 @@ spec:
         {{- end }}
     spec:
       serviceAccountName: {{ include "microservice.fullname" . }}
-      # Job không bao giờ tự restart nếu lỗi mã code, để ta còn check log
       restartPolicy: Never
       containers:
         - name: db-migration
           image: "{{ .Values.global.imageRegistry }}/{{ .Values.image.repository }}:{{ .Values.global.imageTag | default .Values.image.tag }}"
-          # Chèn thêm argument --migrate vào lệnh chạy DLL
           command: ["dotnet", "{{ .Values.migration.dllName }}", "--migrate"]
 
-          # Mount Volume CSI cho Job
+          # --- THÊM MỚI 2: Khai báo tài nguyên để sửa lỗi HPA <unknown> ---
+          resources:
+            requests:
+              cpu: 50m       # Cấp một lượng nhỏ CPU để HPA có cơ sở tính toán
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+
           {{- if .Values.keyvault.enabled }}
           volumeMounts:
             - name: secrets-store-inline
@@ -46,14 +55,12 @@ spec:
             - secretRef:
                 name: {{ include "microservice.fullname" . }}-secret
             {{- end }}
-            # Nạp Synced Secret
             {{- if .Values.keyvault.enabled }}
             - secretRef:
                 name: {{ include "microservice.fullname" . }}-synced-secret
             {{- end }}
           {{- end }}
 
-      # Khai báo Volume CSI cho Job
       {{- if .Values.keyvault.enabled }}
       volumes:
         - name: secrets-store-inline
