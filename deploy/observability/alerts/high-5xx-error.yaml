@@ -1,0 +1,26 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: ingress-high-5xx-error
+  namespace: monitoring
+  labels:
+    # Bắt buộc phải có nhãn này để Prometheus Operator nhận diện và nạp rule
+    release: monitoring
+spec:
+  groups:
+    - name: ingress.rules
+      rules:
+        - alert: IngressHigh5xxRate
+          # Tỉ lệ lỗi = (Tổng request 5xx) / (Tổng request)
+          # Nếu > 0.05 (5%) thì báo động
+          expr: |
+            sum(rate(nginx_ingress_controller_requests{status=~"5.."}[1m])) 
+            / 
+            sum(rate(nginx_ingress_controller_requests[1m])) > 0.05
+          # Phải duy trì liên tục trong 1 phút thì mới kích hoạt (chống nhiễu do lỗi chớp nhoáng)
+          for: 1m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Tỉ lệ lỗi 5xx cao trên NGINX Ingress (> 5%)"
+            description: "Cảnh báo: Ingress đang trả về nhiều lỗi 5xx. Có thể một Backend Service đang bị sập."
