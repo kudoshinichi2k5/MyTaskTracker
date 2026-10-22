@@ -1,14 +1,16 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: custom-alerts
+  name: observability-custom-resources
   namespace: argocd
 spec:
   project: default
   source:
     repoURL: 'https://github.com/kudoshinichi2k5/MyTaskTracker.git'
     targetRevision: main
-    path: deploy/observability/alerts
+    path: deploy/observability # Quét toàn bộ thư mục gốc observability
+    directory:
+      recurse: true # Bắt buộc phải có dòng này để ArgoCD chui vào đọc cả thư mục alerts và dashboards
   destination:
     server: 'https://kubernetes.default.svc'
     namespace: monitoring
