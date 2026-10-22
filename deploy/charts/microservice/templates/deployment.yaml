@@ -66,6 +66,23 @@ spec:
             {{- toYaml .Values.readinessProbe | nindent 12 }}
           {{- end }}
 
+          # 1. CẤU HÌNH RESOURCES CHO HPA TÍNH TOÁN
+          {{- if .Values.resources }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          {{- end }}
+
+          # 2. GRACEFUL SHUTDOWN: PRESTOP HOOK
+          lifecycle:
+            preStop:
+              exec:
+                # Ngủ 15 giây trước khi tắt ứng dụng. Giúp NGINX và Kube-proxy có đủ thời gian gỡ IP của Pod này ra khỏi Service endpoint.
+                command: ["/bin/sleep", "15"]
+
+      # 3. GRACEFUL SHUTDOWN: TERMINATION GRACE PERIOD
+      # Tổng thời gian K8s cho phép Pod sống sau khi nhận lệnh tắt (15s ngủ + 45s xử lý nốt request = 60s)
+      terminationGracePeriodSeconds: 60
+
       # Khai báo Volume cho CSI
       {{- if .Values.keyvault.enabled }}
       volumes:
