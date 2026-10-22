@@ -47,6 +47,23 @@ grafana:
       jsonData:
         maxLines: 1000
 
+  # --- THÊM MỚI: DASHBOARD AS CODE ---
+  # Kích hoạt sidecar để tự động quét các dashboard
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+  
+  # Yêu cầu Helm tải sẵn các dashboard từ cộng đồng
+  dashboards:
+    default:
+      # Tự động tải Dashboard NGINX Ingress (ID 9614)
+      nginx-ingress:
+        gnetId: 9614
+        revision: 1
+        datasource: Prometheus
+
 # 3. TẮT CÁC THÀNH PHẦN KHÔNG CẦN THIẾT HOẶC QUÁ NẶNG CHO DEV
 alertmanager:
   enabled: false # Tạm tắt Alertmanager ở Day 1 cho nhẹ, sẽ bật ở các bài sau nếu cần
