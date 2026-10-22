@@ -24,3 +24,10 @@ controller:
       # Thêm nhãn này để Prometheus của chúng ta nhận diện được ServiceMonitor này
       additionalLabels:
         release: monitoring
+
+    port: 10254
+    grafanaDashboards:
+      # Báo cho NGINX tự động đẩy Dashboard của nó lên K8s (dùng chính bản ID 9614)
+      enabled: true
+      # Phải trùng khớp với labelValue mà Sidecar của Grafana đang tìm kiếm
+      namespace: "monitoring" # Đặt ConfigMap vào đúng nhà của Grafana
