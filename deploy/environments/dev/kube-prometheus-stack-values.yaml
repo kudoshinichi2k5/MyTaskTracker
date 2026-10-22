@@ -47,18 +47,32 @@ grafana:
       jsonData:
         maxLines: 1000
 
-  # --- THÊM MỚI: DASHBOARD AS CODE ---
-  # Kích hoạt sidecar để tự động quét các dashboard
+# --- CẤU HÌNH DASHBOARDS AS CODE TỪ CỘNG ĐỒNG ---
+  
+  # 2.1. KÍCH HOẠT SIDECAR ĐỂ ĐỌC DASHBOARD TỪ CONFIGMAP
   sidecar:
     dashboards:
       enabled: true
       label: grafana_dashboard
       labelValue: "1"
-  
-  # Yêu cầu Helm tải sẵn các dashboard từ cộng đồng
+
+  # 2.2. KHAI BÁO PROVIDER ĐỂ GRAFANA BIẾT THƯ MỤC NÀO SẼ CHỨA DASHBOARD
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+      - name: 'default'
+        orgId: 1
+        folder: ''
+        type: file
+        disableDeletion: false
+        editable: true
+        options:
+          path: /var/lib/grafana/dashboards/default
+
+  # 2.3. YÊU CẦU TẢI DASHBOARD NGINX INGRESS BẰNG ID (9614)
   dashboards:
     default:
-      # Tự động tải Dashboard NGINX Ingress (ID 9614)
       nginx-ingress:
         gnetId: 9614
         revision: 1
