@@ -1,0 +1,45 @@
+# deploy/charts/microservice/templates/hpa.yaml
+{{- if .Values.autoscaling.enabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "microservice.fullname" . }}
+  namespace: {{ .Values.global.namespace | default .Release.Namespace }}
+  labels:
+    {{- include "microservice.labels" . | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "microservice.fullname" . }}
+  minReplicas: {{ .Values.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.autoscaling.maxReplicas }}
+  metrics:
+    {{- if .Values.autoscaling.targetCPUUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.autoscaling.targetCPUUtilizationPercentage }}
+    {{- end }}
+  
+  # BEHAVIOR: ĐIỀU KHIỂN TỐC ĐỘ SCALE ĐỂ TRÁNH LÊN XUỐNG THẤT THƯỜNG (FLAPPING)
+  behavior:
+    scaleDown:
+      # Khi cần thu hẹp, hãy chờ (bình tĩnh) 5 phút để chắc chắn là lượng khách đã giảm thật
+      stabilizationWindowSeconds: 300
+      policies:
+      # Thu hẹp tối đa 1 pod mỗi 15 giây
+      - type: Pods
+        value: 1
+        periodSeconds: 15
+    scaleUp:
+      # Khi có tải đột ngột, phản ứng ngay lập tức (0s)
+      stabilizationWindowSeconds: 0
+      policies:
+      # Cho phép x2 số lượng pod mỗi 15 giây (Scale rất nhanh)
+      - type: Percent
+        value: 100
+        periodSeconds: 15
+{{- end }}

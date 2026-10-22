@@ -55,3 +55,11 @@ ingress:
   #  - secretName: wildcard-tls-secret
   #    hosts:
   #      - chart-example.local
+
+resources: {}
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
