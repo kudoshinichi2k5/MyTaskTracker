@@ -56,28 +56,6 @@ grafana:
       label: grafana_dashboard
       labelValue: "1"
 
-  # 2.2. KHAI BÁO PROVIDER ĐỂ GRAFANA BIẾT THƯ MỤC NÀO SẼ CHỨA DASHBOARD
-  dashboardProviders:
-    dashboardproviders.yaml:
-      apiVersion: 1
-      providers:
-      - name: 'default'
-        orgId: 1
-        folder: ''
-        type: file
-        disableDeletion: false
-        editable: true
-        options:
-          path: /var/lib/grafana/dashboards/default
-
-  # 2.3. YÊU CẦU TẢI DASHBOARD NGINX INGRESS BẰNG ID (9614)
-  dashboards:
-    default:
-      nginx-ingress:
-        gnetId: 9614
-        revision: 1
-        datasource: Prometheus
-
 # 3. TẮT CÁC THÀNH PHẦN KHÔNG CẦN THIẾT HOẶC QUÁ NẶNG CHO DEV
 alertmanager:
   enabled: false # Tạm tắt Alertmanager ở Day 1 cho nhẹ, sẽ bật ở các bài sau nếu cần
