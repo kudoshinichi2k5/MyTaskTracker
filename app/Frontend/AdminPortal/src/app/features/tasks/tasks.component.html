@@ -1,0 +1,78 @@
+<section class="tt-page-wrapper">
+
+  <header class="tt-page-header">
+    <div class="tt-page-header__title-group">
+      <h1 class="tt-page-title">Tasks</h1>
+    </div>
+
+    <button
+      class="tt-btn tt-btn--secondary"
+      type="button"
+      (click)="loadTasks()"
+      [disabled]="isLoading"
+    >
+      {{ isLoading ? 'Loading...' : 'Refresh' }}
+    </button>
+  </header>
+
+  <div class="tt-grid-3" *ngIf="!isLoading && !error">
+    <article class="tt-stat-card">
+      <span class="tt-stat-card__label">Total</span>
+      <strong class="tt-stat-card__value">{{ tasks.length }}</strong>
+    </article>
+
+    <article class="tt-stat-card">
+      <span class="tt-stat-card__label">Completed</span>
+      <strong class="tt-stat-card__value tt-stat-card__value--success">{{ completedCount }}</strong>
+    </article>
+
+    <article class="tt-stat-card">
+      <span class="tt-stat-card__label">Pending</span>
+      <strong class="tt-stat-card__value tt-stat-card__value--warning">{{ pendingCount }}</strong>
+    </article>
+  </div>
+
+  <div class="tt-table--responsive">
+    <table class="tt-table">
+      <thead>
+        <tr>
+          <th>Task</th>
+          <th>Status</th>
+          <th>Owner</th>
+          <th style="width: 140px;">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let task of tasks">
+          <td>
+            <div class="task-info">
+              <strong>{{ task.title }}</strong>
+              <small class="text-muted">#{{ task.id }}</small>
+            </div>
+          </td>
+          <td>
+            <span class="tt-badge" [class.tt-badge--success]="task.isCompleted" [class.tt-badge--warning]="!task.isCompleted">
+              {{ task.isCompleted ? 'Completed' : 'Pending' }}
+            </span>
+          </td>
+          <td class="text-muted">{{ task.userId || '—' }}</td>
+          <td>
+            <button class="tt-btn tt-btn--icon tt-btn--ghost" (click)="openComments(task)" [title]="'View comments for task ' + task.id">
+              <span>💬</span>
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div
+    class="tt-empty"
+    *ngIf="!isLoading && !error && tasks.length === 0"
+  >
+    <div class="tt-empty__icon">✓</div>
+    <div class="tt-empty__title">No tasks found</div>
+    <div class="tt-empty__desc">There are no tasks available.</div>
+  </div>
+
+</section>

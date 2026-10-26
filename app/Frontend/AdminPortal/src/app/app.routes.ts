@@ -61,7 +61,7 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadComponent: () =>
       import(
-        './features/tasks/task-list.component'
+        './features/tasks/tasks.component'
       ).then(
         m => m.TaskListComponent
       )
