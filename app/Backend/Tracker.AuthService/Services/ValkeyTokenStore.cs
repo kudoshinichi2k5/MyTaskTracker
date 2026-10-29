@@ -124,4 +124,28 @@ public class ValkeyTokenStore : ITokenStore
             await _db.KeyDeleteAsync($"access:{at}");
         await _db.KeyDeleteAsync($"user:{username}:access");
     }
+
+    public Task StoreAuthorizationRequestAsync(string transactionId, AuthorizationRequest request, TimeSpan timeToLive) =>
+        _db.StringSetAsync($"oauth:request:{TokenHashing.Compute(transactionId)}", JsonSerializer.Serialize(request), timeToLive);
+
+    public async Task<AuthorizationRequest?> GetAuthorizationRequestAsync(string transactionId)
+    {
+        var value = await _db.StringGetAsync($"oauth:request:{TokenHashing.Compute(transactionId)}");
+        return value.HasValue ? JsonSerializer.Deserialize<AuthorizationRequest>(value!) : null;
+    }
+
+    public async Task<AuthorizationRequest?> ConsumeAuthorizationRequestAsync(string transactionId)
+    {
+        var value = await _db.StringGetDeleteAsync($"oauth:request:{TokenHashing.Compute(transactionId)}");
+        return value.HasValue ? JsonSerializer.Deserialize<AuthorizationRequest>(value!) : null;
+    }
+
+    public Task StoreAuthorizationCodeAsync(string code, AuthorizationCode authorizationCode, TimeSpan timeToLive) =>
+        _db.StringSetAsync($"oauth:code:{TokenHashing.Compute(code)}", JsonSerializer.Serialize(authorizationCode), timeToLive);
+
+    public async Task<AuthorizationCode?> ConsumeAuthorizationCodeAsync(string code)
+    {
+        var value = await _db.StringGetDeleteAsync($"oauth:code:{TokenHashing.Compute(code)}");
+        return value.HasValue ? JsonSerializer.Deserialize<AuthorizationCode>(value!) : null;
+    }
 }

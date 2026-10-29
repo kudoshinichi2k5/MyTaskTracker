@@ -55,21 +55,14 @@ All protected resource services validate bearer tokens against AuthService. Noti
 
 ## Authentication flow
 
-1. An Angular app sends form-encoded credentials to `POST /token` on AuthService (or JSON to `POST /api/v1/auth/login` / `POST /api/v1/auth/register`).
-2. AuthService returns a camelCase response containing `accessToken`, `refreshToken`, `expiresIn`, `username`, and `roles`.
-3. The app stores its session locally and adds `Authorization: Bearer <token>` to API requests.
-4. TaskService, NotificationService, ProjectService, and CommentService call AuthService's `GET /verify` endpoint to validate the opaque token and create user claims.
-5. `POST /api/v1/auth/refresh` renews the access token; `POST /api/v1/auth/logout` invalidates the refresh session.
+1. CustomerApp and AdminPortal generate a PKCE verifier/challenge and redirect the browser to `GET /connect/authorize`.
+2. The AuthService-hosted sign-in page receives the user's password; the SPA never posts credentials to a token endpoint.
+3. AuthService redirects to the exact pre-registered callback URI with a short-lived, one-time authorization code.
+4. The SPA exchanges that code, its exact redirect URI, and the PKCE verifier at `POST /connect/token` with `grant_type=authorization_code`.
+5. AuthService returns opaque access and refresh tokens. The applications add `Authorization: Bearer <token>` to API requests, and backend services validate the opaque access token through `GET /verify`.
+6. `grant_type=refresh_token` rotates refresh tokens. Revocation removes server-side token state through `POST /connect/revocation`.
 
-Example local sign-in request:
-
-```text
-POST http://localhost:5001/token
-
-Content-Type: application/x-www-form-urlencoded
-
-grant_type=password&username=admin&password=123456
-```
+The only supported grants are `authorization_code` (PKCE S256 is required) and `refresh_token`; password grant endpoints are intentionally not exposed.
 
 ## Database
 

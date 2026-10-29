@@ -18,6 +18,14 @@ export const routes: Routes = [
   },
 
   {
+    path: 'oauth/callback',
+    loadComponent: () =>
+      import('./features/oauth-callback/oauth-callback.component').then(
+        m => m.OAuthCallbackComponent
+      )
+  },
+
+  {
     path: 'forbidden',
     loadComponent: () =>
       import(

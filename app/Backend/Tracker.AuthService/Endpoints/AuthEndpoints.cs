@@ -1,6 +1,5 @@
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.Extensions.DependencyInjection;
 using Tracker.AuthService.Models;
 using Tracker.AuthService.Services;
 
@@ -13,70 +12,10 @@ public static class AuthEndpoints
 
     public static void MapAuthEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapPost("/token", async Task<IResult> (HttpContext context, IUserStore users, IPasswordHasher<User> hasher, ITokenStore tokenStore) =>
-        {
-            if (!context.Request.HasFormContentType)
-                return Results.BadRequest(new { error = "invalid_request" });
-
-            var form = await context.Request.ReadFormAsync();
-            if (!string.Equals(form["grant_type"].ToString(), "password", StringComparison.OrdinalIgnoreCase))
-                return Results.BadRequest(new { error = "unsupported_grant_type" });
-
-            var result = await IssueTokenAsync(form["username"].ToString(), form["password"].ToString(), users, hasher, tokenStore);
-            return result is null ? Results.BadRequest(new { error = "invalid_grant" }) : Results.Ok(result);
-        });
-
-        app.MapPost("/api/v1/auth/login", async Task<IResult> (
-            LoginRequest request, 
-            IUserStore users, 
-            IPasswordHasher<User> hasher, 
-            ITokenStore tokenStore,
-            HttpContext context) =>
-        {
-            if (string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Password))
-                return Results.BadRequest(new { error = "Username and password are required." });
-
-            string attemptsKey = $"bruteforce:username:{request.Username.Trim().ToLowerInvariant()}";
-            var redis = context.RequestServices
-                .GetService<StackExchange.Redis.IConnectionMultiplexer>();
-            StackExchange.Redis.IDatabase? db = redis?.GetDatabase();
-
-            // 1. Kiểm tra số lần đăng nhập sai (Nếu có kết nối Valkey)
-            if (db != null)
-            {
-                var attemptsStr = await db.StringGetAsync(attemptsKey);
-                if (int.TryParse(attemptsStr, out int attempts) && attempts >= 5)
-                {
-                    return Results.Problem(
-                        detail: "Tài khoản đã bị khóa tạm thời do nhập sai mật khẩu quá 5 lần. Vui lòng thử lại sau 15 phút.", 
-                        statusCode: 429); // 429: Too Many Requests
-                }
-            }
-
-            // Gọi logic cấp phát token
-            var result = await IssueTokenAsync(request.Username, request.Password, users, hasher, tokenStore);
-            
-            if (result is null)
-            {
-                // 2. Đăng nhập sai: Tăng bộ đếm và đặt thời gian hết hạn (TTL) 15 phút
-                if (db != null)
-                {
-                    await db.StringIncrementAsync(attemptsKey);
-                    await db.KeyExpireAsync(attemptsKey, TimeSpan.FromMinutes(15));
-                }
-                return Results.Unauthorized();
-            }
-
-            // 3. Đăng nhập thành công: Xóa bộ đếm lỗi
-            if (db != null)
-            {
-                await db.KeyDeleteAsync(attemptsKey);
-            }
-            
-            return Results.Ok(result);
-        });
-
-        app.MapPost("/api/v1/auth/register", async Task<IResult> (RegisterRequest request, IUserStore users, IPasswordHasher<User> hasher, ITokenStore tokenStore) =>
+        // Account creation is not an OAuth grant. The SPA starts the
+        // authorization-code flow after this succeeds, so this route never
+        // returns bearer tokens or handles a password grant.
+        app.MapPost("/api/v1/auth/register", (RegisterRequest request, IUserStore users, IPasswordHasher<User> hasher) =>
         {
             var username = request.Username?.Trim() ?? string.Empty;
             var email = request.Email?.Trim() ?? string.Empty;
@@ -96,58 +35,10 @@ public static class AuthEndpoints
             user.PasswordHash = hasher.HashPassword(user, request.Password);
             users.Create(user);
 
-            var result = await IssueTokenAsync(username, request.Password, users, hasher, tokenStore);
-            return Results.Ok(result);
+            return Results.Created($"/api/v1/auth/users/{user.Id}", new { username = user.Username });
         });
 
-        app.MapPost("/api/v1/auth/refresh", async Task<IResult> (RefreshRequest request, ITokenStore tokenStore) =>
-        {
-            if (string.IsNullOrWhiteSpace(request.RefreshToken))
-                return Results.Unauthorized();
-
-            var session = await tokenStore.ConsumeRefreshSessionAsync(request.RefreshToken);
-            if (session is null || session.ExpiresAt < DateTime.UtcNow)
-                return Results.Unauthorized();
-
-            var accessToken = Guid.NewGuid().ToString("N");
-            var refreshToken = Guid.NewGuid().ToString("N");
-            var accessLifetime = TimeSpan.FromHours(1);
-            var refreshLifetime = TimeSpan.FromDays(7);
-
-            await tokenStore.StoreAccessTokenAsync(accessToken, new TokenInfo
-            {
-                Username = session.Username,
-                Roles = session.Roles,
-                RefreshTokenHash = TokenHashing.Compute(refreshToken),
-                Expiry = DateTime.UtcNow.Add(accessLifetime)
-            }, accessLifetime);
-            await tokenStore.StoreRefreshSessionAsync(refreshToken, session with { ExpiresAt = DateTime.UtcNow.Add(refreshLifetime) }, refreshLifetime);
-
-            return Results.Ok(new
-            {
-                accessToken,
-                refreshToken,
-                expiresAt = DateTimeOffset.UtcNow.Add(accessLifetime).ToString("o"),
-                username = session.Username,
-                roles = session.Roles
-            });
-        });
-
-        app.MapPost("/api/v1/auth/logout", async (LogoutRequest request, ITokenStore tokenStore) =>
-        {
-            if (!string.IsNullOrWhiteSpace(request.RefreshToken))
-            {
-                var session = await tokenStore.GetRefreshSessionAsync(request.RefreshToken);
-                if (session is not null)
-                {
-                    await tokenStore.RevokeRefreshSessionAsync(request.RefreshToken);
-                    await tokenStore.RevokeAccessTokensForRefreshTokenAsync(session.Username, request.RefreshToken);
-                }
-            }
-
-            return Results.Ok(new { success = true });
-        });
-
+        // Resource services continue to validate opaque bearer tokens here.
         app.MapGet("/verify", async Task<IResult> (HttpContext context, ITokenStore tokenStore) =>
         {
             var authorization = context.Request.Headers.Authorization.ToString();
@@ -189,45 +80,6 @@ public static class AuthEndpoints
         app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
     }
 
-    private static async Task<OAuthTokenResponse?> IssueTokenAsync(string username, string password, IUserStore users, IPasswordHasher<User> hasher, ITokenStore tokenStore)
-    {
-        if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password)) return null;
-
-        var user = users.FindByUsername(username.Trim());
-        if (user is null || !user.Enabled) return null;
-
-        if (hasher.VerifyHashedPassword(user, user.PasswordHash, password) == PasswordVerificationResult.Failed) return null;
-
-        var accessToken = Guid.NewGuid().ToString("N");
-        var refreshToken = Guid.NewGuid().ToString("N");
-        var accessLifetime = TimeSpan.FromHours(1);
-        var refreshLifetime = TimeSpan.FromDays(7);
-        var roles = user.Roles.ToArray();
-
-        await tokenStore.StoreAccessTokenAsync(accessToken, new TokenInfo
-        {
-            Username = user.Username,
-            Roles = roles,
-            RefreshTokenHash = TokenHashing.Compute(refreshToken),
-            Expiry = DateTime.UtcNow.Add(accessLifetime)
-        }, accessLifetime);
-        await tokenStore.StoreRefreshSessionAsync(
-            refreshToken,
-            new RefreshSession(user.Id, user.Username, roles, DateTime.UtcNow.Add(refreshLifetime)),
-            refreshLifetime);
-
-        return new OAuthTokenResponse
-        {
-            AccessToken = accessToken,
-            RefreshToken = refreshToken,
-            TokenType = "bearer",
-            ExpiresIn = (int)accessLifetime.TotalSeconds,
-            Username = user.Username,
-            Roles = roles,
-            ExpiresAt = DateTimeOffset.UtcNow.Add(accessLifetime).ToString("o")
-        };
-    }
-
     private static async Task RevokeSessionsForUserAsync(string userId, IUserStore users, ITokenStore tokenStore)
     {
         var user = users.FindById(userId);
@@ -236,6 +88,4 @@ public static class AuthEndpoints
     }
 }
 
-public record LoginRequest(string Username, string Password);
-public record RefreshRequest(string RefreshToken);
-public record LogoutRequest(string RefreshToken);
+public record RegisterRequest(string Username, string Email, string Password);

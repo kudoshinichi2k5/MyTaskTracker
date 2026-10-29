@@ -27,6 +27,7 @@ public sealed class AuthApiFactory : WebApplicationFactory<Program>
                 ["ConnectionStrings:AuthDb"] = "Server=unused;Database=unused;User=unused;Password=unused;",
                 ["ConnectionStrings:Valkey"] = "localhost:6379,password=not-used",
                 ["AllowedFrontendOrigins"] = "http://localhost:4200",
+                ["OAuth:Clients:mytasktracker-customer:RedirectUris:0"] = "http://localhost:4200/oauth/callback",
             });
         });
 

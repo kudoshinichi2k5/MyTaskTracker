@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Threading.RateLimiting;
 using Prometheus;
 using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Authentication;
@@ -71,6 +72,7 @@ builder.Services.AddDbContext<AuthDbContext>(options =>
             errorNumbersToAdd: null)));
 
 builder.Services.AddScoped<IUserStore, EfUserStore>();
+builder.Services.AddSingleton<OAuthClientRegistry>();
 
 builder.Services.AddAuthentication("Bearer")
     .AddScheme<AuthenticationSchemeOptions, InternalAuthHandler>("Bearer", null);
@@ -95,6 +97,20 @@ builder.Services.AddCors(options =>
               .AllowAnyMethod()
               .AllowCredentials();
     });
+});
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("oauth", context => RateLimitPartition.GetFixedWindowLimiter(
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 10,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0,
+            AutoReplenishment = true
+        }));
 });
 
 builder.Services.AddEndpointsApiExplorer();
@@ -138,10 +154,12 @@ if (args.Contains("--migrate"))
 }
 
 app.UseCors("AllowFrontend");
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapAuthEndpoints();
+app.MapOAuthEndpoints();
 
 app.MapMetrics();
 app.Run();
@@ -204,6 +222,23 @@ public class TokenInfo
 }
 
 public record RefreshSession(string UserId, string Username, string[] Roles, DateTime ExpiresAt);
+
+public record AuthorizationRequest(
+    string ClientId,
+    string RedirectUri,
+    string Scope,
+    string State,
+    string CodeChallenge,
+    DateTime ExpiresAt);
+
+public record AuthorizationCode(
+    string ClientId,
+    string RedirectUri,
+    string CodeChallenge,
+    string UserId,
+    string Username,
+    string[] Roles,
+    DateTime ExpiresAt);
 
 public class OAuthTokenResponse
 {

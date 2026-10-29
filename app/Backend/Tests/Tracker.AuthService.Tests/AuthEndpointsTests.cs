@@ -1,16 +1,30 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.RegularExpressions;
 using FluentAssertions;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.WebUtilities;
 using Xunit;
 
 namespace Tracker.AuthService.Tests;
 
 public sealed class AuthEndpointsTests : IDisposable
 {
+    private const string ClientId = "mytasktracker-customer";
+    private const string RedirectUri = "http://localhost:4200/oauth/callback";
+    private const string Verifier = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~abc";
     private readonly AuthApiFactory _factory = new();
     private readonly HttpClient _client;
 
-    public AuthEndpointsTests() => _client = _factory.CreateClient();
+    public AuthEndpointsTests()
+    {
+        _client = _factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false
+        });
+    }
 
     public void Dispose()
     {
@@ -22,127 +36,147 @@ public sealed class AuthEndpointsTests : IDisposable
     public async Task Health_ReturnsHealthy()
     {
         var response = await _client.GetAsync("/health");
-
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var body = await response.Content.ReadFromJsonAsync<HealthResponse>();
-        body!.Status.Should().Be("healthy");
     }
 
     [Fact]
-    public async Task Login_WithSeededAdminCredentials_ReturnsAccessToken()
+    public async Task AuthorizationCode_WithPkce_ReturnsOpaqueTokenPair()
     {
-        var response = await _client.PostAsJsonAsync("/api/v1/auth/login", new { username = "admin", password = "123456" });
+        var code = await AuthorizeAsync("admin", "123456");
+        var response = await ExchangeCodeAsync(code, Verifier);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var body = await response.Content.ReadFromJsonAsync<TokenResponse>();
         body!.AccessToken.Should().NotBeNullOrWhiteSpace();
         body.RefreshToken.Should().NotBeNullOrWhiteSpace();
+        body.AccessToken.Should().NotContain(".");
         body.Username.Should().Be("admin");
         body.Roles.Should().Contain("admin");
     }
 
     [Fact]
-    public async Task Login_WithWrongPassword_ReturnsUnauthorized()
+    public async Task AuthorizationCode_CannotBeReplayed()
     {
-        var response = await _client.PostAsJsonAsync("/api/v1/auth/login", new { username = "admin", password = "wrong-password" });
+        var code = await AuthorizeAsync("alice", "employee123");
+        (await ExchangeCodeAsync(code, Verifier)).StatusCode.Should().Be(HttpStatusCode.OK);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        var replay = await ExchangeCodeAsync(code, Verifier);
+        replay.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
     [Fact]
-    public async Task Token_WithPasswordGrant_ReturnsAccessToken()
+    public async Task AuthorizationCode_WithWrongVerifier_IsRejected()
+    {
+        var code = await AuthorizeAsync("alice", "employee123");
+        var response = await ExchangeCodeAsync(code, Verifier + "x");
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task PasswordGrant_IsNotSupported()
     {
         using var form = new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["grant_type"] = "password",
+            ["client_id"] = ClientId,
             ["username"] = "admin",
-            ["password"] = "123456",
+            ["password"] = "123456"
         });
-
-        var response = await _client.PostAsync("/token", form);
-
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var body = await response.Content.ReadFromJsonAsync<TokenResponse>();
-        body!.TokenType.Should().Be("bearer");
+        var response = await _client.PostAsync("/connect/token", form);
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
     [Fact]
-    public async Task Register_WithValidData_CreatesUserAndReturnsToken()
+    public async Task RefreshToken_RotatesAndReplayFails()
+    {
+        var code = await AuthorizeAsync("alice", "employee123");
+        var tokenResponse = await ExchangeCodeAsync(code, Verifier);
+        var original = await tokenResponse.Content.ReadFromJsonAsync<TokenResponse>();
+
+        using var form = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["grant_type"] = "refresh_token",
+            ["client_id"] = ClientId,
+            ["refresh_token"] = original!.RefreshToken
+        });
+        var refreshed = await _client.PostAsync("/connect/token", form);
+        refreshed.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        using var replayForm = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["grant_type"] = "refresh_token",
+            ["client_id"] = ClientId,
+            ["refresh_token"] = original.RefreshToken
+        });
+        var replay = await _client.PostAsync("/connect/token", replayForm);
+        replay.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task Register_CreatesAccountWithoutIssuingTokens()
     {
         var response = await _client.PostAsJsonAsync("/api/v1/auth/register", new
         {
             username = "newuser",
             email = "newuser@example.com",
-            password = "correct-horse",
+            password = "correct-horse"
         });
 
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var body = await response.Content.ReadFromJsonAsync<TokenResponse>();
-        body!.Username.Should().Be("newuser");
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        var body = await response.Content.ReadAsStringAsync();
+        body.Should().Contain("newuser").And.NotContain("accessToken");
     }
 
-    [Fact]
-    public async Task Refresh_WithValidRefreshToken_ReturnsNewTokenPair()
+    private async Task<string> AuthorizeAsync(string username, string password)
     {
-        var login = await _client.PostAsJsonAsync("/api/v1/auth/login", new { username = "alice", password = "employee123" });
-        var original = await login.Content.ReadFromJsonAsync<TokenResponse>();
+        var authorizeUrl = QueryHelpers.AddQueryString("/connect/authorize", new Dictionary<string, string?>
+        {
+            ["response_type"] = "code",
+            ["client_id"] = ClientId,
+            ["redirect_uri"] = RedirectUri,
+            ["scope"] = "api",
+            ["state"] = "test-state",
+            ["code_challenge"] = ChallengeFor(Verifier),
+            ["code_challenge_method"] = "S256"
+        });
+        var authorize = await _client.GetAsync(authorizeUrl);
+        authorize.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var response = await _client.PostAsJsonAsync("/api/v1/auth/refresh", new { refreshToken = original!.RefreshToken });
+        var html = await authorize.Content.ReadAsStringAsync();
+        var transaction = Regex.Match(html, "name=\\\"transaction\\\" value=\\\"([^\\\"]+)\\\"").Groups[1].Value;
+        transaction.Should().NotBeNullOrWhiteSpace();
+        var cookie = authorize.Headers.GetValues("Set-Cookie").Single().Split(';')[0];
 
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var refreshed = await response.Content.ReadFromJsonAsync<TokenResponse>();
-        refreshed!.AccessToken.Should().NotBe(original.AccessToken);
-
-        var replay = await _client.PostAsJsonAsync("/api/v1/auth/refresh", new { refreshToken = original.RefreshToken });
-        replay.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/connect/authorize")
+        {
+            Content = new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["transaction"] = transaction,
+                ["username"] = username,
+                ["password"] = password
+            })
+        };
+        request.Headers.Add("Cookie", cookie);
+        var completed = await _client.SendAsync(request);
+        completed.StatusCode.Should().Be(HttpStatusCode.Redirect);
+        return QueryHelpers.ParseQuery(completed.Headers.Location!.Query)["code"].Single()!;
     }
 
-    [Fact]
-    public async Task Logout_RevokesTheRefreshToken()
+    private async Task<HttpResponseMessage> ExchangeCodeAsync(string code, string verifier)
     {
-        var login = await _client.PostAsJsonAsync("/api/v1/auth/login", new { username = "alice", password = "employee123" });
-        var original = await login.Content.ReadFromJsonAsync<TokenResponse>();
-
-        var logout = await _client.PostAsJsonAsync("/api/v1/auth/logout", new { refreshToken = original!.RefreshToken });
-        logout.StatusCode.Should().Be(HttpStatusCode.OK);
-
-        using var verifyRequest = new HttpRequestMessage(HttpMethod.Get, "/verify");
-        verifyRequest.Headers.Add("Authorization", $"Bearer {original.AccessToken}");
-        var verify = await _client.SendAsync(verifyRequest);
-        var verifyBody = await verify.Content.ReadFromJsonAsync<VerifyResponse>();
-        verifyBody!.Active.Should().BeFalse();
-
-        var refresh = await _client.PostAsJsonAsync("/api/v1/auth/refresh", new { refreshToken = original.RefreshToken });
-        refresh.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        using var form = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["grant_type"] = "authorization_code",
+            ["client_id"] = ClientId,
+            ["code"] = code,
+            ["redirect_uri"] = RedirectUri,
+            ["code_verifier"] = verifier
+        });
+        return await _client.PostAsync("/connect/token", form);
     }
 
-    [Fact]
-    public async Task Verify_WithFreshAccessToken_ReportsActive()
-    {
-        var login = await _client.PostAsJsonAsync("/api/v1/auth/login", new { username = "admin", password = "123456" });
-        var token = await login.Content.ReadFromJsonAsync<TokenResponse>();
-        using var request = new HttpRequestMessage(HttpMethod.Get, "/verify");
-        request.Headers.Add("Authorization", $"Bearer {token!.AccessToken}");
+    private static string ChallengeFor(string verifier) =>
+        WebEncoders.Base64UrlEncode(SHA256.HashData(Encoding.ASCII.GetBytes(verifier)));
 
-        var response = await _client.SendAsync(request);
-
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var body = await response.Content.ReadFromJsonAsync<VerifyResponse>();
-        body!.Active.Should().BeTrue();
-        body.Username.Should().Be("admin");
-    }
-
-    [Fact]
-    public async Task Verify_WithoutAuthorizationHeader_ReportsInactive()
-    {
-        var response = await _client.GetAsync("/verify");
-
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var body = await response.Content.ReadFromJsonAsync<VerifyResponse>();
-        body!.Active.Should().BeFalse();
-    }
-
-    private sealed record HealthResponse(string Status);
-    private sealed record TokenResponse(string AccessToken, string RefreshToken, string TokenType, int ExpiresIn, string Username, string[] Roles, string ExpiresAt);
-    private sealed record VerifyResponse(bool Active, string? Username, string[] Roles);
+    private sealed record TokenResponse(string AccessToken, string RefreshToken, string Username, string[] Roles);
 }

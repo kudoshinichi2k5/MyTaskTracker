@@ -3,6 +3,7 @@
 export const environment: Environment = {
   production: true,
   authApi: 'https://api.prod.yourdomain.com/api/v1',
+  oauthClientId: 'mytasktracker-customer',
   taskApi: 'https://api.prod.yourdomain.com/api/v1',
   notificationApi: 'https://notifications.prod.yourdomain.com/api/v1',
   projectApi: 'https://projects.prod.yourdomain.com/api/v1',

@@ -5,6 +5,9 @@ image:
 env:
   ASPNETCORE_ENVIRONMENT: "Development"
   AllowedFrontendOrigins: "https://mytasktracker.work.gd,https://www.mytasktracker.work.gd,https://admin.mytasktracker.work.gd"
+  OAuth__Clients__mytasktracker-customer__RedirectUris__0: "https://mytasktracker.work.gd/oauth/callback"
+  OAuth__Clients__mytasktracker-customer__RedirectUris__1: "https://www.mytasktracker.work.gd/oauth/callback"
+  OAuth__Clients__mytasktracker-admin__RedirectUris__0: "https://admin.mytasktracker.work.gd/oauth/callback"
   # Tên DNS nội bộ của MariaDB sẽ là: <tên-release>-<tên-chart>.<namespace>.svc.cluster.local
   # Trong trường hợp này là: tracker-mariadb.dev.svc.cluster.local
   ConnectionStrings__Valkey: "tracker-valkey-primary.dev.svc.cluster.local:6379,password=$(VALKEY_PASSWORD)"

@@ -8,6 +8,8 @@ public sealed class InMemoryTokenStore : ITokenStore
 {
     private readonly ConcurrentDictionary<string, TokenInfo> _accessTokens = new();
     private readonly ConcurrentDictionary<string, RefreshSession> _refreshSessions = new();
+    private readonly ConcurrentDictionary<string, AuthorizationRequest> _authorizationRequests = new();
+    private readonly ConcurrentDictionary<string, AuthorizationCode> _authorizationCodes = new();
 
     public Task StoreAccessTokenAsync(string rawToken, TokenInfo info, TimeSpan timeToLive)
     {
@@ -76,4 +78,25 @@ public sealed class InMemoryTokenStore : ITokenStore
 
         return Task.CompletedTask;
     }
+
+    public Task StoreAuthorizationRequestAsync(string transactionId, AuthorizationRequest request, TimeSpan timeToLive)
+    {
+        _authorizationRequests[transactionId] = request;
+        return Task.CompletedTask;
+    }
+
+    public Task<AuthorizationRequest?> GetAuthorizationRequestAsync(string transactionId) =>
+        Task.FromResult(_authorizationRequests.TryGetValue(transactionId, out var request) ? request : null);
+
+    public Task<AuthorizationRequest?> ConsumeAuthorizationRequestAsync(string transactionId) =>
+        Task.FromResult(_authorizationRequests.TryRemove(transactionId, out var request) ? request : null);
+
+    public Task StoreAuthorizationCodeAsync(string code, AuthorizationCode authorizationCode, TimeSpan timeToLive)
+    {
+        _authorizationCodes[code] = authorizationCode;
+        return Task.CompletedTask;
+    }
+
+    public Task<AuthorizationCode?> ConsumeAuthorizationCodeAsync(string code) =>
+        Task.FromResult(_authorizationCodes.TryRemove(code, out var authorizationCode) ? authorizationCode : null);
 }
