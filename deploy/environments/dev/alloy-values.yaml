@@ -1,6 +1,27 @@
 controller:
   type: daemonset
 
+  # Mỗi node chạy một Alloy pod để thu thập log cục bộ.
+  # discovery.kubernetes bên dưới cũng giới hạn theo spec.nodeName.
+  podLabels:
+    app.kubernetes.io/component: log-collector
+
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+serviceMonitor:
+  enabled: true
+  additionalLabels:
+    release: monitoring
+
+serviceAccount:
+  create: true
+
 alloy:
   configMap:
     create: true
@@ -8,6 +29,10 @@ alloy:
       // 1. Khám phá các pod đang chạy trên cùng node với Alloy
       discovery.kubernetes "pods" {
         role = "pod"
+        selectors {
+          role  = "pod"
+          field = "spec.nodeName=" + coalesce(sys.env("HOSTNAME"), constants.hostname)
+        }
       }
 
       // 2. Lọc log từ các pod trong namespace dev và ingress-nginx
@@ -45,18 +70,9 @@ alloy:
         forward_to = [loki.process.kubernetes_logs.receiver]
       }
 
-      // 4. Xử lý log
+      // 4. Giữ nguyên log gốc. Backend .NET ghi JSON, còn ingress-nginx ghi text;
+      // parse chung cho cả hai loại có thể làm mất dòng text của ingress.
       loki.process "kubernetes_logs" {
-        // Đã bọc ngoặc kép an toàn tuyệt đối
-        stage.json {
-          expressions = { "output" = "output", "level" = "Level", "message" = "Message" }
-        }
-
-        // (Tùy chọn) Chỉ in ra trường message trên Grafana cho dễ đọc, bỏ qua đoạn JSON thô
-        stage.output {
-          source = "message"
-        }
-
         forward_to = [loki.write.endpoint.receiver]
       }
 

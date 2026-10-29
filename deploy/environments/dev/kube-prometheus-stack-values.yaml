@@ -23,6 +23,10 @@ prometheus:
     # Cho phép Prometheus tự động tìm các ServiceMonitor ở TẤT CẢ namespaces (để xíu nữa gom log Ingress)
     serviceMonitorSelectorNilUsesHelmValues: false
     podMonitorSelectorNilUsesHelmValues: false
+    # Prometheus ở namespace monitoring phải scrape được ServiceMonitor
+    # của app trong dev và của ingress-nginx ở namespace khác.
+    serviceMonitorNamespaceSelector: {}
+    podMonitorNamespaceSelector: {}
 
 # 2. CẤU HÌNH GRAFANA (Giao diện hiển thị)
 grafana:
