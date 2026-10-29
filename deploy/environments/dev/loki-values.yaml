@@ -4,6 +4,12 @@ deploymentMode: SingleBinary
 # PHẦN 1: CẤU HÌNH POD VÀ TẮT COMPONENT PHỤ
 # (Nằm ở cấp ngoài cùng)
 # ==========================================
+serviceAccount:
+  create: true
+  name: loki-sa
+  annotations:
+    azure.workload.identity/client-id: "f7ddc777-ddb1-4756-87c9-b092e7d2d1b3"
+
 singleBinary:
   replicas: 1
   persistence:
@@ -16,11 +22,6 @@ singleBinary:
     limits:
       cpu: 500m
       memory: 512Mi
-  serviceAccount:
-    create: true
-    name: loki-sa
-    annotations:
-      azure.workload.identity/client-id: "f7ddc777-ddb1-4756-87c9-b092e7d2d1b3"
   podLabels:
     azure.workload.identity/use: "true"
 
@@ -42,6 +43,13 @@ lokiCanary:
 test:
   enabled: false
 
+monitoring:
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+    labels:
+      release: monitoring
+
 # ==========================================
 # PHẦN 2: CẤU HÌNH LÕI CỦA PHẦN MỀM LOKI
 # (BẮT BUỘC phải thụt lề trong block `loki:`)
@@ -55,6 +63,10 @@ loki:
   commonConfig:
     replication_factor: 1
 
+  compactor:
+    retention_enabled: true
+    delete_request_store: azure
+
   # Cấu hình Storage đẩy về Azure Blob
   storage:
     type: azure
@@ -63,10 +75,10 @@ loki:
       ruler: loki-chunks
       admin: loki-chunks
     azure:
-      container_name: loki-chunks
-      account_name: "sabackupvalkeydev" # Đã update theo Storage Account mới của bạn
-      use_managed_identity: true
-      user_assigned_id: "f7ddc777-ddb1-4756-87c9-b092e7d2d1b3"
+      containerName: loki-chunks
+      accountName: "salokitasktrackerdev"
+      useFederatedToken: true
+      userAssignedId: "f7ddc777-ddb1-4756-87c9-b092e7d2d1b3"
 
   schemaConfig:
     configs:
@@ -82,4 +94,5 @@ loki:
     # Tuyệt đối KHÔNG gõ thêm `enforce_metric_name` vào đây
     reject_old_samples: true
     reject_old_samples_max_age: 168h
+    retention_period: 168h
     allow_structured_metadata: false

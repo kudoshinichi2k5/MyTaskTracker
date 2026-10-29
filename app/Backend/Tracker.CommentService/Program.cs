@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Prometheus;
 using Tracker.CommentService.Auth;
 using Tracker.CommentService.Data;
 using Tracker.CommentService.Endpoints;
@@ -92,6 +93,8 @@ builder.Services.AddEndpointsApiExplorer();
 
 var app = builder.Build();
 
+app.UseHttpMetrics();
+
 // 1. CHỈ GIỮ LẠI Swagger cho môi trường Dev/Testing (Không Production)
 if (!app.Environment.IsProduction())
 {
@@ -132,6 +135,7 @@ app.MapGet(
 
 app.MapCommentEndpoints();
 
+app.MapMetrics();
 app.Run();
 
 public partial class Program { }
