@@ -34,7 +34,7 @@ export const authInterceptor: HttpInterceptorFn = (
    * Authentication endpoints must bypass the interceptor.
    *
    * IMPORTANT:
-   * /auth/refresh must bypass initialLoadPromise.
+   * /connect/token must bypass initialLoadPromise.
    *
    * Otherwise:
    *
@@ -53,9 +53,8 @@ export const authInterceptor: HttpInterceptorFn = (
    * DEADLOCK
    */
   const authBypassPaths = [
-    '/token',
-    '/auth/refresh',
-    '/auth/logout'
+    '/connect/token',
+    '/connect/revocation'
   ];
 
   const isAuthRequest =

@@ -4,41 +4,14 @@
       <span class="tt-kicker">Admin Portal</span>
       <h1 class="tt-page-title">Sign in</h1>
     </div>
-
-    <form (ngSubmit)="onLogin()" #loginForm="ngForm">
-      <div class="tt-field">
-        <label class="tt-label" for="username">Username</label>
-        <input
-          id="username"
-          name="username"
-          [(ngModel)]="username"
-          type="text"
-          required
-          class="tt-input"
-        />
-      </div>
-
-      <div class="tt-field">
-        <label class="tt-label" for="password">Password</label>
-        <input
-          id="password"
-          name="password"
-          [(ngModel)]="password"
-          type="password"
-          required
-          class="tt-input"
-        />
-      </div>
-
-      <button
-        class="tt-btn tt-btn--primary tt-btn--full"
-        type="submit"
-        [disabled]="isSubmitting || !loginForm.valid"
-      >
-        {{ isSubmitting ? 'Signing in...' : 'Sign in' }}
-      </button>
-
-      <p class="tt-field-error" *ngIf="errorMessage">{{ errorMessage }}</p>
-    </form>
+    <p>Continue to the secure sign-in page.</p>
+    <button
+      class="tt-btn tt-btn--primary tt-btn--full"
+      type="button"
+      (click)="onLogin()"
+      [disabled]="isSubmitting"
+    >
+      {{ isSubmitting ? 'Signing in...' : 'Sign in' }}
+    </button>
   </div>
 </section>

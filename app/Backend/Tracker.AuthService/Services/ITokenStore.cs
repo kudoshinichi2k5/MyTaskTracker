@@ -15,4 +15,11 @@ public interface ITokenStore
 
     Task RevokeAccessTokensForRefreshTokenAsync(string username, string rawRefreshToken);
     Task RevokeAllSessionsForUserAsync(string userId, string username);
+
+    Task StoreAuthorizationRequestAsync(string transactionId, AuthorizationRequest request, TimeSpan timeToLive);
+    Task<AuthorizationRequest?> GetAuthorizationRequestAsync(string transactionId);
+    Task<AuthorizationRequest?> ConsumeAuthorizationRequestAsync(string transactionId);
+
+    Task StoreAuthorizationCodeAsync(string code, AuthorizationCode authorizationCode, TimeSpan timeToLive);
+    Task<AuthorizationCode?> ConsumeAuthorizationCodeAsync(string code);
 }

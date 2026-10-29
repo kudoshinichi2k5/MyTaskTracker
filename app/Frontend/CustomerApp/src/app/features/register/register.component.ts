@@ -1,7 +1,7 @@
 import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, NgForm } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 
 @Component({
@@ -13,7 +13,6 @@ import { AuthService } from '../../services/auth.service';
 })
 export class RegisterComponent {
   private authService = inject(AuthService);
-  private router = inject(Router);
 
   username = '';
   email = '';
@@ -44,7 +43,7 @@ export class RegisterComponent {
     this.errorMessage = '';
 
     this.authService.register(username, email, password).subscribe({
-      next: () => this.router.navigateByUrl('/tasks'),
+      next: () => this.authService.beginLogin('/tasks'),
       error: () => {
         this.errorMessage =
           this.authService.lastError ?? 'Could not create your account.';

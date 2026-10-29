@@ -44,11 +44,11 @@ describe('AuthService', () => {
     service.refresh().subscribe((response) => results.push(response.accessToken));
 
     const request = httpTestingController.expectOne(
-      `${environment.authApi}/auth/refresh`
+      `${environment.authApi.replace(/\/api\/v1$/, '')}/connect/token`
     );
-    expect(request.request.body).toEqual({
-      refreshToken: 'old-refresh-token'
-    });
+    expect(request.request.body).toBe(
+      `grant_type=refresh_token&client_id=${environment.oauthClientId}&refresh_token=old-refresh-token`
+    );
 
     request.flush({
       accessToken: 'new-access-token',

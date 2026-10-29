@@ -3,6 +3,7 @@
 export const environment: Environment = {
   production: false,
   authApi: 'https://api.staging.yourdomain.com/api/v1',
+  oauthClientId: 'mytasktracker-customer',
   taskApi: 'https://api.staging.yourdomain.com/api/v1',
   notificationApi: 'https://notifications.staging.yourdomain.com/api/v1',
   projectApi: 'https://projects.staging.yourdomain.com/api/v1',

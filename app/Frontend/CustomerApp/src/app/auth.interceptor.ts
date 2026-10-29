@@ -33,10 +33,9 @@ export const authInterceptor: HttpInterceptorFn = (
    * initialLoadPromise.
    */
   const bypassPaths = [
-    '/token',
-    '/verify',
-    '/auth/refresh',
-    '/auth/logout'
+    '/connect/token',
+    '/connect/revocation',
+    '/verify'
   ];
 
   const isAuthEndpoint =
