@@ -288,6 +288,8 @@ jobs:
           DNS_ZONE_NAME=$(jq -r '.dns_zone_name.value' tf_outputs.json)
           DNS_RG_NAME=$(jq -r '.shared_rg_name.value' tf_outputs.json)
           SUB_ID=$(jq -r '.subscription_id.value' tf_outputs.json)
+          LOKI_CLIENT_ID=$(jq -r '.loki_client_id.value' tf_outputs.json)
+          LOKI_STORAGE_ACCOUNT=$(jq -r '.loki_storage_account_name.value' tf_outputs.json)
           
           cd ../../../../
           # Ghi đè vào file, đẩy tất cả vào thụt lề của global:
@@ -302,6 +304,11 @@ jobs:
             dnsResourceGroup: "$DNS_RG_NAME"
             subscriptionId: "$SUB_ID"
           EOF
+
+          # Đồng bộ Workload Identity và Storage Account của Loki từ Terraform.
+          sed -i "s/accountName: .*/accountName: \"$LOKI_STORAGE_ACCOUNT\"/" deploy/environments/dev/loki-values.yaml
+          sed -i "s#azure.workload.identity/client-id: .*#azure.workload.identity/client-id: \"$LOKI_CLIENT_ID\"#" deploy/environments/dev/loki-values.yaml
+          sed -i "s/userAssignedId: .*/userAssignedId: \"$LOKI_CLIENT_ID\"/" deploy/environments/dev/loki-values.yaml
           
           # Nối mảng keyvault_clients ở bên ngoài global
           echo "keyvault_clients:" >> deploy/environments/dev/akv-values.yaml
@@ -324,12 +331,12 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Add cả 2 file vào Staging Area
-          git add deploy/environments/dev/akv-values.yaml deploy/environments/dev/cert-manager-values.yaml
+          # Add các file values đã được đồng bộ vào Staging Area
+          git add deploy/environments/dev/akv-values.yaml deploy/environments/dev/cert-manager-values.yaml deploy/environments/dev/loki-values.yaml
           
           # Kiểm tra xem Staging Area có bất kỳ thay đổi nào không (không chỉ định tên file)
           if ! git diff --staged --quiet; then
-            git commit -m "chore(infra): sync terraform outputs to argocd and cert-manager values [skip ci]"
+            git commit -m "chore(infra): sync terraform outputs to observability values [skip ci]"
             git push
             echo "✅ Đã commit và push cấu hình mới thành công."
           else

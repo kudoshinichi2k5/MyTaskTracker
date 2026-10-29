@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Prometheus;
 using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
@@ -101,6 +102,8 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
+app.UseHttpMetrics();
+
 // 1. CHỈ BẬT SWAGGER CHO MÔI TRƯỜNG DEV/TESTING
 if (!app.Environment.IsProduction())
 {
@@ -140,6 +143,7 @@ app.UseAuthorization();
 
 app.MapAuthEndpoints();
 
+app.MapMetrics();
 app.Run();
 
 public partial class Program { }

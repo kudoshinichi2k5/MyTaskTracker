@@ -64,6 +64,12 @@ resources:
     cpu: 200m
     memory: 256Mi
 
+monitoring:
+  serviceMonitor:
+    enabled: false
+    interval: 30s
+    path: /metrics
+
 autoscaling:
   enabled: false # Tắt mặc định, service nào cần mới tự bật ở thư mục base
   minReplicas: 1

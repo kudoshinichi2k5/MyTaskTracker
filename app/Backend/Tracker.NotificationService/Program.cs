@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Prometheus;
 using Tracker.NotificationService.Auth;
 using Tracker.NotificationService.Data;
 using Tracker.NotificationService.Endpoints;
@@ -98,6 +99,8 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
+app.UseHttpMetrics();
+
 // 1. CHỈ GIỮ LẠI Swagger cho môi trường Dev/Testing (Không Production)
 if (!app.Environment.IsProduction())
 {
@@ -142,6 +145,7 @@ app.MapGet(
 
 app.MapNotificationEndpoints();
 
+app.MapMetrics();
 app.Run();
 
 public partial class Program { }

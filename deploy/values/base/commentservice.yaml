@@ -1,7 +1,7 @@
 fullnameOverride: "comment-service"
 image:
   repository: "backend/commentservice"
-  tag: "bb61162541fb208e460108cd9f2d65a423c0aa8e"
+  tag: "0ca365922f679757bad12985986b05e8fff49e41"
 service:
   port: 80
 env:
@@ -72,3 +72,7 @@ autoscaling:
   minReplicas: 2   # Luôn chạy ít nhất 2 pod để test tính stateless và sẵn sàng (HA)
   maxReplicas: 5
   targetCPUUtilizationPercentage: 70 # Nếu 2 pod đều chạy hơn 70% CPU -> Tạo thêm pod số 3
+
+monitoring:
+  serviceMonitor:
+    enabled: true
