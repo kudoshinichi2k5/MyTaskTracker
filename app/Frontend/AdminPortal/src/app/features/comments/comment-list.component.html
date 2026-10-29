@@ -1,270 +1,125 @@
-<section class="page">
+<section class="tt-page-wrapper">
 
-  <header class="page-header">
-
-    <div>
-      <span class="eyebrow">
-        Workspace
-      </span>
-
-      <h1>Comments</h1>
+  <header class="tt-page-header">
+    <div class="tt-page-header__title-group">
+      <h1 class="tt-page-title">Comments</h1>
     </div>
 
-    <span
-      class="comment-count"
-      *ngIf="loadedTaskId !== null"
-    >
-      {{ comments.length }}
+    <span class="tt-badge tt-badge--info" *ngIf="loadedTaskId !== null">
+      {{ comments.length }} comments
     </span>
-
   </header>
 
-  <section class="comment-layout">
+  <section class="tt-grid-2 flex-col gap-5" style="grid-template-columns: 280px 1fr; align-items: start;">
 
     <!-- CONTEXT -->
+    <aside class="tt-card tt-card--padded" style="position: sticky; top: var(--space-6);">
 
-    <aside class="context-card">
-
-      <div class="context-heading">
-        <span>Context</span>
-
-        <strong>
-          Task discussion
-        </strong>
+      <div class="tt-section-header">
+        <div>
+          <span class="tt-kicker">Context</span>
+          <h2 style="font-size: var(--text-lg); margin: 0;" class="text-lg m-0">Task discussion</h2>
+        </div>
       </div>
 
-      <label>
-        Project
-      </label>
-
-      <select
-        [ngModel]="selectedProjectId"
-        (ngModelChange)="
-          changeProject($event)
-        "
-      >
-
-        <option value="">
-          All projects
-        </option>
-
-        <option
-          *ngFor="let project of projects"
-          [value]="project.id"
+      <div class="tt-field">
+        <label class="tt-label">Project</label>
+        <select
+          class="tt-select"
+          [(ngModel)]="selectedProjectId"
+          (ngModelChange)="changeProject($event)"
         >
-          {{ project.name }}
-        </option>
+          <option value="">All projects</option>
+          <option *ngFor="let project of projects" [value]="project.id">
+            {{ project.name }}
+          </option>
+        </select>
+      </div>
 
-      </select>
-
-      <label>
-        Task
-      </label>
-
-      <select
-        [ngModel]="selectedTaskId"
-        (ngModelChange)="
-          selectTask($event)
-        "
-        [disabled]="
-          availableTasks.length === 0
-        "
-      >
-
-        <option [ngValue]="null">
-          Select task
-        </option>
-
-        <option
-          *ngFor="
-            let task of availableTasks
-          "
-          [ngValue]="task.id"
+      <div class="tt-field">
+        <label class="tt-label">Task</label>
+        <select
+          class="tt-select"
+          [(ngModel)]="selectedTaskId"
+          (ngModelChange)="selectTask($event)"
+          [disabled]="availableTasks.length === 0"
         >
-          #{{ task.id }}
-          {{ task.title }}
-        </option>
+          <option [ngValue]="null">Select task</option>
+          <option *ngFor="let task of availableTasks" [ngValue]="task.id">
+            #{{ task.id }} {{ task.title }}
+          </option>
+        </select>
+      </div>
 
-      </select>
-
-      <div
-        class="selected-task"
-        *ngIf="selectedTask"
-      >
-
-        <span>
-          Task #{{ selectedTask.id }}
-        </span>
-
-        <strong>
-          {{ selectedTask.title }}
-        </strong>
-
-        <small
-          [class.completed]="
-            selectedTask.completed
-          "
-        >
-          {{
-            selectedTask.completed
-              ? 'Completed'
-              : 'Pending'
-          }}
-        </small>
-
+      <div *ngIf="selectedTask" class="tt-card tt-card--padded mt-4">
+        <div class="flex items-center gap-3 mb-2">
+          <span class="tt-badge tt-badge--default">Task #{{ selectedTask.id }}</span>
+          <span class="tt-badge" [class.tt-badge--success]="selectedTask.isCompleted" [class.tt-badge--warning]="!selectedTask.isCompleted">
+            {{ selectedTask.isCompleted ? 'Completed' : 'Pending' }}
+          </span>
+        </div>
+        <strong>{{ selectedTask.title }}</strong>
       </div>
 
     </aside>
 
     <!-- COMMENTS -->
+    <main class="tt-card tt-card--padded">
 
-    <main class="comments-card">
-
-      <div
-        class="error-banner"
-        *ngIf="error"
-      >
-        {{ error }}
+      <div class="tt-error" *ngIf="error">
+        <div class="tt-error__icon">⚠</div>
+        <div class="tt-error__title">Unable to load comments</div>
+        <div class="tt-error__desc">{{ error }}</div>
       </div>
 
-      <div
-        class="comments-header"
-        *ngIf="selectedTask"
-      >
-
+      <div class="tt-section-header" *ngIf="selectedTask">
         <div>
-
-          <span class="eyebrow">
-            Task #{{ selectedTask.id }}
-          </span>
-
-          <h2>
-            {{ selectedTask.title }}
-          </h2>
-
-          <small
-            *ngIf="selectedProject"
-          >
-            {{ selectedProject.name }}
-          </small>
-
+          <span class="tt-kicker">Task #{{ selectedTask.id }}</span>
+          <h2 style="font-size: var(--text-xl); margin: 0;" class="text-xl m-0">{{ selectedTask.title }}</h2>
+          <small *ngIf="selectedProject" class="text-muted block">{{ selectedProject.name }}</small>
         </div>
-
-        <button
-          type="button"
-          class="refresh-button"
-          (click)="loadComments()"
-          [disabled]="isLoadingComments"
-        >
-          ↻
+        <button class="tt-btn tt-btn--icon tt-btn--secondary" type="button" (click)="loadComments()" [disabled]="isLoadingComments">
+          <span>⟳</span>
         </button>
-
       </div>
 
-      <div
-        class="placeholder"
-        *ngIf="!selectedTask"
-      >
-
-        <div class="placeholder-icon">
-          💬
-        </div>
-
-        <h2>
-          Select a task
-        </h2>
-
-        <p>
-          Choose a project and task to
-          view its comments.
-        </p>
-
+      <div class="tt-empty" *ngIf="!selectedTask">
+        <div class="tt-empty__icon">💬</div>
+        <div class="tt-empty__title">Select a task</div>
+        <div class="tt-empty__desc">Choose a project and task to view its comments.</div>
       </div>
 
-      <div
-        class="loading"
-        *ngIf="isLoadingComments"
-      >
-        Loading comments...
+      <div class="tt-loading" *ngIf="isLoadingComments">
+        <div class="tt-loading__icon">⟳</div>
+        <div class="tt-loading__title">Loading comments...</div>
       </div>
 
-      <div
-        class="error-banner"
-        *ngIf="commentsError"
-      >
-        {{ commentsError }}
+      <div class="tt-error" *ngIf="commentsError">
+        <div class="tt-error__icon">⚠</div>
+        <div class="tt-error__title">Unable to load comments</div>
+        <div class="tt-error__desc">{{ commentsError }}</div>
       </div>
 
-      <section
-        class="comment-list"
-        *ngIf="
-          selectedTask &&
-          !isLoadingComments &&
-          !commentsError
-        "
-      >
+      <section *ngIf="selectedTask && !isLoadingComments && !commentsError">
 
-        <article
-          class="comment-card"
-          *ngFor="
-            let comment of comments
-          "
-        >
-
-          <div class="comment-avatar">
-            {{
-              comment.authorUserId
-                .slice(0, 1)
-                .toUpperCase()
-            }}
-          </div>
-
-          <div class="comment-content">
-
-            <div class="comment-header">
-
-              <strong>
-                {{ comment.authorUserId }}
-              </strong>
-
-              <time>
-                {{
-                  comment.createdAt
-                    | date:'medium'
-                }}
-              </time>
-
+        <article class="tt-card border-none mt-4" *ngFor="let comment of comments">
+          <div class="flex gap-3">
+            <span class="tt-avatar tt-avatar--sm">{{ comment.authorUserId.slice(0, 1).toUpperCase() }}</span>
+            <div class="comment-content">
+              <div class="flex items-baseline gap-2 mb-1">
+                <strong class="text-sm">{{ comment.authorUserId }}</strong>
+                <time class="text-xs text-muted">{{ comment.createdAt | date:'medium' }}</time>
+              </div>
+              <p class="text-sm leading-relaxed m-0">{{ comment.body }}</p>
+              <small *ngIf="comment.editedAt" class="text-muted block">Edited {{ comment.editedAt | date:'medium' }}</small>
             </div>
-
-            <p>
-              {{ comment.body }}
-            </p>
-
-            <small
-              *ngIf="comment.editedAt"
-            >
-              Edited
-              {{
-                comment.editedAt
-                  | date:'medium'
-              }}
-            </small>
-
           </div>
-
         </article>
 
-        <div
-          class="empty-state"
-          *ngIf="comments.length === 0"
-        >
-          <strong>
-            No comments
-          </strong>
-
-          <span>
-            This task has no discussion yet.
-          </span>
+        <div class="tt-empty" *ngIf="comments.length === 0">
+          <div class="tt-empty__icon">💬</div>
+          <div class="tt-empty__title">No comments</div>
+          <div class="tt-empty__desc">This task has no discussion yet.</div>
         </div>
 
       </section>

@@ -9,8 +9,8 @@ public static class TaskEndpoints
     {
         var group = app.MapGroup("/api/v1/tasks").RequireAuthorization();
 
-        group.MapGet("/", (ClaimsPrincipal user, ITaskStore store) =>
-            Results.Ok(store.GetAll(user.GetUserId())));
+        group.MapGet("/", (ClaimsPrincipal user, ITaskStore store, Guid? projectId) =>
+            Results.Ok(store.GetAll(user.GetUserId(), projectId)));
 
         group.MapPost("/", (ClaimsPrincipal user, ITaskStore store, CreateTaskRequest request) =>
         {
@@ -22,7 +22,7 @@ public static class TaskEndpoints
                 });
             }
 
-            var task = store.Create(user.GetUserId(), request.Title.Trim());
+            var task = store.Create(user.GetUserId(), request.Title.Trim(), null, request.ProjectId);
             return Results.Created($"/api/v1/tasks/{task.Id}", task);
         });
 
@@ -36,7 +36,7 @@ public static class TaskEndpoints
                 });
             }
 
-            var updated = store.Update(user.GetUserId(), id, request.Title?.Trim(), request.IsCompleted);
+            var updated = store.Update(user.GetUserId(), id, request.Title?.Trim(), request.IsCompleted, request.ProjectId);
             return updated ? Results.NoContent() : Results.NotFound();
         });
 
@@ -65,5 +65,5 @@ public static class TaskEndpoints
         ?? throw new InvalidOperationException("Authenticated request is missing a subject claim.");
 }
 
-public record CreateTaskRequest(string Title);
-public record UpdateTaskRequest(string? Title, bool? IsCompleted);
+public record CreateTaskRequest(string Title, Guid? ProjectId);
+public record UpdateTaskRequest(string? Title, bool? IsCompleted, Guid? ProjectId);

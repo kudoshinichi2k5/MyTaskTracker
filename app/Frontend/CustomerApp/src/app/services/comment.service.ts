@@ -6,7 +6,7 @@ import { environment } from '../../environments/environment';
 
 export interface CommentItem {
   id: string;
-  taskId: string;
+  taskId: number;
   authorUserId: string;
   body: string;
   createdAt: string;
@@ -22,11 +22,11 @@ export class CommentService {
   private http = inject(HttpClient);
   private readonly apiUrl = environment.commentApi;
 
-  getComments(taskId: string): Observable<CommentItem[]> {
+  getComments(taskId: number): Observable<CommentItem[]> {
     return this.http.get<CommentItem[]>(`${this.apiUrl}/tasks/${taskId}/comments`).pipe(catchError(this.handleError));
   }
 
-  createComment(taskId: string, request: CommentRequest): Observable<CommentItem> {
+  createComment(taskId: number, request: CommentRequest): Observable<CommentItem> {
     return this.http.post<CommentItem>(`${this.apiUrl}/tasks/${taskId}/comments`, request).pipe(catchError(this.handleError));
   }
 

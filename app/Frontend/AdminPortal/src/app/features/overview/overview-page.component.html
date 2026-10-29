@@ -1,225 +1,117 @@
-<section class="page">
-
-  <header class="page-header">
-
-    <div>
-      <span class="eyebrow">
-        Administration
-      </span>
-
-      <h1>Overview</h1>
-    </div>
-
-    <button
-      type="button"
-      class="refresh-button"
-      (click)="loadDashboard()"
-      [disabled]="isLoading"
-    >
-      ↻ Refresh
-    </button>
-
-  </header>
-
-  <section class="stats">
-
-    <article class="stat-card">
-      <span>Projects</span>
-      <strong>
-        {{ isLoading ? '—' : totalProjects }}
-      </strong>
-
-      <a routerLink="/projects">
-        Open projects →
-      </a>
-    </article>
-
-    <article class="stat-card">
-      <span>Tasks</span>
-      <strong>
-        {{ isLoading ? '—' : totalTasks }}
-      </strong>
-
-      <a routerLink="/tasks">
-        Open tasks →
-      </a>
-    </article>
-
-    <article class="stat-card success">
-      <span>Completed</span>
-      <strong>
-        {{ isLoading ? '—' : totalCompleted }}
-      </strong>
-
-      <small>
-        {{ totalPending }} pending
-      </small>
-    </article>
-
-    <article class="stat-card accent">
-      <span>Progress</span>
-      <strong>
-        {{ isLoading ? '—' : completionRate }}%
-      </strong>
-
-      <small>
-        Overall completion
-      </small>
-    </article>
-
-  </section>
-
-  <section
-    class="dashboard-grid"
-    *ngIf="!loadError"
-  >
-
-    <article class="panel">
-
-      <div class="panel-header">
-        <div>
-          <span>Progress</span>
-          <h2>Task completion</h2>
-        </div>
-
-        <strong>
-          {{ completionRate }}%
-        </strong>
-      </div>
-
-      <div class="large-progress">
-        <div
-          [style.width.%]="completionRate"
-        ></div>
-      </div>
-
-      <div class="progress-meta">
-        <span>
-          {{ totalCompleted }} completed
-        </span>
-
-        <span>
-          {{ totalPending }} pending
-        </span>
-      </div>
-
-    </article>
-
-    <article class="panel quick-panel">
-
-      <div class="panel-header">
-        <div>
-          <span>Navigate</span>
-          <h2>Workspace</h2>
+<section class="tt-page-wrapper overview-page">
+    <!-- Page Header -->
+    <header class="tt-page-header">
+      <div class="tt-page-header__title-group"><span class="tt-kicker">Command center</span><h1 class="tt-page-title">Overview</h1><p class="tt-page-subtitle">A clear pulse on work moving through your workspace.</p></div>
+      <button type="button" class="tt-btn tt-btn--secondary" (click)="loadDashboard()" [disabled]="isLoading">{{ isLoading ? 'Refreshing...' : 'Refresh data' }}</button>
+    </header>
+    
+    <!-- Key Statistics Cards -->
+    <section class="tt-grid-4 overview-stats" *ngIf="!isLoading">
+      <!-- Stat Card 1 -->
+      <div class="tt-stat-card">
+        <div class="flex items-start gap-3">
+          <div class="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0" style="background: var(--color-accent-soft); color: var(--color-accent-text);">
+            <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+              <circle cx="8.5" cy="8.5" r="1.5"/>
+              <polyline points="21 15 16 10 5 21"/>
+            </svg>
+          </div>
+          <div>
+            <p class="tt-stat-card__value">{{ totalTasks }}</p><p class="tt-stat-card__label">Total tasks</p>
+          </div>
         </div>
       </div>
-
-      <a
-        routerLink="/projects"
-        class="quick-link"
-      >
-        <span class="quick-icon">P</span>
-
-        <span>
-          <strong>Projects</strong>
-          <small>
-            Organize task groups
-          </small>
-        </span>
-
-        →
-      </a>
-
-      <a
-        routerLink="/tasks"
-        class="quick-link"
-      >
-        <span class="quick-icon">T</span>
-
-        <span>
-          <strong>Tasks</strong>
-          <small>
-            Monitor work
-          </small>
-        </span>
-
-        →
-      </a>
-
-      <a
-        routerLink="/comments"
-        class="quick-link"
-      >
-        <span class="quick-icon">C</span>
-
-        <span>
-          <strong>Comments</strong>
-          <small>
-            Review discussions
-          </small>
-        </span>
-
-        →
-      </a>
-
-    </article>
-
-  </section>
-
-  <section class="panel projects-panel">
-
-    <div class="panel-header">
-
-      <div>
-        <span>Workspace</span>
-        <h2>Projects</h2>
-      </div>
-
-      <a routerLink="/projects">
-        View all →
-      </a>
-
-    </div>
-
-    <div
-      class="project-list"
-      *ngIf="projects.length > 0"
-    >
-
-      <div
-        class="project-row"
-        *ngFor="let project of projects | slice:0:5"
-      >
-
-        <div class="project-name">
-          <span class="project-icon">
-            {{ project.name.slice(0, 1) }}
-          </span>
-
-          <strong>
-            {{ project.name }}
-          </strong>
+      
+      <!-- Stat Card 2 -->
+      <div class="tt-stat-card">
+        <div class="flex items-start gap-3">
+          <div class="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0" style="background: var(--color-success-soft); color: var(--color-success-text);">
+            <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path d="M12 2v4m0 12v4m-7-7h4m7-7H3"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </div>
+          <div>
+            <p class="tt-stat-card__value tt-stat-card__value--success">{{ totalCompleted }}</p><p class="tt-stat-card__label">Completed tasks</p>
+          </div>
         </div>
-
-        <span class="task-count">
-          {{ project.taskIds.length }}
-          tasks
-        </span>
-
       </div>
-
-    </div>
-
-    <div
-      class="empty"
-      *ngIf="
-        !isLoading &&
-        projects.length === 0
-      "
-    >
-      No projects available.
-    </div>
-
-  </section>
-
+      
+      <!-- Stat Card 3 -->
+      <div class="tt-stat-card">
+        <div class="flex items-start gap-3">
+          <div class="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0" style="background: var(--color-warning-soft); color: var(--color-warning-text);">
+            <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <line x1="12" y1="1" x2="12" y2="23"/>
+              <line x1="a" y1="a" x2="a" y2="a"/>
+              <line x1="a" y1="a" x2="7a" y2="7a"/>
+              <line x1="7a" y1="7a" x2="1a" y2="1a"/>
+              <line x1="1" y1="12" x2="23" y2="12"/>
+            </svg>
+          </div>
+          <div>
+            <p class="tt-stat-card__value tt-stat-card__value--warning">{{ totalPending }}</p><p class="tt-stat-card__label">Open tasks</p>
+          </div>
+        </div>
+      </div>
+      <div class="tt-stat-card"><div class="flex items-start gap-3"><div class="stat-icon stat-icon--violet">%</div><div><p class="tt-stat-card__value tt-stat-card__value--info">{{ completionRate }}%</p><p class="tt-stat-card__label">Completion rate</p></div></div></div>
+    </section>
+    
+    <!-- Recent Activity Section -->
+    <section class="overview-grid">
+      <article class="tt-card tt-card--padded">
+        <div class="tt-section-header"><div><span class="tt-kicker">Portfolio</span><h2 class="tt-section-title">Projects at a glance</h2></div><a routerLink="/projects" class="tt-btn tt-btn--ghost">View all</a></div>
+        <div class="project-preview" *ngIf="projects.length; else noProjects"><a class="project-preview__row" *ngFor="let project of projects | slice:0:4" routerLink="/projects"><span class="tt-avatar">{{ project.name.slice(0,1).toUpperCase() }}</span><span class="project-preview__name"><strong>{{ project.name }}</strong><small>{{ project.taskIds?.length || 0 }} linked tasks</small></span><span class="project-preview__arrow">→</span></a></div>
+        <ng-template #noProjects><div class="tt-empty"><div class="tt-empty__title">No projects yet</div><div class="tt-empty__desc">Create a project to group related work.</div></div></ng-template>
+      </article>
+      <article class="tt-card tt-card--padded insight-card"><span class="tt-kicker">Momentum</span><h2 class="tt-section-title">Keep the loop moving.</h2><p>There are <strong>{{ totalPending }}</strong> open tasks across <strong>{{ totalProjects }}</strong> projects. A small focused win today compounds quickly.</p><div class="momentum-track"><span [style.width.%]="completionRate"></span></div><div class="flex justify-between text-sm text-muted"><span>Completion</span><strong>{{ completionRate }}%</strong></div><a routerLink="/tasks" class="tt-btn tt-btn--primary">Open task list</a></article>
+    </section>
+    <section class="tt-card tt-card--padded recent-activity">
+      <div class="tt-section-header"><div><span class="tt-kicker">Activity</span><h2 class="tt-section-title">Recent signals</h2></div><span class="tt-badge tt-badge--info">Live summary</span></div>
+      <div class="activity-list">
+        <!-- Activity Item -->
+        <div class="flex items-start gap-3 p-3 rounded-md bg-surface-soft">
+          <div class="w-10 h-10 rounded-md flex items-center justify-center flex-shrink-0" style="background: var(--color-accent-soft); color: var(--color-accent-text);">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <line x1="12" y1="1" x2="12" y2="23"/>
+              <line x1="a" y1="a" x2="a" y2="a"/>
+              <line x1="a" y1="a" x2="7a" y2="7a"/>
+              <line x1="7a" y1="7a" x2="1a" y2="1a"/>
+              <line x1="1" y1="12" x2="23" y2="12"/>
+            </svg>
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-semibold text-ink">{{ totalTasks }} tasks tracked</p><p class="text-xs text-muted-soft">Across your workspace</p>
+          </div>
+        </div>
+        <!-- Activity Item -->
+        <div class="flex items-start gap-3 p-3 rounded-md bg-surface-soft">
+          <div class="w-10 h-10 rounded-md flex items-center justify-center flex-shrink-0" style="background: var(--color-success-soft); color: var(--color-success-text);">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path d="M12 2v4m0 12v4m-7-7h4m7-7H3"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-semibold text-ink">{{ totalCompleted }} completed</p><p class="text-xs text-muted-soft">Keep the momentum going</p>
+          </div>
+        </div>
+        <!-- Activity Item -->
+        <div class="flex items-start gap-3 p-3 rounded-md bg-surface-soft">
+          <div class="w-10 h-10 rounded-md flex items-center justify-center flex-shrink-0" style="background: var(--color-info-soft); color: var(--color-ink-text);">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <line x1="12" y1="1" x2="12" y2="23"/>
+              <line x1="a" y1="a" x2="a" y2="a"/>
+              <line x1="a" y1="a" x2="7a" y2="7a"/>
+              <line x1="7a" y1="7a" x2="1a" y2="1a"/>
+              <line x1="1" y1="12" x2="23" y2="12"/>
+            </svg>
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-semibold text-ink">{{ totalProjectTasks }} linked tasks</p><p class="text-xs text-muted-soft">Connected to projects</p>
+          </div>
+        </div>
+      </div>
+    </section>
 </section>

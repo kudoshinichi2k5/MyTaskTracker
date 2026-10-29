@@ -1,16 +1,14 @@
-<section class="page">
-  <header class="page-header">
-    <div>
-      <span class="eyebrow">Workspace</span>
-      <h1>My Tasks</h1>
-      <p>
-        Keep track of the work that needs your attention.
-      </p>
+<section class="tt-page-wrapper">
+  <header class="tt-page-header">
+    <div class="tt-page-header__title-group">
+      <span class="tt-kicker">Today’s focus</span>
+      <h1 class="tt-page-title">My Tasks</h1>
+      <p class="tt-page-subtitle">Focus on what is next.</p>
     </div>
 
     <button
       type="button"
-      class="secondary-button"
+      class="tt-btn tt-btn--secondary"
       (click)="loadTasks()"
       [disabled]="isLoading"
     >
@@ -18,45 +16,42 @@
     </button>
   </header>
 
-  <section class="stats">
-    <div class="stat-card">
-      <span>Total tasks</span>
-      <strong>{{ tasks.length }}</strong>
+  <section class="task-overview" *ngIf="!isLoading && !loadError">
+    <div class="task-overview__focus">
+      <div class="task-ring" [style.--progress]="progressPercent + '%'">
+        <div><strong>{{ progressPercent }}%</strong><span>complete</span></div>
+      </div>
+      <div><span class="tt-kicker">Your momentum</span><h2>{{ pendingCount ? 'One clear next step.' : 'A clean slate.' }}</h2><p>{{ pendingCount }} open {{ pendingCount === 1 ? 'task' : 'tasks' }} waiting for your attention.</p></div>
     </div>
-
-    <div class="stat-card">
-      <span>Completed</span>
-      <strong>{{ completedCount }}</strong>
-    </div>
-
-    <div class="stat-card">
-      <span>Pending</span>
-      <strong>{{ pendingCount }}</strong>
-    </div>
-
-    <div class="stat-card">
-      <span>Progress</span>
-      <strong>{{ progressPercent }}%</strong>
+    <div class="task-overview__metrics">
+      <div><span>Total tasks</span><strong>{{ tasks.length }}</strong></div>
+      <div><span>Completed</span><strong class="metric-success">{{ completedCount }}</strong></div>
+      <div><span>Open</span><strong class="metric-warning">{{ pendingCount }}</strong></div>
     </div>
   </section>
 
-  <section class="content-card">
+  <section class="tt-card tt-card--padded">
     <form
       class="add-form"
       (ngSubmit)="addTask()"
     >
-      <input
-        type="text"
-        name="newTaskTitle"
-        [(ngModel)]="newTaskTitle"
-        maxlength="200"
-        placeholder="What needs to be done?"
-        [disabled]="isAdding"
-      />
+      <div class="tt-field" style="margin-bottom: 0;">
+      <label class="tt-label" for="newTaskTitle">New task</label>
+        <input
+          type="text"
+          id="newTaskTitle"
+          name="newTaskTitle"
+          [(ngModel)]="newTaskTitle"
+          maxlength="200"
+              placeholder="Task title"
+          [disabled]="isAdding"
+          class="tt-input"
+        />
+      </div>
 
       <button
         type="submit"
-        class="primary-button"
+        class="tt-btn tt-btn--primary"
         [disabled]="isAdding || !newTaskTitle.trim()"
       >
         {{ isAdding ? 'Adding...' : 'Add task' }}
@@ -68,7 +63,7 @@
       *ngIf="tasks.length > 0"
     >
       <div class="progress-header">
-        <span>Task progress</span>
+      <span>Progress</span>
         <strong>{{ progressPercent }}%</strong>
       </div>
 
@@ -81,15 +76,15 @@
     </div>
 
     <div
-      class="error-state"
+      class="tt-error"
       *ngIf="loadError"
     >
-      <strong>Unable to load tasks</strong>
-      <span>Please try again.</span>
-
+      <div class="tt-error__icon">⚠</div>
+      <div class="tt-error__title">Unable to load tasks</div>
+      <div class="tt-error__desc">Please try again.</div>
       <button
         type="button"
-        class="secondary-button"
+        class="tt-btn tt-btn--secondary"
         (click)="loadTasks()"
       >
         Try again
@@ -97,13 +92,11 @@
     </div>
 
     <div
-      class="loading-list"
+      class="tt-loading"
       *ngIf="isLoading"
     >
-      <div
-        class="loading-row"
-        *ngFor="let item of [1, 2, 3]"
-      ></div>
+      <div class="tt-loading__icon">⟳</div>
+      <div class="tt-loading__title">Loading tasks…</div>
     </div>
 
     <ul
@@ -135,29 +128,29 @@
           <div class="task-actions">
             <button
               type="button"
-              class="icon-button"
+              class="tt-btn tt-btn--icon tt-btn--ghost"
               (click)="startEdit(task)"
               aria-label="Edit task"
               title="Edit"
             >
-              Edit
+              <span class="tt-icon">✎</span>
             </button>
 
             <button
               type="button"
-              class="icon-button danger"
+              class="tt-btn tt-btn--icon tt-btn--ghost tt-btn--danger"
               (click)="removeTask(task)"
               aria-label="Delete task"
               title="Delete"
             >
-              Delete
+              <span class="tt-icon">🗑</span>
             </button>
           </div>
         </ng-container>
 
         <ng-template #editTask>
           <input
-            class="edit-input"
+            class="tt-input edit-input"
             type="text"
             maxlength="200"
             [(ngModel)]="editingTitle"
@@ -172,12 +165,12 @@
     </ul>
 
     <div
-      class="empty-state"
+      class="tt-empty"
       *ngIf="!isLoading && !loadError && tasks.length === 0"
     >
-      <div class="empty-icon">✓</div>
-      <h3>No tasks yet</h3>
-      <p>Add your first task above.</p>
+      <div class="tt-empty__icon">✓</div>
+      <div class="tt-empty__title">No tasks yet</div>
+      <div class="tt-empty__desc">Add your first task above.</div>
     </div>
   </section>
 </section>

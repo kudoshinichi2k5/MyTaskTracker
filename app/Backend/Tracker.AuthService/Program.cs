@@ -197,6 +197,7 @@ public sealed class InternalAuthHandler : AuthenticationHandler<AuthenticationSc
 public class TokenInfo
 {
     public string Username { get; set; } = string.Empty;
+    public string UserId { get; set; } = string.Empty;
     public string[] Roles { get; set; } = Array.Empty<string>();
     public string RefreshTokenHash { get; set; } = string.Empty;
     public DateTime Expiry { get; set; }

@@ -8,6 +8,7 @@ public class TaskDbContext : DbContext
     public TaskDbContext(DbContextOptions<TaskDbContext> options)
         : base(options)
     {
+
     }
 
     public DbSet<TaskItem> Tasks => Set<TaskItem>();
@@ -21,8 +22,11 @@ public class TaskDbContext : DbContext
             entity.Property(t => t.Id).ValueGeneratedOnAdd();
             entity.Property(t => t.UserId).HasMaxLength(64).IsRequired();
             entity.Property(t => t.Title).HasMaxLength(500).IsRequired();
-            // Truy vấn chính là "lấy tất cả task của 1 user" -> index theo UserId.
+            entity.Property(t => t.ProjectId).HasColumnName("project_id").HasMaxLength(36);
+            // Truy vän chinh là "lấy tất cả task của 1 user" -> index theo UserId.
             entity.HasIndex(t => t.UserId).HasDatabaseName("ix_tasks_user_id");
+            // Index theo ProjectId cho việc lấy task theo project.
+            entity.HasIndex(t => t.ProjectId).HasDatabaseName("ix_tasks_project_id");
         });
     }
 }

@@ -9,7 +9,7 @@ export interface ProjectItem {
   name: string;
   description: string | null;
   ownerUserId: string;
-  taskIds: string[];
+  taskIds: number[];
   createdAt: string;
   updatedAt: string;
 }
@@ -40,11 +40,11 @@ export class ProjectService {
     return this.http.delete<void>(`${this.apiUrl}/${id}`).pipe(catchError(this.handleError));
   }
 
-  attachTask(projectId: string, taskId: string): Observable<ProjectItem> {
+  attachTask(projectId: string, taskId: number): Observable<ProjectItem> {
     return this.http.post<ProjectItem>(`${this.apiUrl}/${projectId}/tasks/${taskId}`, {}).pipe(catchError(this.handleError));
   }
 
-  detachTask(projectId: string, taskId: string): Observable<ProjectItem> {
+  detachTask(projectId: string, taskId: number): Observable<ProjectItem> {
     return this.http.delete<ProjectItem>(`${this.apiUrl}/${projectId}/tasks/${taskId}`).pipe(catchError(this.handleError));
   }
 

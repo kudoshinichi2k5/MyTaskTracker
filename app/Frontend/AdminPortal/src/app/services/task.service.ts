@@ -23,7 +23,7 @@ export interface TaskItem {
 
   description?: string | null;
 
-  completed: boolean;
+  isCompleted: boolean;
 
   userId?: string | null;
 

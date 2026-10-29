@@ -1,0 +1,71 @@
+<section class="page comments-page">
+  <header class="page-heading">
+    <div>
+      <p class="eyebrow">Task discussion</p>
+      <h1>Comments</h1>
+      <p>Keep task decisions in context.</p>
+    </div>
+    <button class="button button-secondary" type="button" (click)="loadProjects()">Refresh</button>
+  </header>
+
+  <div class="comment-layout">
+    <aside class="task-panel">
+      <div class="panel-heading">
+        <div><p class="eyebrow">Your workspace</p><h2>Tasks</h2></div>
+        <span class="count-badge">{{ taskChoices.length }}</span>
+      </div>
+      <p class="inline-error" *ngIf="projectsError">{{ projectsError }}</p>
+      <div class="loading-state" *ngIf="isLoadingProjects">Loading tasks...</div>
+      <div class="task-list" *ngIf="!isLoadingProjects">
+        <button class="task-choice" type="button" *ngFor="let task of taskChoices" [class.is-selected]="selectedTaskId === task.id" (click)="selectTask(task.id)">
+          <span class="task-status" aria-hidden="true"></span>
+          <span class="task-choice__copy"><strong>{{ task.title }}</strong><small>Task #{{ task.id }}</small></span>
+          <span class="task-choice__arrow" aria-hidden="true">→</span>
+        </button>
+        <div class="empty-state empty-state--compact" *ngIf="taskChoices.length === 0">
+          <strong>No tasks yet</strong><span>Create a task to start a discussion.</span>
+        </div>
+      </div>
+    </aside>
+
+    <section class="comments-panel">
+      <div class="panel-heading panel-heading--comments">
+        <div><p class="eyebrow">Discussion</p><h2>Task comments</h2></div>
+        <span class="count-badge">{{ comments.length }}</span>
+      </div>
+
+      <div class="empty-state" *ngIf="!selectedTaskId">
+        <div class="empty-icon" aria-hidden="true"></div>
+        <h3>Select a task</h3><p>Choose a task to view its comments.</p>
+      </div>
+
+      <ng-container *ngIf="selectedTaskId">
+        <form class="comment-composer" (ngSubmit)="addComment()">
+          <label class="sr-only" for="comment-body">Write a comment...</label>
+          <textarea id="comment-body" name="commentBody" [(ngModel)]="newCommentBody" maxlength="2000" rows="4" placeholder="Write a comment..."></textarea>
+          <div class="composer-footer"><span>{{ newCommentBody.length }}/2000</span><button class="button button-primary" type="submit" [disabled]="!newCommentBody.trim()">Add comment</button></div>
+        </form>
+        <p class="inline-error" *ngIf="commentsError">{{ commentsError }}</p>
+        <div class="loading-state" *ngIf="isLoadingComments">Loading comments...</div>
+        <div class="comment-list" *ngIf="!isLoadingComments">
+          <article class="comment-card" *ngFor="let comment of comments; trackBy: trackByCommentId">
+            <div class="comment-avatar" aria-hidden="true">{{ comment.authorUserId.charAt(0).toUpperCase() }}</div>
+            <div class="comment-card__body">
+              <div class="comment-meta"><strong>{{ comment.authorUserId }}</strong><time>{{ comment.createdAt | date:'medium' }}</time></div>
+              <p *ngIf="editingCommentId !== comment.id">{{ comment.body }}</p>
+              <div class="comment-actions" *ngIf="editingCommentId !== comment.id">
+                <button class="text-button" type="button" (click)="startEdit(comment)">Edit</button>
+                <button class="text-button text-button--danger" type="button" (click)="deleteComment(comment)">Delete</button>
+              </div>
+              <form class="edit-comment" *ngIf="editingCommentId === comment.id" (ngSubmit)="saveComment(comment)">
+                <textarea name="editingCommentBody" [(ngModel)]="editingCommentBody" maxlength="2000" rows="3"></textarea>
+                <div class="comment-actions"><button class="button button-primary" type="submit">Save</button><button class="button button-secondary" type="button" (click)="cancelEdit()">Cancel</button></div>
+              </form>
+            </div>
+          </article>
+          <div class="empty-comments" *ngIf="comments.length === 0"><h3>No comments yet</h3><p>Add the first comment above.</p></div>
+        </div>
+      </ng-container>
+    </section>
+  </div>
+</section>

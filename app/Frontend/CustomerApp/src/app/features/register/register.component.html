@@ -1,10 +1,10 @@
 <section class="login-page">
   <div class="login-card">
-    <h2>Create your account</h2>
+    <h2 class="text-2xl font-bold text-ink block mb-6">Create your account</h2>
 
     <form (ngSubmit)="onRegister(registerForm)" #registerForm="ngForm" novalidate>
-      <div class="form-field">
-        <label for="username">Username</label>
+      <div class="tt-field">
+        <label class="tt-label" for="username">Username</label>
         <input
           id="username"
           name="username"
@@ -13,14 +13,15 @@
           type="text"
           minlength="3"
           required
+          class="tt-input"
         />
         <p class="field-hint" *ngIf="usernameField.invalid && (usernameField.touched || submitAttempted)">
           Username must be at least 3 characters.
         </p>
       </div>
 
-      <div class="form-field">
-        <label for="email">Email</label>
+      <div class="tt-field">
+        <label class="tt-label" for="email">Email</label>
         <input
           id="email"
           name="email"
@@ -28,14 +29,15 @@
           #emailField="ngModel"
           type="email"
           required
+          class="tt-input"
         />
         <p class="field-hint" *ngIf="emailField.invalid && (emailField.touched || submitAttempted)">
           Enter a valid email address, e.g. name&#64;example.com.
         </p>
       </div>
 
-      <div class="form-field">
-        <label for="password">Password</label>
+      <div class="tt-field">
+        <label class="tt-label" for="password">Password</label>
         <input
           id="password"
           name="password"
@@ -44,14 +46,15 @@
           type="password"
           minlength="6"
           required
+          class="tt-input"
         />
         <p class="field-hint" *ngIf="passwordField.invalid && (passwordField.touched || submitAttempted)">
           Password must be at least 6 characters.
         </p>
       </div>
 
-      <div class="form-field">
-        <label for="confirmPassword">Confirm password</label>
+      <div class="tt-field">
+        <label class="tt-label" for="confirmPassword">Confirm password</label>
         <input
           id="confirmPassword"
           name="confirmPassword"
@@ -59,6 +62,7 @@
           #confirmPasswordField="ngModel"
           type="password"
           required
+          class="tt-input"
         />
         <p class="field-hint" *ngIf="confirmPasswordField.touched || submitAttempted">
           <ng-container *ngIf="confirmPasswordField.invalid">Please confirm your password.</ng-container>
@@ -66,7 +70,7 @@
         </p>
       </div>
 
-      <button class="submit-button" type="submit" [disabled]="isSubmitting">
+      <button class="tt-btn tt-btn--primary" type="submit" [disabled]="isSubmitting">
         {{ isSubmitting ? 'Creating account...' : 'Create account' }}
       </button>
 

@@ -1,72 +1,61 @@
-<section class="page">
-  <header class="page-header">
-    <div>
-      <span class="eyebrow">Workspace</span>
-      <h1>Projects</h1>
-      <p>
-        Group related work and keep track of project progress.
-      </p>
+<section class="tt-page-wrapper">
+  <header class="tt-page-header">
+    <div class="tt-page-header__title-group">
+      <h1 class="tt-page-title">Projects</h1>
+      <p class="tt-page-subtitle">Organize related tasks in one place.</p>
     </div>
 
-    <button
-      type="button"
-      class="secondary-button"
-      (click)="loadProjects()"
-      [disabled]="isLoading"
-    >
-      Refresh
-    </button>
+    <button type="button" class="tt-btn tt-btn--secondary" (click)="loadProjects()" [disabled]="isLoading">Refresh</button>
   </header>
 
-  <section class="stats">
-    <div class="stat-card">
-      <span>Projects</span>
-      <strong>{{ totalProjects }}</strong>
+  <div class="tt-grid-2" *ngIf="!isLoading && !loadError">
+    <div class="tt-stat-card">
+      <span class="tt-stat-card__label">Projects</span>
+      <strong class="tt-stat-card__value">{{ totalProjects }}</strong>
     </div>
+  </div>
 
-    <div class="stat-card">
-      <span>Linked tasks</span>
-      <strong>{{ totalLinkedTasks }}</strong>
-    </div>
-  </section>
-
-  <section class="content-card">
-    <div class="section-title">
+  <section class="tt-card tt-card--padded">
+    <div class="tt-section-header">
       <div>
-        <h2>Create a project</h2>
-        <p>Give your project a clear name and description.</p>
+        <h2 class="text-lg font-semibold block">Create a project</h2>
+      <p class="text-sm text-muted block">Add a name and optional description.</p>
       </div>
     </div>
 
-    <form
-      class="project-form"
-      (ngSubmit)="createProject()"
-    >
-      <input
-        type="text"
-        name="projectName"
-        [(ngModel)]="newProjectName"
-        maxlength="160"
-        placeholder="Project name"
-        [disabled]="isCreating"
-      />
+    <form class="project-form" (ngSubmit)="createProject()">
+      <div class="tt-field" style="margin-bottom: 0;">
+        <label class="tt-label" for="projectName">Project name</label>
+        <input
+          type="text"
+          id="projectName"
+          name="projectName"
+          [(ngModel)]="newProjectName"
+          maxlength="160"
+          placeholder="Project name"
+          [disabled]="isCreating"
+          class="tt-input"
+        />
+      </div>
 
-      <textarea
-        name="projectDescription"
-        [(ngModel)]="newProjectDescription"
-        rows="3"
-        placeholder="Short description"
-        [disabled]="isCreating"
-      ></textarea>
+      <div class="tt-field" style="margin-bottom: 0;">
+        <label class="tt-label" for="projectDescription">Short description</label>
+        <textarea
+          name="projectDescription"
+          id="projectDescription"
+          [(ngModel)]="newProjectDescription"
+          rows="3"
+          placeholder="Short description"
+          [disabled]="isCreating"
+          class="tt-input"
+        ></textarea>
+      </div>
 
       <div class="form-actions">
         <button
           type="submit"
-          class="primary-button"
-          [disabled]="
-            isCreating ||
-            !newProjectName.trim()
-          "
+          class="tt-btn tt-btn--primary"
+          [disabled]="isCreating || !newProjectName.trim()"
         >
           {{ isCreating ? 'Creating...' : 'Create project' }}
         </button>
@@ -74,19 +63,10 @@
     </form>
   </section>
 
-  <div
-    class="error-state"
-    *ngIf="loadError"
-  >
-    <strong>{{ loadError }}</strong>
-
-    <button
-      type="button"
-      class="secondary-button"
-      (click)="loadProjects()"
-    >
-      Try again
-    </button>
+  <div class="tt-error" *ngIf="loadError">
+    <div class="tt-error__icon">⚠</div>
+    <div class="tt-error__title">{{ loadError }}</div>
+    <button type="button" class="tt-btn tt-btn--secondary" (click)="loadProjects()">Try again</button>
   </div>
 
   <section
@@ -95,25 +75,16 @@
   >
     <article
       class="project-card"
-      *ngFor="
-        let project of projects;
-        trackBy: trackByProjectId
-      "
+      *ngFor="let project of projects; trackBy: trackByProjectId"
     >
       <ng-container
-        *ngIf="
-          editingProjectId !== project.id;
-          else editProject
-        "
+        *ngIf="editingProjectId !== project.id; else editProject"
       >
         <div class="project-header">
           <div>
             <h3>{{ project.name }}</h3>
             <p>
-              {{
-                project.description ||
-                'No description yet.'
-              }}
+              {{ project.description || 'No description yet.' }}
             </p>
           </div>
 
@@ -131,18 +102,11 @@
           <div class="actions">
             <button
               type="button"
-              class="text-button"
-              (click)="startEdit(project)"
+              class="tt-btn-text"
+              (click)="toggleTaskManager(project)"
+              [attr.aria-expanded]="managingTasksForProjectId === project.id"
             >
-              Edit
-            </button>
-
-            <button
-              type="button"
-              class="text-button danger"
-              (click)="deleteProject(project)"
-            >
-              Delete
+              {{ managingTasksForProjectId === project.id ? 'Hide' : 'Show' }}
             </button>
           </div>
         </div>
@@ -155,18 +119,20 @@
             [(ngModel)]="editingProjectName"
             [ngModelOptions]="{ standalone: true }"
             maxlength="160"
+            class="tt-input"
           />
 
           <textarea
             rows="3"
             [(ngModel)]="editingProjectDescription"
             [ngModelOptions]="{ standalone: true }"
+            class="tt-input"
           ></textarea>
 
           <div class="actions">
             <button
               type="button"
-              class="primary-button"
+              class="tt-btn tt-btn--primary"
               (click)="saveProject(project)"
             >
               Save
@@ -174,7 +140,7 @@
 
             <button
               type="button"
-              class="secondary-button"
+              class="tt-btn tt-btn--secondary"
               (click)="cancelEdit()"
             >
               Cancel
@@ -186,15 +152,15 @@
   </section>
 
   <section
-    class="empty-state"
+    class="tt-empty"
     *ngIf="
       !isLoading &&
       !loadError &&
       projects.length === 0
     "
   >
-    <div class="empty-icon">▦</div>
-    <h3>No projects yet</h3>
-    <p>Create a project to organize related work.</p>
+    <div class="tt-empty__icon">▦</div>
+    <div class="tt-empty__title">No projects yet</div>
+      <div class="tt-empty__desc">Create your first project above.</div>
   </section>
 </section>
