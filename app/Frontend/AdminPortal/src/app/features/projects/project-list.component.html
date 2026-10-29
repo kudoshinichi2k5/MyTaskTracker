@@ -1,150 +1,56 @@
-<section class="page">
+<section class="tt-page-wrapper">
 
-  <header class="page-header">
-
-    <div>
-      <span class="eyebrow">Workspace</span>
-      <h1>Projects</h1>
+  <header class="tt-page-header">
+    <div class="tt-page-header__title-group">
+      <h1 class="tt-page-title">Projects</h1>
     </div>
 
     <button
+      class="tt-btn tt-btn--secondary"
       type="button"
-      class="refresh-button"
       (click)="loadProjects()"
       [disabled]="isLoading"
     >
-      ↻
-      {{ isLoading ? 'Loading' : 'Refresh' }}
+      {{ isLoading ? 'Loading...' : 'Refresh' }}
     </button>
-
   </header>
 
-  <div
-    class="error-card"
-    *ngIf="error"
-  >
-    {{ error }}
+  <div class="tt-error" *ngIf="error">
+    <div class="tt-error__icon">⚠</div>
+    <div class="tt-error__title">Unable to load projects</div>
+    <div class="tt-error__desc">{{ error }}</div>
   </div>
 
-  <div
-    class="loading"
-    *ngIf="isLoading"
-  >
-    Loading projects...
+  <div class="tt-loading" *ngIf="isLoading && !error">
+    <div class="tt-loading__icon">⟳</div>
+    <div class="tt-loading__title">Loading projects...</div>
   </div>
 
-  <section
-    class="project-grid"
-    *ngIf="
-      !isLoading &&
-      !error &&
-      projects.length > 0
-    "
-  >
-
-    <article
-      class="project-card"
-      *ngFor="let project of projects"
-    >
-
-      <div class="project-top">
-
-        <div class="project-icon">
-          {{ project.name.slice(0, 1).toUpperCase() }}
-        </div>
-
-        <div class="project-title">
-          <h2>{{ project.name }}</h2>
-
-          <span>
-            {{ project.ownerUserId }}
-          </span>
-        </div>
-
+  <section class="tt-grid-2" *ngIf="!isLoading && !error && projects.length > 0">
+    <article class="tt-card tt-card--padded" *ngFor="let project of projects">
+      <div class="flex items-center gap-3 mb-3">
+        <span class="tt-badge tt-badge--info">{{ project.name.slice(0, 1).toUpperCase() }}</span>
+        <h2 class="tt-page-title text-lg m-0">{{ project.name }}</h2>
       </div>
-
-      <p class="description">
-        {{
-          project.description ||
-          'No description'
-        }}
+      <p class="text-muted text-sm leading-relaxed mb-4">
+        {{ project.description || 'No description' }}
       </p>
-
-      <div class="project-stats">
-
-        <div>
-          <strong>
-            {{ getTaskCount(project) }}
-          </strong>
-
-          <span>Tasks</span>
+      <div class="flex items-center justify-between pt-4 border-t">
+        <div style="display: flex; flex-direction: column;">
+          <strong class="text-base block">{{ getTaskCount(project) }}</strong>
         </div>
-
-        <div>
-          <strong>
-            {{ project.taskIds.length }}
-          </strong>
-
-          <span>Linked</span>
+        <div style="display: flex; align-items: center; gap: var(--space-2);">
+          <span class="text-xs text-muted">Updated {{ project.updatedAt | date:'shortDate' }}</span>
+          <a routerLink="/comments" class="tt-btn tt-btn--ghost tt-btn--sm">View discussions →</a>
         </div>
-
       </div>
-
-      <div class="progress">
-
-        <div class="progress-label">
-          <span>Task coverage</span>
-
-          <strong>
-            {{
-              project.taskIds.length > 0
-                ? 100
-                : 0
-            }}%
-          </strong>
-        </div>
-
-        <div class="progress-track">
-          <div
-            class="progress-value"
-            [style.width.%]="
-              project.taskIds.length > 0
-                ? 100
-                : 0
-            "
-          ></div>
-        </div>
-
-      </div>
-
-      <div class="project-footer">
-
-        <small>
-          Updated
-          {{ project.updatedAt | date:'shortDate' }}
-        </small>
-
-        <a
-          routerLink="/comments"
-        >
-          View discussions →
-        </a>
-
-      </div>
-
     </article>
-
   </section>
 
-  <section
-    class="empty"
-    *ngIf="
-      !isLoading &&
-      !error &&
-      projects.length === 0
-    "
-  >
-    No projects found.
-  </section>
+  <div class="tt-empty" *ngIf="!isLoading && !error && projects.length === 0">
+    <div class="tt-empty__icon">📦</div>
+    <div class="tt-empty__title">No projects found</div>
+    <div class="tt-empty__desc">Create your first project to organize related work.</div>
+  </div>
 
 </section>

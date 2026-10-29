@@ -4,3 +4,9 @@
 /infrastructure/ai_progress_tracker.md
 /.github/ai_progress_tracker.md
 /deploy/ai_progress_tracker.md
+
+# Local build diagnostics
+/build_output.log
+/app/Frontend/AdminPortal/build*.log
+/app/Frontend/AdminPortal/build*.err
+/app/Frontend/AdminPortal/build*.out

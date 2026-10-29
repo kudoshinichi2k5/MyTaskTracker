@@ -1,176 +1,113 @@
-<section class="dashboard-page">
-  <header class="page-header">
-    <div>
-      <span class="eyebrow">Admin Portal</span>
-
-      <h1>Dashboard</h1>
-
-      <p>
-        Monitor team activity and task progress.
-      </p>
+<section class="tt-page-wrapper">
+  <header class="tt-page-header">
+    <div class="tt-page-header__title-group">
+      <span class="tt-kicker">Admin Portal</span>
+      <h1 class="tt-page-title">Dashboard</h1>
+    <p class="tt-page-subtitle">Team workload at a glance.</p>
     </div>
+    <button type="button" class="tt-btn tt-btn--secondary" (click)="loadReport()" [disabled]="isLoading">{{ isLoading ? 'Refreshing…' : 'Refresh' }}</button>
   </header>
 
-  <div
-    class="error-banner"
-    *ngIf="loadError"
-  >
-    Unable to load the team report.
+  <div class="tt-error" *ngIf="loadError">
+    <div class="tt-error__icon">⚠</div>
+      <div class="tt-error__title">Couldn’t load the report</div>
+      <div class="tt-error__desc">Refresh to try again.</div>
   </div>
 
-  <section
-    class="stats-grid"
-    *ngIf="!loadError"
-  >
-    <article class="stat-card">
-      <span>Members</span>
-
-      <strong>
-        {{ isLoading ? '—' : memberCount }}
-      </strong>
-
-      <small>
-        Active team members
-      </small>
+  <section class="dashboard-insights" *ngIf="!isLoading && !loadError">
+    <article class="insight-panel insight-panel--accent">
+      <span class="tt-kicker">Team pulse</span>
+      <h2>{{ completionRate }}% complete</h2>
+    <p>{{ totalCompleted }} of {{ totalTasks }} tasks complete.</p>
+      <div class="insight-progress"><span [style.width.%]="completionRate"></span></div>
     </article>
-
-    <article class="stat-card">
-
-      <span>
-        Avg Tasks / Member
-      </span>
-
-      <strong>
-        {{ isLoading ? '—' : averageTasksPerMember }}
-      </strong>
-
-      <small>
-        Average workload per team member
-      </small>
-
-    </article>
-
-
-    <article class="stat-card">
-
-      <span>
-        Pending
-      </span>
-
-      <strong>
-        {{ isLoading ? '—' : totalPending }}
-      </strong>
-
-      <small>
-        Tasks still requiring attention
-      </small>
-
-    </article>
-
-    <article class="stat-card">
-      <span>Total Tasks</span>
-
-      <strong>
-        {{ isLoading ? '—' : totalTasks }}
-      </strong>
-
-      <small>
-        Tasks across the team
-      </small>
-    </article>
-
-    <article class="stat-card">
-      <span>Completed</span>
-
-      <strong>
-        {{ isLoading ? '—' : totalCompleted }}
-      </strong>
-
-      <small>
-        Finished tasks
-      </small>
-    </article>
-
-    <article class="stat-card">
-      <span>Completion</span>
-
-      <strong>
-        {{ isLoading ? '—' : completionRate + '%' }}
-      </strong>
-
-      <small>
-        Overall completion rate
-      </small>
+    <article class="insight-panel">
+      <span class="tt-kicker">Workload signal</span>
+      <h2>{{ highestWorkload?.userId || 'No activity yet' }}</h2>
+    <p *ngIf="highestWorkload; else noWorkload">{{ highestWorkload.totalTasks }} active tasks.</p>
+    <ng-template #noWorkload><p>No workload data yet.</p></ng-template>
     </article>
   </section>
 
-  <section
-    class="content-card"
-    *ngIf="!loadError"
-  >
-    <div class="section-header">
-      <div>
-        <span class="eyebrow">Team activity</span>
+  <div class="tt-grid-3" *ngIf="!loadError">
+    <article class="tt-stat-card">
+      <span class="tt-stat-card__label">Members</span>
+      <strong class="tt-stat-card__value">{{ isLoading ? '—' : memberCount }}</strong>
+        <span class="tt-stat-card__sub">Active members</span>
+    </article>
 
-        <h2>Task summary</h2>
+    <article class="tt-stat-card">
+        <span class="tt-stat-card__label">Tasks per member</span>
+      <strong class="tt-stat-card__value">{{ isLoading ? '—' : averageTasksPerMember }}</strong>
+        <span class="tt-stat-card__sub">Average workload</span>
+    </article>
+
+    <article class="tt-stat-card">
+      <span class="tt-stat-card__label">Pending</span>
+      <strong class="tt-stat-card__value tt-stat-card__value--warning">{{ isLoading ? '—' : totalPending }}</strong>
+        <span class="tt-stat-card__sub">Open tasks</span>
+    </article>
+
+    <article class="tt-stat-card">
+      <span class="tt-stat-card__label">Total Tasks</span>
+      <strong class="tt-stat-card__value">{{ isLoading ? '—' : totalTasks }}</strong>
+        <span class="tt-stat-card__sub">All tasks</span>
+    </article>
+
+    <article class="tt-stat-card">
+      <span class="tt-stat-card__label">Completed</span>
+      <strong class="tt-stat-card__value tt-stat-card__value--success">{{ isLoading ? '—' : totalCompleted }}</strong>
+        <span class="tt-stat-card__sub">Done</span>
+    </article>
+
+    <article class="tt-stat-card">
+      <span class="tt-stat-card__label">Completion</span>
+      <strong class="tt-stat-card__value tt-stat-card__value--info">{{ isLoading ? '—' : completionRate }}%</strong>
+        <span class="tt-stat-card__sub">Completion rate</span>
+    </article>
+  </div>
+
+  <section class="tt-card" *ngIf="!loadError">
+    <div class="tt-section-header">
+      <div>
+        <h2 class="tt-page-title">Task overview</h2>
       </div>
     </div>
 
-    <p
-      class="loading-state"
-      *ngIf="isLoading"
-    >
-      Loading team activity...
-    </p>
+    <div class="tt-loading" *ngIf="isLoading">
+      <div class="tt-loading__icon">⟳</div>
+        <div class="tt-loading__title">Loading activity…</div>
+    </div>
 
-    <table
-      *ngIf="!isLoading && summary.length > 0"
-    >
-      <thead>
-        <tr>
-          <th>User ID</th>
-          <th>Total</th>
-          <th>Completed</th>
-          <th>Pending</th>
-          <th>Completion</th>
-        </tr>
-      </thead>
+    <div class="tt-table--responsive" *ngIf="!isLoading && summary.length > 0">
+      <table class="tt-table">
+        <thead>
+          <tr>
+            <th>User ID</th>
+            <th>Total</th>
+            <th>Completed</th>
+            <th>Pending</th>
+            <th>Completion</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let row of summary">
+            <td>{{ row.userId }}</td>
+            <td>{{ row.totalTasks }}</td>
+            <td>{{ row.completedTasks }}</td>
+            <td>{{ row.totalTasks - row.completedTasks }}</td>
+            <td>
+              {{ row.totalTasks === 0 ? 0 : ((row.completedTasks / row.totalTasks) * 100 | number:'1.0-0') }}%
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
 
-      <tbody>
-        <tr *ngFor="let row of summary">
-          <td>{{ row.userId }}</td>
-
-          <td>
-            {{ row.totalTasks }}
-          </td>
-
-          <td>
-            {{ row.completedTasks }}
-          </td>
-
-          <td>
-            {{ row.totalTasks - row.completedTasks }}
-          </td>
-
-          <td>
-            {{ row.totalTasks === 0
-              ? 0
-              : ((row.completedTasks / row.totalTasks) * 100 | number:'1.0-0')
-            }}%
-          </td>
-        </tr>
-      </tbody>
-    </table>
-
-    <div
-      class="empty-state"
-      *ngIf="!isLoading && summary.length === 0"
-    >
-      <h3>No activity yet</h3>
-
-      <p>
-        There is no task activity available.
-      </p>
+    <div class="tt-empty" *ngIf="!isLoading && summary.length === 0">
+      <div class="tt-empty__icon">📭</div>
+      <div class="tt-empty__title">No activity yet</div>
+        <div class="tt-empty__desc">Task activity will appear here.</div>
     </div>
   </section>
 </section>

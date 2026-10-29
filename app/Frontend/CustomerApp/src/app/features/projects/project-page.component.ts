@@ -13,6 +13,11 @@ import {
   ProjectService
 } from '../../services/project.service';
 
+import {
+  TaskItem,
+  TaskService
+} from '../../services/task.service';
+
 import { AuthService } from '../../services/auth.service';
 import { ToastService } from '../../services/toast.service';
 
@@ -29,14 +34,17 @@ import { ToastService } from '../../services/toast.service';
 })
 export class ProjectPageComponent implements OnInit {
   private readonly projectService = inject(ProjectService);
+  private readonly taskService = inject(TaskService);
   private readonly authService = inject(AuthService);
   private readonly toast = inject(ToastService);
   private readonly cdr = inject(ChangeDetectorRef);
 
   projects: ProjectItem[] = [];
+  tasks: TaskItem[] = [];
 
   isLoading = true;
   loadError: string | null = null;
+  taskLoadError: string | null = null;
 
   newProjectName = '';
   newProjectDescription = '';
@@ -45,6 +53,10 @@ export class ProjectPageComponent implements OnInit {
   editingProjectId: string | null = null;
   editingProjectName = '';
   editingProjectDescription = '';
+
+  managingTasksForProjectId: string | null = null;
+  selectedTaskToLinkId: number | null = null;
+  isUpdatingTaskLinks = false;
 
   ngOnInit(): void {
     this.loadProjects();
@@ -77,6 +89,7 @@ export class ProjectPageComponent implements OnInit {
         next: projects => {
           this.projects = projects;
           this.isLoading = false;
+          this.loadTasks();
           this.cdr.markForCheck();
         },
         error: () => {
@@ -86,6 +99,22 @@ export class ProjectPageComponent implements OnInit {
           this.cdr.markForCheck();
         }
       });
+    });
+  }
+
+  loadTasks(): void {
+    this.taskLoadError = null;
+
+    this.taskService.getTasks().subscribe({
+      next: tasks => {
+        this.tasks = tasks;
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.tasks = [];
+        this.taskLoadError = "Couldn't load tasks for project linking.";
+        this.cdr.markForCheck();
+      }
     });
   }
 
@@ -198,6 +227,80 @@ export class ProjectPageComponent implements OnInit {
           );
         }
       });
+  }
+
+  toggleTaskManager(project: ProjectItem): void {
+    if (this.managingTasksForProjectId === project.id) {
+      this.managingTasksForProjectId = null;
+      this.selectedTaskToLinkId = null;
+      return;
+    }
+
+    this.managingTasksForProjectId = project.id;
+    this.selectedTaskToLinkId = null;
+  }
+
+  getLinkedTasks(project: ProjectItem): TaskItem[] {
+    const linkedTaskIds = new Set(project.taskIds);
+    return this.tasks.filter(task => linkedTaskIds.has(task.id));
+  }
+
+  getAvailableTasks(project: ProjectItem): TaskItem[] {
+    const linkedTaskIds = new Set(project.taskIds);
+    return this.tasks.filter(task => !linkedTaskIds.has(task.id));
+  }
+
+  linkTask(project: ProjectItem): void {
+    const taskId = this.selectedTaskToLinkId;
+
+    if (taskId === null || this.isUpdatingTaskLinks) {
+      return;
+    }
+
+    this.isUpdatingTaskLinks = true;
+
+    this.projectService.attachTask(project.id, taskId).subscribe({
+      next: updated => {
+        this.replaceProject(updated);
+        this.selectedTaskToLinkId = null;
+        this.isUpdatingTaskLinks = false;
+        this.toast.success('Task linked to project.');
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.isUpdatingTaskLinks = false;
+        this.toast.error("Couldn't link that task. Please try again.");
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  unlinkTask(project: ProjectItem, task: TaskItem): void {
+    if (this.isUpdatingTaskLinks) {
+      return;
+    }
+
+    this.isUpdatingTaskLinks = true;
+
+    this.projectService.detachTask(project.id, task.id).subscribe({
+      next: updated => {
+        this.replaceProject(updated);
+        this.isUpdatingTaskLinks = false;
+        this.toast.success('Task removed from project.');
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.isUpdatingTaskLinks = false;
+        this.toast.error("Couldn't remove that task. Please try again.");
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  private replaceProject(updated: ProjectItem): void {
+    this.projects = this.projects.map(project =>
+      project.id === updated.id ? updated : project
+    );
   }
 
   trackByProjectId(

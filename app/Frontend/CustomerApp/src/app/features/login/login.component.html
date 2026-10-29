@@ -1,19 +1,37 @@
 <section class="login-page">
   <div class="login-card">
-    <h2>Sign in</h2>
+    <h2 class="text-2xl font-bold text-ink block mb-6">Sign in</h2>
 
     <form (ngSubmit)="onLogin()" #loginForm="ngForm">
-      <div class="form-field">
-        <label for="username">Username</label>
-        <input id="username" name="username" [(ngModel)]="username" type="text" required />
+      <div class="tt-field">
+        <label class="tt-label" for="username">Username</label>
+        <input
+          id="username"
+          name="username"
+          [(ngModel)]="username"
+          type="text"
+          required
+          class="tt-input"
+        />
       </div>
 
-      <div class="form-field">
-        <label for="password">Password</label>
-        <input id="password" name="password" [(ngModel)]="password" type="password" required />
+      <div class="tt-field">
+        <label class="tt-label" for="password">Password</label>
+        <input
+          id="password"
+          name="password"
+          [(ngModel)]="password"
+          type="password"
+          required
+          class="tt-input"
+        />
       </div>
 
-      <button class="submit-button" type="submit" [disabled]="isSubmitting || !loginForm.valid">
+      <button
+        class="tt-btn tt-btn--primary"
+        type="submit"
+        [disabled]="isSubmitting || !loginForm.valid"
+      >
         {{ isSubmitting ? 'Signing in...' : 'Login' }}
       </button>
 

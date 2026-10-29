@@ -42,6 +42,10 @@ namespace Tracker.TaskService.Data.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("varchar(64)");
 
+                    b.Property<string>("project_id")
+                        .HasMaxLength(36)
+                        .HasColumnType("varchar(36)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("UserId")

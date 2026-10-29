@@ -121,6 +121,18 @@ export class CommentListComponent
 
         this.isLoading = false;
 
+        const selectedTaskIsValid =
+          this.selectedTaskId !== null &&
+          this.tasks.some(task => task.id === this.selectedTaskId) &&
+          (!this.selectedProjectId ||
+            this.availableTasks.some(task => task.id === this.selectedTaskId));
+
+        if (!selectedTaskIsValid) {
+          this.selectedTaskId = null;
+          this.comments = [];
+          this.loadedTaskId = null;
+        }
+
         if (
           this.selectedTaskId !== null
         ) {

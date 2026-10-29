@@ -7,16 +7,15 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-
 import {
   CommentItem,
   CommentService
 } from '../../services/comment.service';
 
 import {
-  ProjectItem,
-  ProjectService
-} from '../../services/project.service';
+  TaskItem,
+  TaskService
+} from '../../services/task.service';
 
 import { AuthService } from '../../services/auth.service';
 import { ToastService } from '../../services/toast.service';
@@ -28,21 +27,21 @@ import { ToastService } from '../../services/toast.service';
     CommonModule,
     FormsModule
   ],
-  templateUrl: './comment-page.component.html',
-  styleUrl: './comment-page.component.css',
+  templateUrl: './comment-page.component.clean.html',
+  styleUrl: './comment-page.component.clean.css',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class CommentPageComponent implements OnInit {
   private readonly commentService = inject(CommentService);
-  private readonly projectService = inject(ProjectService);
+  private readonly taskService = inject(TaskService);
   private readonly authService = inject(AuthService);
   private readonly toast = inject(ToastService);
   private readonly cdr = inject(ChangeDetectorRef);
 
-  projects: ProjectItem[] = [];
+  tasks: TaskItem[] = [];
   comments: CommentItem[] = [];
 
-  selectedTaskId = '';
+  selectedTaskId: number | null = null;
 
   isLoadingProjects = true;
   isLoadingComments = false;
@@ -59,14 +58,8 @@ export class CommentPageComponent implements OnInit {
     this.loadProjects();
   }
 
-  get taskChoices(): string[] {
-    return Array.from(
-      new Set(
-        this.projects.flatMap(
-          project => project.taskIds
-        )
-      )
-    );
+  get taskChoices(): TaskItem[] {
+    return this.tasks;
   }
 
   loadProjects(): void {
@@ -82,17 +75,17 @@ export class CommentPageComponent implements OnInit {
         return;
       }
 
-      this.projectService.getProjects().subscribe({
-        next: projects => {
-          this.projects = projects;
+      this.taskService.getTasks().subscribe({
+        next: tasks => {
+          this.tasks = tasks;
           this.isLoadingProjects = false;
 
           if (
-            !this.selectedTaskId &&
+            this.selectedTaskId === null &&
             this.taskChoices.length > 0
           ) {
             this.selectedTaskId =
-              this.taskChoices[0];
+              this.taskChoices[0].id;
 
             this.loadComments();
           }
@@ -109,13 +102,13 @@ export class CommentPageComponent implements OnInit {
     });
   }
 
-  selectTask(taskId: string): void {
+  selectTask(taskId: number): void {
     this.selectedTaskId = taskId;
     this.loadComments();
   }
 
   loadComments(): void {
-    if (!this.selectedTaskId) {
+    if (this.selectedTaskId === null) {
       this.comments = [];
       return;
     }

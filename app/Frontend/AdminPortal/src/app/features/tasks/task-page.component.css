@@ -1,0 +1,6 @@
+.task-page { width: min(100%, var(--content-width)); margin: 0 auto; }
+.page-header { margin-bottom: var(--space-8); }.page-header h1 { margin-bottom: var(--space-2); font-size: var(--text-3xl); }.page-header p { color: var(--color-muted); }
+.filter-bar { display: flex; flex-wrap: wrap; gap: var(--space-3); padding: var(--space-4); margin-bottom: var(--space-6); border: 1px solid var(--color-line); border-radius: var(--radius-lg); background: var(--color-surface); }
+.filter-bar .form-control { min-width: 0; flex: 1; border: 0; background: transparent; }
+.task-card { padding: var(--space-5); margin-bottom: var(--space-4); border: 1px solid var(--color-line); border-radius: var(--radius-lg); background: var(--color-surface); box-shadow: var(--shadow-sm); }.task-card:hover { box-shadow: var(--shadow-md); }.task-card .task-title { margin-bottom: var(--space-2); font-size: var(--text-lg); }.task-card .task-description { color: var(--color-muted); font-size: var(--text-sm); }.task-card .task-meta { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); color: var(--color-muted); font-size: var(--text-xs); }
+.empty-state { padding: var(--space-12) var(--space-4); color: var(--color-muted); text-align: center; }

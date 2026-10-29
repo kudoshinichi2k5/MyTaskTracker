@@ -1,0 +1,59 @@
+<!-- Roles Page - Modern UI with Consistent Design System -->
+<div class="p-6">
+  <div class="max-w-7xl mx-auto">
+    <!-- Page Header -->
+    <header class="mb-8">
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+        <div>
+          <h1 class="text-3xl font-bold text-ink mb-2">Roles</h1>
+<p class="text-muted text-sm">Control access by role.</p>
+        </div>
+        <div class="flex items-center gap-3">
+<button class="btn btn-primary">New role</button>
+        </div>
+      </div>
+      
+      <!-- Filter and Search Bar -->
+      <div class="bg-white rounded-lg p-4 shadow-sm border border-line flex flex-col sm:flex-row gap-3">
+        <div class="flex-1">
+          <input type="text" class="input input-bordered w-full" placeholder="Search roles...">
+        </div>
+        <div class="flex items-center gap-2">
+          <select class="select select-bordered">
+            <option>All Permissions</option>
+          </select>
+        </div>
+        <div class="flex items-center gap-2">
+<span class="sr-only">Sort roles</span>
+          <select class="select select-sm">
+            <option>Role Name</option>
+            <option>Permission Level</option>
+          </select>
+        </div>
+      </div>
+    </header>
+    
+    <!-- Roles Grid -->
+    <section class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      <!-- Role Card -->
+      <div *ngFor="let role of roles" class="role-card bg-white rounded-2xl p-6 shadow-sm border border-line hover:transition-all duration-300 hover:shadow-lg">
+        <div class="flex items-start gap-3 mb-4">
+          <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style="background: var(--color-accent-soft); color: var(--color-accent-text);">
+            <p class="text-sm font-medium" style="line-height: 1.2;">{{ role.name.charAt(0) }}</p>
+          </div>
+          <div class="flex-1 min-w-0">
+            <h3 class="text-lg font-semibold text-ink">{{ role.name }}</h3>
+            <p class="text-sm text-muted-soft line-clamp-2">{{ role.description }}</p>
+          </div>
+        </div>
+        
+        <div class="mt-auto pt-4 border-t border-line">
+          <div class="flex text-sm">
+<span>{{ role.permissionCount }} permissions</span>
+<span class="ml-4 text-muted-soft">{{ role.featureCount }} features</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>

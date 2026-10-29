@@ -19,21 +19,38 @@ public class EfTaskStore : ITaskStore
 
     public IReadOnlyList<TaskItem> GetAll(string userId)
     {
-        return _db.Tasks
-            .Where(t => t.UserId == userId)
-            .OrderBy(t => t.Id)
-            .ToList();
+        return GetAll(userId, null);
+    }
+
+    public IReadOnlyList<TaskItem> GetAll(string userId, Guid? projectId)
+    {
+        var query = _db.Tasks.Where(t => t.UserId == userId);
+        if (projectId.HasValue)
+        {
+            query = query.Where(t => t.ProjectId == projectId.Value);
+        }
+        return query.OrderBy(t => t.Id).ToList();
     }
 
     public TaskItem Create(string userId, string title)
     {
-        var task = new TaskItem { UserId = userId, Title = title, IsCompleted = false };
+        return Create(userId, title, null, null);
+    }
+
+    public TaskItem Create(string userId, string title, bool? isCompleted, Guid? projectId)
+    {
+        var task = new TaskItem { UserId = userId, Title = title, IsCompleted = isCompleted ?? false, ProjectId = projectId };
         _db.Tasks.Add(task);
         _db.SaveChanges();
         return task;
     }
 
     public bool Update(string userId, int id, string? title, bool? isCompleted)
+    {
+        return Update(userId, id, title, isCompleted, null);
+    }
+
+    public bool Update(string userId, int id, string? title, bool? isCompleted, Guid? projectId)
     {
         var task = _db.Tasks.FirstOrDefault(t => t.Id == id && t.UserId == userId);
         if (task is null)
@@ -51,6 +68,11 @@ public class EfTaskStore : ITaskStore
             task.IsCompleted = isCompleted.Value;
         }
 
+        if (projectId is not null)
+        {
+            task.ProjectId = projectId.Value;
+        }
+
         _db.SaveChanges();
         return true;
     }
@@ -64,6 +86,19 @@ public class EfTaskStore : ITaskStore
         }
 
         _db.Tasks.Remove(task);
+        _db.SaveChanges();
+        return true;
+    }
+
+    public bool SetProjectId(int taskId, Guid? projectId)
+    {
+        var task = _db.Tasks.FirstOrDefault(t => t.Id == taskId);
+        if (task is null)
+        {
+            return false;
+        }
+
+        task.ProjectId = projectId;
         _db.SaveChanges();
         return true;
     }

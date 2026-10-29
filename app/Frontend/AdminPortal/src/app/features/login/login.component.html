@@ -1,23 +1,44 @@
-<section class="login-page">
-  <div class="login-card">
-    <h2>Admin Sign in</h2>
+<section class="tt-page-wrapper">
+  <div class="tt-card tt-card--padded" style="max-width: 420px; margin: 0 auto;">
+    <div class="tt-page-header__title-group">
+      <span class="tt-kicker">Admin Portal</span>
+      <h1 class="tt-page-title">Sign in</h1>
+    </div>
 
     <form (ngSubmit)="onLogin()" #loginForm="ngForm">
-      <div class="form-field">
-        <label for="username">Username</label>
-        <input id="username" name="username" [(ngModel)]="username" type="text" required />
+      <div class="tt-field">
+        <label class="tt-label" for="username">Username</label>
+        <input
+          id="username"
+          name="username"
+          [(ngModel)]="username"
+          type="text"
+          required
+          class="tt-input"
+        />
       </div>
 
-      <div class="form-field">
-        <label for="password">Password</label>
-        <input id="password" name="password" [(ngModel)]="password" type="password" required />
+      <div class="tt-field">
+        <label class="tt-label" for="password">Password</label>
+        <input
+          id="password"
+          name="password"
+          [(ngModel)]="password"
+          type="password"
+          required
+          class="tt-input"
+        />
       </div>
 
-      <button class="submit-button" type="submit" [disabled]="isSubmitting || !loginForm.valid">
-        {{ isSubmitting ? 'Signing in...' : 'Login' }}
+      <button
+        class="tt-btn tt-btn--primary tt-btn--full"
+        type="submit"
+        [disabled]="isSubmitting || !loginForm.valid"
+      >
+        {{ isSubmitting ? 'Signing in...' : 'Sign in' }}
       </button>
 
-      <p class="error-banner" *ngIf="errorMessage">{{ errorMessage }}</p>
+      <p class="tt-field-error" *ngIf="errorMessage">{{ errorMessage }}</p>
     </form>
   </div>
 </section>

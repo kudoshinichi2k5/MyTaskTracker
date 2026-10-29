@@ -6,4 +6,5 @@ public class TaskItem
     public required string UserId { get; set; }
     public string Title { get; set; } = string.Empty;
     public bool IsCompleted { get; set; }
+    public Guid? ProjectId { get; set; }
 }

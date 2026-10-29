@@ -10,6 +10,9 @@
 /node_modules
 npm-debug.log
 yarn-error.log
+build*.log
+build*.err
+build*.out
 
 # IDEs and editors
 .idea/

@@ -1,18 +1,18 @@
-<section class="page">
+<section class="tt-page-wrapper">
 
-  <header class="page-header">
+  <header class="tt-page-header">
 
     <div>
 
-      <span class="eyebrow">
+      <span class="tt-kicker">
         Access Control
       </span>
 
-      <h1>
+      <h1 class="tt-page-title">
         Roles & Permissions
       </h1>
 
-      <p>
+      <p class="tt-page-subtitle">
         Review system roles and understand
         what each role can access.
       </p>
@@ -22,7 +22,7 @@
 
     <button
       type="button"
-      class="secondary-button"
+      class="tt-btn tt-btn--secondary"
       (click)="loadRoles()"
       [disabled]="isLoading"
     >
@@ -34,32 +34,32 @@
 
   <!-- Summary -->
 
-  <section class="stats-grid">
+  <section class="tt-card tt-card--padded tt-grid-2">
 
-    <article class="stat-card">
+    <article class="tt-stat-card">
 
-      <span>
+      <span class="tt-stat-card__label">
         Available Roles
       </span>
 
-      <strong>
+      <strong class="tt-stat-card__value">
         {{ isLoading ? '—' : totalRoles }}
       </strong>
 
-      <small>
+      <span class="tt-stat-card__sub">
         Roles provided by AuthService
-      </small>
+      </span>
 
     </article>
 
 
-    <article class="stat-card">
+    <article class="tt-stat-card">
 
-      <span>
+      <span class="tt-stat-card__label">
         Admin Role
       </span>
 
-      <strong>
+      <strong class="tt-stat-card__value tt-stat-card__value--info">
         {{
           isLoading
             ? '—'
@@ -71,9 +71,9 @@
         }}
       </strong>
 
-      <small>
+      <span class="tt-stat-card__sub">
         Administrative portal access
-      </small>
+      </span>
 
     </article>
 
@@ -81,7 +81,7 @@
 
 
   <div
-    class="error"
+    class="tt-error"
     *ngIf="error"
   >
     {{ error }}
@@ -89,91 +89,82 @@
 
 
   <div
-    class="loading"
+    class="tt-loading"
     *ngIf="isLoading"
   >
-    Loading role definitions...
+    <span class="tt-spinner"></span>
+    <span>Loading role definitions...</span>
   </div>
 
 
   <!-- Role cards -->
 
   <section
-    class="role-grid"
+    class="tt-section"
     *ngIf="
       !isLoading &&
       roleDefinitions.length > 0
     "
   >
 
-    <article
-      class="role-card"
-      *ngFor="
-        let role of roleDefinitions
-      "
+    <div
+      class="tt-grid-2"
+      *ngFor="let role of roleDefinitions"
     >
 
-      <div class="role-header">
+      <article class="tt-card tt-card--padded">
 
-        <div class="role-icon">
-          {{ isAdminRole(role.name) ? 'A' : 'R' }}
+        <div class="tt-section-header">
+
+          <div>
+
+            <span class="tt-kicker">
+              System Role
+            </span>
+
+            <h3 class="tt-section-title">
+              {{ role.name }}
+            </h3>
+
+          </div>
+
+          <div class="tt-badge tt-badge--info">
+            {{ isAdminRole(role.name) ? 'A' : 'R' }}
+          </div>
+
         </div>
 
-        <div>
 
-          <span class="eyebrow">
-            System Role
+        <p class="tt-desc">
+          {{ role.description }}
+        </p>
+
+
+        <div class="tt-row tt-row--spaced">
+
+          <span>
+            Access Level
           </span>
 
-          <h2>
-            {{ role.name }}
-          </h2>
+          <strong class="tt-text-accent">
+            {{ role.accessLevel }}
+          </strong>
 
         </div>
 
-      </div>
 
+        <div class="tt-section">
+          <h4>Capabilities</h4>
+          <ul>
+            <li *ngFor="let capability of role.capabilities">
+              {{ capability }}
+            </li>
+          </ul>
+        </div>
 
-      <p class="role-description">
-        {{ role.description }}
-      </p>
+      </article>
 
-
-      <div class="access-level">
-
-        <span>
-          Access Level
-        </span>
-
-        <strong>
-          {{ role.accessLevel }}
-        </strong>
-
-      </div>
-
-
-      <div class="permissions">
-
-        <h3>
-          Capabilities
-        </h3>
-
-        <ul>
-
-          <li
-            *ngFor="
-              let capability
-              of role.capabilities
-            "
-          >
-            {{ capability }}
-          </li>
-
-        </ul>
-
-      </div>
-
-    </article>
+    </div>
 
   </section>
 
@@ -181,70 +172,52 @@
   <!-- Empty -->
 
   <section
-    class="empty"
+    class="tt-empty"
     *ngIf="
       !isLoading &&
       !error &&
       roleDefinitions.length === 0
     "
   >
-
-    <h3>
+    <div class="tt-empty__icon">♙</div>
+    <h3 class="tt-empty__title">
       No roles configured
     </h3>
-
-    <p>
+    <p class="tt-empty__desc">
       AuthService did not return any
       available roles.
     </p>
-
   </section>
 
 
   <!-- Architecture note -->
 
   <section
-    class="content-card"
+    class="tt-card tt-card--padded"
     *ngIf="!isLoading"
   >
 
-    <div class="section-title">
-
+    <div class="tt-section-header">
       <div>
-
-        <span class="eyebrow">
+        <span class="tt-kicker">
           Security Model
         </span>
-
-        <h2>
+        <h3 class="tt-section-title">
           Role-based access control
-        </h2>
-
-        <p>
-          Administrative permissions are
-          enforced by the backend rather
-          than only by the Angular interface.
-        </p>
-
+        </h3>
       </div>
-
     </div>
 
 
-    <div class="security-note">
-
-      <strong>
-        Important
-      </strong>
-
-      <p>
+    <div class="tt-desc">
+      <strong>Important</strong>
+      <p style="margin-top: var(--space-1);">
         The Admin Portal hides protected
         functionality from unauthorized
         users, while TaskService and
         AuthService enforce the AdminOnly
         policy server-side.
       </p>
-
     </div>
 
   </section>

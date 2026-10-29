@@ -1,59 +1,56 @@
-.forbidden-page {
+/* Forbidden page — consolidated styles (uses shared tt-* design tokens) */
+.tt-page-wrapper {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  padding: var(--space-8);
 }
 
-.forbidden-card {
+.tt-card {
   width: 100%;
   max-width: 420px;
   text-align: center;
-  background: var(--color-surface);
   border: 1px solid var(--color-line);
   border-radius: var(--radius-lg);
-  padding: 40px 32px;
-  box-shadow: 0 20px 40px rgba(31, 34, 51, 0.06);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-10) var(--space-8);
 }
 
-.eyebrow {
-  display: block;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--color-danger);
-  margin-bottom: 12px;
-}
-
-h1 {
-  font-family: var(--font-display);
-  font-size: 20px;
+.tt-page-title {
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-xl);
   font-weight: 600;
-  margin: 0 0 12px;
-  color: var(--color-ink);
 }
 
-.subtitle {
-  font-size: 14px;
-  color: var(--color-muted);
+.tt-page-subtitle {
+  margin: var(--space-1) 0 var(--space-6);
+  font-size: var(--text-sm);
   line-height: 1.6;
-  margin: 0 0 24px;
+  color: var(--color-muted);
 }
 
-.sign-out-button {
-  padding: 11px 22px;
+.tt-btn {
+  min-height: 44px;
+  padding: var(--space-3) var(--space-6);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+.tt-btn--primary {
   background: var(--color-ink);
   color: #fff;
-  border: none;
-  border-radius: var(--radius-md);
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.15s ease;
+  border-color: var(--color-ink);
 }
 
-.sign-out-button:hover {
+.tt-btn--primary:hover:not(:disabled) {
   background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+@media (max-width: 768px) {
+  .tt-card {
+    max-width: 100%;
+  }
 }

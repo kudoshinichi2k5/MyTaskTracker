@@ -1,0 +1,25 @@
+<!-- AdminPortal Comment Page - Full Sync with Task & Project Pages -->
+<div class="p-4">
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <!-- Single comment card pattern (matching Task page) -->
+    <div class="card p-4 mb-4">
+      <div class="card-body">
+        <h5 class="card-title">Comment</h5>
+        <p class="card-text">{{ comment.content }}</p>
+        <div class="text-end small text-muted">
+          {{ comment.authorName }} • {{ comment.createdAt | date:'medium' }}
+        </div>
+      </div>
+    </div>
+    <!-- Loop through all comments -->
+    <div *ngFor="let comment of comments" class="card p-4 mb-4">
+      <div class="card-body">
+        <h5 class="card-title">Comment</h5>
+        <p class="card-text">{{ comment.content }}</p>
+        <div class="text-end small text-muted">
+          {{ comment.authorName }} • {{ comment.createdAt | date:'medium' }}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

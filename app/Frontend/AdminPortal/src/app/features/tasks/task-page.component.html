@@ -1,0 +1,77 @@
+<!-- Task Page - Modern UI with Consistent Design System -->
+<div class="p-6">
+  <div class="max-w-7xl mx-auto">
+    <!-- Page Header -->
+    <header class="mb-8">
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+        <div>
+          <h1 class="text-3xl font-bold text-ink mb-2">Tasks</h1>
+          <p class="text-muted text-sm">Manage and track your project tasks</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <button class="btn btn-primary">Add Task</button>
+        </div>
+      </div>
+      
+      <!-- Filter and Search Bar -->
+      <div class="bg-white rounded-lg p-4 shadow-sm border border-line flex flex-col sm:flex-row gap-3">
+        <div class="flex-1">
+          <input type="text" class="input input-bordered w-full" placeholder="Search tasks...">
+        </div>
+        <div>
+          <select class="select select-bordered">
+            <option>All Statuses</option>
+            <option>To Do</option>
+            <option>In Progress</option>
+            <option>Completed</option>
+          </select>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-xs text-muted">Sort by:</span>
+          <select class="select select-sm">
+            <option>Due Date</option>
+            <option>Priority</option>
+            <option>Alphabetical</option>
+          </select>
+        </div>
+      </div>
+    </header>
+    
+    <!-- Tasks Grid -->
+    <section class="space-y-6">
+      <!-- Empty State -->
+      <div *ngIf="tasks.length === 0" class="empty-state text-center py-12">
+        <div class="w-16 h-16 rounded-xl bg-surface-soft flex items-center justify-center mx-auto mb-4">
+          <svg class="w-8 h-8 text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="15" y1="9" x2="9" y2="15"/>
+            <line x1="9" y1="9" x2="15" y2="15"/>
+          </svg>
+        </div>
+        <h3 class="text-lg font-medium text-muted">No tasks found</h3>
+        <p class="text-muted-soft mt-2">Create your first task to get started</p>
+      </div>
+      
+      <!-- Task Cards Grid -->
+      <div *ngFor="let task of tasks" class="task-card bg-white rounded-xl p-5 shadow-sm border border-line hover:transition-all hover:hover:shadow-md hover:shadow-lg">
+        <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+          <div class="flex-1 min-w-0">
+            <h3 class="text-lg font-semibold text-ink sm:truncate" [title]="task.title">{{ task.title }}</h3>
+            <p class="text-sm text-muted-soft mt-1 line-clamp-2" [title]="task.description">{{ task.description }}</p>
+          </div>
+          <div class="flex flex-col sm:flex-row items-center gap-2">
+            <span class="text-xs font-medium">{{ task.priority }}</span>
+            <small class="text-xs text-muted-soft">{{ task.status }}</small>
+          </div>
+        </div>
+        
+        <div class="mt-4 pt-4 border-t border-line">
+          <div class="flex justify-between text-sm">
+            <span>Assigned to: {{ task.assignee }}</span>
+            <span>Created: {{ task.createdAt | date:'short' }}</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>

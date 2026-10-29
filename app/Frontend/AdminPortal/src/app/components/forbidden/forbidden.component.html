@@ -1,12 +1,18 @@
-<div class="forbidden-page">
-  <div class="forbidden-card">
-    <span class="eyebrow">TaskTracker · Admin</span>
-    <h1>This account isn't set up for admin access.</h1>
-    <p class="subtitle">
+<div class="tt-page-wrapper">
+  <div class="tt-card tt-card--padded" style="max-width: 420px;">
+    <span class="tt-kicker" style="color: var(--color-danger);">TaskTracker · Admin</span>
+    <h1 class="tt-page-title">This account isn't set up for admin access.</h1>
+    <p class="tt-page-subtitle" style="margin-top: var(--space-1);">
       You're signed in, but your account doesn't have the "admin" role.
       Ask a director or manager to grant it from the AuthService-backed admin panel,
       or head back to the regular TaskTracker app to manage your own tasks.
     </p>
-    <button class="sign-out-button" (click)="logout()">Sign out</button>
+    <button
+      class="tt-btn tt-btn--primary"
+      type="button"
+      (click)="logout()"
+    >
+      Sign out
+    </button>
   </div>
 </div>
