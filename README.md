@@ -17,6 +17,94 @@ The architecture below shows how the two browser applications use AuthService an
 
 ![Application architecture: two Angular frontends, AuthService, resource services, Valkey, and per-service MariaDB databases](reports/Figures/application-architecture.png)
 
+### Internet-to-workload request flow
+
+The following is the intended dev topology declared by Terraform and the Helm values. It describes configuration, not a claim that every public route is currently healthy.
+
+1. Terraform creates the Azure DNS zone and a Standard static public IP. The domain registrar must delegate the domain to the Azure DNS zone name servers, and the public DNS records must point the root, `www`, `admin`, and `api` hosts to that IP.
+2. A browser resolves the selected host and connects over HTTPS to the static public IP. The AKS LoadBalancer service for the NGINX Ingress controller is configured to use that IP.
+3. NGINX selects an Ingress rule by host and path, then sends the request to a ClusterIP service in the `dev` namespace. Only the controller is public; application services are not exposed directly to the Internet.
+4. The browser receives either a frontend SPA or an API response. For protected API calls, the resource service asks AuthService to validate the bearer opaque token; AuthService reads the corresponding server-side state from Valkey.
+
+| Public host | Declared destination |
+| --- | --- |
+| `mytasktracker.work.gd`, `www.mytasktracker.work.gd` | CustomerApp |
+| `admin.mytasktracker.work.gd` | AdminPortal |
+| `api.mytasktracker.work.gd/auth/...` | AuthService |
+| `api.mytasktracker.work.gd/tasks/...`, `/projects/...`, `/comments/...`, `/notifications/...` | Corresponding resource service |
+
+The repository provisions the Azure DNS zone and exposes its name servers, but does not contain Terraform resources for the public A records. Registrar delegation and those records are therefore operational configuration that must be set and verified separately.
+
+### Network segmentation and in-cluster flow
+
+The dev network is declared as one Azure VNet (`10.0.0.0/16`) with the AKS subnet `10.0.1.0/24`, a reserved database subnet `10.0.2.0/24`, Azure CNI, Azure Network Policy, a Standard Load Balancer, Kubernetes Service CIDR `192.168.0.0/16`, and cluster DNS service IP `192.168.0.10`. No public subnet, NAT Gateway, user-defined route table, or Azure Firewall is declared by this Terraform configuration.
+
+```text
+Internet
+  -> Azure DNS record
+  -> static public IP
+  -> Azure Standard Load Balancer
+  -> NGINX Ingress controller (ingress-nginx namespace)
+  -> ClusterIP Service (dev namespace, port 80)
+  -> selected pod (named http port / container port 8080)
+```
+
+The public IP is attached only to the NGINX controller Service. Helm renders all application Services as `ClusterIP`, so neither frontend nor backend pods receive a direct public endpoint. Kubernetes Service DNS resolves internal names such as `auth-service.dev.svc.cluster.local`; traffic stays inside the cluster after NGINX selects the target Service.
+
+Ingress is default-denied for pods in `dev`. The GitOps-managed NetworkPolicies then admit only the required paths:
+
+| Source | Allowed destination | Port | Reason |
+| --- | --- | --- | --- |
+| `ingress-nginx` namespace | CustomerApp, AdminPortal, AuthService, and resource-service pods | TCP `8080` | Public requests that were matched by an Ingress rule. |
+| Task, Project, Comment, and Notification services | AuthService | TCP `8080` | Opaque-token verification through `/verify`. |
+| Five backend services and migration/backup Jobs | MariaDB | TCP `3306` | Per-service data access, schema migration, and backup. |
+| AuthService | Valkey | TCP `6379` | OAuth transaction, authorization-code, opaque-token, refresh-session, and lockout state. |
+| `monitoring` namespace | All `dev` pods | Not port-restricted by this policy | Prometheus scraping and monitoring access. |
+
+The policies above restrict **ingress only**. Egress is not default-denied, so pods can still resolve cluster DNS and call approved external Azure endpoints such as Key Vault; outbound restrictions would require separate egress policies or Azure network controls.
+
+The database subnet has an NSG that allows TCP `3306` from the AKS subnet and then denies other VNet inbound traffic. However, the currently declared MariaDB deployment is Helm-managed inside AKS in `dev`; no managed database resource is provisioned into `db-subnet`. The subnet and NSG should therefore be described as reserved network capacity, not as the live location of MariaDB, until an Azure database workload is actually placed there.
+
+### DNS and TLS issuance flow
+
+1. GitHub Actions updates the environment values required by the TLS chart, and Argo CD syncs cert-manager and `tls-config` to AKS.
+2. The `letsencrypt-prod` `ClusterIssuer` requests a certificate from Let's Encrypt using the Azure DNS-01 challenge. The cert-manager ServiceAccount in `cert-manager` exchanges its AKS OIDC token for the `id-cert-manager-dev` managed identity.
+3. That identity has `DNS Zone Contributor` only on the project DNS zone, allowing cert-manager to create and remove the temporary DNS TXT challenge record. It does not require a DNS password or long-lived Azure client secret in the cluster.
+4. After validation, cert-manager writes the wildcard certificate to `wildcard-tls-secret` in `dev`. The CustomerApp, AdminPortal, and API Ingress resources reference that secret, so NGINX terminates TLS before forwarding to internal services.
+
+### Delivery, secrets, and telemetry flows
+
+- **Delivery:** application CI authenticates to Azure through GitHub OIDC, pushes an image to ACR, and commits the immutable image tag to the GitOps configuration. Argo CD's root application reads `deploy/argocd-apps` and reconciles the child applications into their target namespaces.
+- **Secrets:** each backend pod uses its Kubernetes ServiceAccount and the AKS OIDC issuer to assume a narrowly scoped Azure managed identity. The Secrets Store CSI configuration retrieves only its required Key Vault secrets; credentials are not embedded in the image or Helm values.
+- **Telemetry:** application and ingress metrics are scraped by Prometheus, while Alloy collects Kubernetes and container logs for Loki. Grafana queries these sources for dashboards and investigation. The detailed monitoring flow appears in the [Observability](#observability) section.
+
+### Namespaces
+
+These are the non-system namespaces explicitly targeted by the GitOps and Terraform configuration. Kubernetes system namespaces are intentionally not repeated here.
+
+| Namespace | Purpose |
+| --- | --- |
+| `argocd` | Argo CD control plane, root application, and Application/ApplicationSet resources that drive GitOps reconciliation. |
+| `dev` | CustomerApp, AdminPortal, the five backend services, MariaDB, Valkey, application security resources, TLS certificate secret, and database backup workload. |
+| `ingress-nginx` | NGINX Ingress controller and its public LoadBalancer service. |
+| `cert-manager` | cert-manager controller and the ServiceAccount used for DNS-01 certificate issuance. |
+| `monitoring` | Prometheus/Grafana stack, Alloy, Loki, ServiceMonitors, alerting, and other observability resources. |
+
+### Azure and workload identities
+
+AKS Workload Identity is enabled. A federated credential binds each listed Kubernetes ServiceAccount (`system:serviceaccount:<namespace>:<service-account>`) to its Azure user-assigned managed identity; Azure access is then limited by the role assignment shown below.
+
+| Identity | Bound principal | Declared access and purpose |
+| --- | --- | --- |
+| AKS system-assigned cluster identity | AKS control plane | `Network Contributor` on the shared resource group so AKS can attach the static public IP to the LoadBalancer. |
+| AKS kubelet identity | AKS nodes | `AcrPull` on ACR for pulling workload images. |
+| `id-github-actions-dev` | GitHub Actions OIDC, restricted to the configured repository main branch and pull-request subjects | `AcrPush` on ACR for application image publishing. |
+| `id-terraform-ci-dev` | GitHub Actions OIDC, restricted to the same configured subjects | Terraform deployment identity: `Contributor` and `User Access Administrator` on the dev resource groups, plus Terraform-state storage access. |
+| `id-auth-service-dev`, `id-task-service-dev`, `id-project-service-dev`, `id-comment-service-dev`, `id-notification-service-dev` | Matching ServiceAccounts in `dev` | `Key Vault Secrets User` on the project Key Vault. |
+| `id-db-backup-dev` | `dev` / `db-backup-sa` | `Storage Blob Data Contributor` for the database-backup storage account. |
+| `id-loki-dev` | `monitoring` / `loki-sa` | `Storage Blob Data Contributor` for the Loki chunks container. |
+| `id-cert-manager-dev` | `cert-manager` / `cert-manager` | `DNS Zone Contributor` scoped to the project DNS zone for ACME DNS-01. |
+
 ## Authentication
 
 The application uses OAuth 2.0 Authorization Code with PKCE for public SPAs. Password grant and JWT access tokens are not used.
