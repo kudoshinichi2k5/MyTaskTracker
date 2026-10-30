@@ -1,778 +1,101 @@
-# TaskTracker
+# MyTaskTracker application
 
-TaskTracker is a .NET 8 microservices sample with two Angular 18 applications and five backend services:
+`app/` contains the runnable application stack: two Angular 18 SPAs, five ASP.NET Core 8 APIs, MariaDB initialization, Valkey, EF Core migrations, and Docker Compose orchestration.
 
-- **CustomerApp** (`http://localhost:4200`) for tasks, projects, comments, and notifications.
-- **AdminPortal** (`http://localhost:4300`) for task summaries, user access, projects, and comments.
+## Components
 
-Authentication preserves an OWIN-style password-grant contract while using ASP.NET Core middleware. The system uses opaque bearer tokens: they are random strings validated server-side on every protected request. No JWT is used for the runtime auth flow.
-
-## Architecture
-
-```mermaid
-flowchart LR
-
-    Customer[CustomerApp :4200] --> Auth[Auth Service :5001]
-
-    Customer --> Tasks[Task Service :5002]
-
-    Customer --> Notifications[Notification Service :5003]
-
-    Customer --> Projects[Project Service :5004]
-
-    Customer --> Comments[Comment Service :5005]
-
-    Admin[AdminPortal :4300] --> Auth
-
-    Admin --> Tasks
-
-    Admin --> Projects
-
-    Admin --> Comments
-
-    Tasks --> Auth
-
-    Notifications --> Auth
-
-    Projects --> Auth
-
-    Comments --> Auth
-```
-
-All protected resource services validate bearer tokens against AuthService. NotificationService, TaskService, ProjectService, and CommentService therefore use the same opaque-token authentication model; none of them accepts JWTs.
-
-## Projects
-
-| Project | Responsibility | Local URL |
+| Path | Responsibility | Local address |
 | --- | --- | --- |
-| `Backend/Tracker.AuthService` | Login, refresh, logout, register, and token verification | `http://localhost:5001` |
-| `Backend/Tracker.TaskService` | User tasks and admin task/user endpoints | `http://localhost:5002` |
-| `Backend/Tracker.NotificationService` | User notifications | `http://localhost:5003` |
-| `Backend/Tracker.ProjectService` | Lightweight project grouping for tasks | `http://localhost:5004` |
-| `Backend/Tracker.CommentService` | Task comment threads | `http://localhost:5005` |
-| `Frontend/CustomerApp` | Customer-facing Angular application | `http://localhost:4200` |
-| `Frontend/AdminPortal` | Admin Angular application | `http://localhost:4300` |
+| `Frontend/CustomerApp` | End-user task, project, comment, and notification interface. | `http://localhost:4200` |
+| `Frontend/AdminPortal` | Administration interface for users, projects, tasks, and comments. | `http://localhost:4300` |
+| `Backend/Tracker.AuthService` | OAuth authorization, registration, opaque token verification, refresh, and revocation. | `http://localhost:5001` |
+| `Backend/Tracker.TaskService` | Task APIs and administration-oriented task summaries. | `http://localhost:5002` |
+| `Backend/Tracker.NotificationService` | User notification APIs. | `http://localhost:5003` |
+| `Backend/Tracker.ProjectService` | Project APIs and task-to-project membership. | `http://localhost:5004` |
+| `Backend/Tracker.CommentService` | Task comment APIs. | `http://localhost:5005` |
+| `infra/mariadb/init` | Creates the five databases and least-privilege database users. | -- |
+| `docker-compose.yml` | Local dependencies, migrations, services, and frontend containers. | -- |
 
-## Authentication flow
+The architecture diagram shows how the two frontends use AuthService and the four resource APIs, with per-service MariaDB databases and Valkey for OAuth state.
 
-1. CustomerApp and AdminPortal generate a PKCE verifier/challenge and redirect the browser to `GET /connect/authorize`.
-2. The AuthService-hosted sign-in page receives the user's password; the SPA never posts credentials to a token endpoint.
-3. AuthService redirects to the exact pre-registered callback URI with a short-lived, one-time authorization code.
-4. The SPA exchanges that code, its exact redirect URI, and the PKCE verifier at `POST /connect/token` with `grant_type=authorization_code`.
-5. AuthService returns opaque access and refresh tokens. The applications add `Authorization: Bearer <token>` to API requests, and backend services validate the opaque access token through `GET /verify`.
-6. `grant_type=refresh_token` rotates refresh tokens. Revocation removes server-side token state through `POST /connect/revocation`.
+![Application architecture](../reports/Figures/application-architecture.png)
 
-The only supported grants are `authorization_code` (PKCE S256 is required) and `refresh_token`; password grant endpoints are intentionally not exposed.
+## Authentication and authorization
 
-## Database
+The frontends are public OAuth clients. They use Authorization Code with PKCE (S256), not password grant. AuthService hosts the login page, stores authorization requests and one-time codes in Valkey, and issues random opaque access and refresh tokens.
 
-TaskTracker uses **MariaDB 11.4** as the persistent database system.
+1. The SPA redirects to `GET /connect/authorize` with `state` and an S256 PKCE challenge.
+2. After login, AuthService redirects to the registered callback with a one-time `code` and the original `state`.
+3. The callback exchanges `code` and `code_verifier` at `POST /connect/token`.
+4. Protected API requests use `Authorization: Bearer <opaque-access-token>`.
+5. Each resource service calls AuthService `GET /verify`; it does not parse JWT claims or access Valkey directly.
+6. Refresh uses `grant_type=refresh_token` and rotates the refresh session. Logout uses `POST /connect/revocation`.
 
-The application follows a **database-per-service** approach.
+![OAuth Authorization Code with PKCE and opaque-token validation](../reports/Figures/authentication-flow.png)
 
-Each backend microservice owns and accesses its own database. The databases are hosted by the same MariaDB instance during local development, but the services do **not** share application tables or database credentials.
+## Data ownership
 
-### Database architecture
+MariaDB is shared as a server in local development, but service tables are not shared. Each service uses its own database and database user:
 
-```mermaid
-flowchart TB
+| Service | Database | Database user |
+| --- | --- | --- |
+| AuthService | `tracker_auth` | `auth_service` |
+| TaskService | `tracker_tasks` | `task_service` |
+| NotificationService | `tracker_notifications` | `notification_service` |
+| ProjectService | `tracker_projects` | `project_service` |
+| CommentService | `tracker_comments` | `comment_service` |
 
-    MariaDB["MariaDB 11.4 :3306"]
-
-    Auth["Auth Service :5001"]
-    Task["Task Service :5002"]
-    Notification["Notification Service :5003"]
-    Project["Project Service :5004"]
-    Comment["Comment Service :5005"]
-
-    AuthDB[("tracker_auth")]
-    TaskDB[("tracker_tasks")]
-    NotificationDB[("tracker_notifications")]
-    ProjectDB[("tracker_projects")]
-    CommentDB[("tracker_comments")]
-
-    Auth --> AuthDB
-    Task --> TaskDB
-    Notification --> NotificationDB
-    Project --> ProjectDB
-    Comment --> CommentDB
-
-    AuthDB --> MariaDB
-    TaskDB --> MariaDB
-    NotificationDB --> MariaDB
-    ProjectDB --> MariaDB
-    CommentDB --> MariaDB
-```
-
-### Database ownership
-
-| Microservice | Database | Database User | Responsibility |
-| --- | --- | --- | --- |
-| `Tracker.AuthService` | `tracker_auth` | `auth_service` | Users and authentication-related persistent data |
-| `Tracker.TaskService` | `tracker_tasks` | `task_service` | Tasks and task-related data |
-| `Tracker.NotificationService` | `tracker_notifications` | `notification_service` | User notifications |
-| `Tracker.ProjectService` | `tracker_projects` | `project_service` | Projects and project-related data |
-| `Tracker.CommentService` | `tracker_comments` | `comment_service` | Comments and comment threads |
-
-Each service accesses **only its own database**.
-
-For example:
-
-```text
-AuthService
-    |
-    v
-tracker_auth
-
-TaskService
-    |
-    v
-tracker_tasks
-
-ProjectService
-    |
-    v
-tracker_projects
-```
-
-Services communicate with each other through APIs rather than directly sharing database tables.
-
-### MariaDB Docker configuration
-
-The local environment uses:
-
-```text
-MariaDB 11.4
-Host: localhost
-Port: 3306
-Container: tracker-mariadb
-```
-
-MariaDB is started using Docker Compose:
-
-```powershell
-docker-compose up -d mariadb
-```
-
-The database is persisted using the Docker volume:
-
-```yaml
-volumes:
-  - mariadb_data:/var/lib/mysql
-```
-
-Therefore, restarting or recreating the MariaDB container normally does not remove existing database data.
-
-### Database initialization
-
-The database initialization script is located at:
-
-```text
-infra/
-└── mariadb/
-    └── init/
-        └── 01-init-databases.sh
-```
-
-Docker Compose mounts this directory into the MariaDB container:
-
-```yaml
-volumes:
-  - ./infra/mariadb/init:/docker-entrypoint-initdb.d:ro
-```
-
-The MariaDB Docker entrypoint automatically executes initialization scripts inside `/docker-entrypoint-initdb.d` when the database is initialized with an empty data directory.
-
-The initialization script creates the five service databases:
-
-```text
-tracker_auth
-tracker_tasks
-tracker_notifications
-tracker_projects
-tracker_comments
-```
-
-It also creates the corresponding service database users:
-
-```text
-auth_service
-task_service
-notification_service
-project_service
-comment_service
-```
-
-Each user receives access only to its corresponding database.
-
-### Database initialization flow
-
-```mermaid
-flowchart LR
-
-    ENV[".env"]
-
-    COMPOSE["docker-compose.yml"]
-
-    SCRIPT["01-init-databases.sh"]
-
-    DB["MariaDB 11.4"]
-
-    ENV --> COMPOSE
-    COMPOSE --> DB
-    COMPOSE --> SCRIPT
-    SCRIPT --> DB
-
-    DB --> AuthDB[("tracker_auth")]
-    DB --> TaskDB[("tracker_tasks")]
-    DB --> NotificationDB[("tracker_notifications")]
-    DB --> ProjectDB[("tracker_projects")]
-    DB --> CommentDB[("tracker_comments")]
-```
-
-### Database environment variables
-
-The database passwords are supplied through `.env`:
-
-```env
-MARIADB_ROOT_PASSWORD=...
-
-AUTH_DB_PASSWORD=...
-TASK_DB_PASSWORD=...
-NOTIFICATION_DB_PASSWORD=...
-PROJECT_DB_PASSWORD=...
-COMMENT_DB_PASSWORD=...
-```
-
-Do **not** commit the real `.env` file to Git.
-
-Use `.env.example` to document the required environment variables without exposing real credentials.
-
-### EF Core migrations
-
-The initialization script is responsible for creating:
-
-- Databases
-- Database users
-- Database permissions
-
-It is **not** responsible for creating the application tables.
-
-Each microservice owns its own Entity Framework Core migrations:
-
-```text
-Backend/
-├── Tracker.AuthService/
-│   └── Data/
-│       └── Migrations/
-│
-├── Tracker.TaskService/
-│   └── Data/
-│       └── Migrations/
-│
-├── Tracker.NotificationService/
-│   └── Data/
-│       └── Migrations/
-│
-├── Tracker.ProjectService/
-│   └── Data/
-│       └── Migrations/
-│
-└── Tracker.CommentService/
-    └── Data/
-        └── Migrations/
-```
-
-The database setup therefore has two stages:
-
-```text
-01-init-databases.sh
-        |
-        +-- Create database
-        +-- Create service user
-        +-- Grant database permissions
-        |
-        v
-MariaDB databases
-        |
-        v
-EF Core migrations
-        |
-        +-- Create application tables
-        +-- Update database schema
-        +-- Apply schema changes
-```
-
-This keeps database ownership aligned with microservice ownership.
-
-### Database persistence
-
-Application data is persisted in MariaDB rather than in-memory stores.
-
-Restarting an individual backend service does not remove its database records because the data is stored in MariaDB.
-
-The MariaDB data is persisted through:
-
-```text
-mariadb_data
-    |
-    v
-/var/lib/mysql
-```
-
-To completely reset the local database environment:
-
-```powershell
-docker-compose down -v
-docker-compose up -d mariadb valkey
-```
-
-> **Warning:** `docker-compose down -v` removes the `mariadb_data` and `valkey_data` volumes, permanently deleting local database data and Valkey token sessions.
-
-### Database initialization vs. migrations
-
-| Mechanism | Responsibility |
-| --- | --- |
-| `01-init-databases.sh` | Creates databases, service users, and database permissions |
-| EF Core migrations | Creates and updates application tables and schemas |
-| `mariadb_data` | Persists MariaDB data between container restarts |
-| `valkey_data` | Persists AuthService token sessions between container restarts |
-
-The initialization script normally runs only when MariaDB starts with an empty data directory.
-
-Changing `01-init-databases.sh` does not automatically execute it again if the `mariadb_data` volume already contains an initialized database.
-
-To completely reinitialize the local database:
-
-```powershell
-docker-compose down -v
-docker-compose up -d mariadb valkey
-```
-
-Only perform this reset when existing local database data can be discarded.
+Valkey is not business-data storage. It retains OAuth transaction state, authorization codes, access-token hashes, refresh-session hashes, and short-lived login protection state.
 
 ## Run locally
 
 ### Prerequisites
 
-Install:
+- .NET SDK 8
+- Node.js 22 and npm
+- Docker Desktop with Docker Compose
 
-- .NET 8 SDK
-- Node.js
-- npm
-- Docker
-- Docker Compose
-
-### 1. Configure environment variables
-
-Create a `.env` file in the repository root:
-
-```text
-MyTaskTracker/
-├── .env
-├── docker-compose.yml
-├── Backend/
-├── Frontend/
-└── infra/
-```
-
-Example for local development:
-
-```env
-MARIADB_ROOT_PASSWORD=123
-
-AUTH_DB_PASSWORD=123
-TASK_DB_PASSWORD=123
-NOTIFICATION_DB_PASSWORD=123
-PROJECT_DB_PASSWORD=123
-COMMENT_DB_PASSWORD=123
-```
-
-Use secure passwords for environments other than local development.
-
-### 2. Start MariaDB
-
-From the `app` directory:
+### Full stack
 
 ```powershell
-docker-compose up -d mariadb
+docker compose up -d
 ```
 
-Check the container:
+This is the normal local startup command. On a fresh clone, first create `.env` from `.env.example`. Use `docker compose up -d --build` only after a Docker image needs rebuilding. The compose stack starts MariaDB and Valkey, runs migration containers before their APIs, and exposes the two frontends and five APIs at the addresses in the component table. Never commit `.env`.
 
-```powershell
-docker ps
-```
+When `tracker_auth` is empty, the AuthService migration currently seeds `admin` / `123456` (admin role) and `alice` / `employee123`. This runs from both Docker Compose and the Helm migration Job; it is not limited to local development. Do not expose a deployment that uses these default credentials. Before production, remove this seeding or make it explicitly development-only and provision users securely. This warning documents the current behavior; it does not prevent the seeding.
 
-Expected container:
-
-```text
-tracker-mariadb
-```
-
-Check the MariaDB health status:
-
-```powershell
-docker inspect --format='{{.State.Health.Status}}' tracker-mariadb
-```
-
-Expected:
-
-```text
-healthy
-```
-
-View MariaDB logs:
-
-```powershell
-docker-compose logs mariadb
-```
-
-During the first initialization, the logs should contain:
-
-```text
-running /docker-entrypoint-initdb.d/01-init-databases.sh
-```
-
-and:
-
-```text
-Tracker databases initialized successfully.
-```
-
-### 3. Verify the databases
-
-Connect to MariaDB:
-
-```powershell
-docker exec -it tracker-mariadb mariadb -uroot -p
-```
-
-Then run:
-
-```sql
-SHOW DATABASES;
-```
-
-Expected databases:
-
-```text
-tracker_auth
-tracker_tasks
-tracker_notifications
-tracker_projects
-tracker_comments
-```
-
-You can also verify the service users:
-
-```sql
-SELECT User, Host
-FROM mysql.user
-WHERE User IN (
-    'auth_service',
-    'task_service',
-    'notification_service',
-    'project_service',
-    'comment_service'
-);
-```
-
-### 4. Apply EF Core migrations
-
-If migrations are not automatically applied by the application at startup, apply them manually:
-
-```powershell
-dotnet ef database update --project Backend/Tracker.AuthService
-dotnet ef database update --project Backend/Tracker.TaskService
-dotnet ef database update --project Backend/Tracker.NotificationService
-dotnet ef database update --project Backend/Tracker.ProjectService
-dotnet ef database update --project Backend/Tracker.CommentService
-```
-
-After the migrations are applied, each database should contain the tables required by its corresponding service.
-
-### 5. Start backend services
-
-Start each backend service in a separate terminal.
-
-#### Auth Service
-
-```powershell
-dotnet run --project Backend/Tracker.AuthService
-```
-
-Runs on:
-
-```text
-http://localhost:5001
-```
-
-#### Task Service
-
-```powershell
-dotnet run --project Backend/Tracker.TaskService
-```
-
-Runs on:
-
-```text
-http://localhost:5002
-```
-
-#### Notification Service
-
-```powershell
-dotnet run --project Backend/Tracker.NotificationService
-```
-
-Runs on:
-
-```text
-http://localhost:5003
-```
-
-#### Project Service
-
-```powershell
-dotnet run --project Backend/Tracker.ProjectService
-```
-
-Runs on:
-
-```text
-http://localhost:5004
-```
-
-#### Comment Service
-
-```powershell
-dotnet run --project Backend/Tracker.CommentService
-```
-
-Runs on:
-
-```text
-http://localhost:5005
-```
-
-### 6. Start CustomerApp
-
-Open another terminal:
-
-```powershell
-cd Frontend/CustomerApp
-npm.cmd install
-npm.cmd start
-```
-
-Application:
-
-```text
-http://localhost:4200
-```
-
-### 7. Start AdminPortal
-
-Open another terminal:
-
-```powershell
-cd Frontend/AdminPortal
-npm.cmd install
-npm.cmd start
-```
-
-Application:
-
-```text
-http://localhost:4300
-```
-
-Use `npm.cmd` in PowerShell if the local execution policy blocks `npm.ps1`.
-
-### Recommended local development setup
-
-For a full local stack, Docker Compose runs MariaDB, Valkey, database migrations/seeding, all backend services, and both frontends. For step-through debugging, you can still run the backend and frontend applications directly on the host while keeping MariaDB and Valkey in Docker.
-
-```text
-                         Docker
-                           |
-                           v
-                  +------------------+
-                  |   MariaDB 11.4   |
-                  |     :3306        |
-                  +--------+---------+
-                           |
-                  +--------+---------+
-                  |      Valkey      |
-                  |     :6379        |
-                  +--------+---------+
-                           |
-             +-------------+-------------+
-             |             |             |
-             v             v             v
-       tracker_auth  tracker_tasks  tracker_notifications
-             |             |             |
-             v             v             v
-        AuthService   TaskService   NotificationService
-             |             |
-             v             v
-       tracker_projects  tracker_comments
-             |             |
-             v             v
-       ProjectService  CommentService
-
-CustomerApp :4200
-AdminPortal  :4300
-       |
-       v
-  Backend APIs
-```
-
-This setup allows the services to be debugged locally while keeping the database environment consistent with the future Docker deployment.
-
-## Docker Compose commands
-
-### Start the full stack
-
-```powershell
-docker compose up -d --build
-```
-
-Compose waits for MariaDB and Valkey to become healthy, runs each service's migration before starting that API, and seeds the default AuthService accounts when its user table is empty. No separate migration command is needed. The default local admin account is `admin` / `123456`.
-
-If a migration fails, inspect its logs with `docker compose logs <service>-migrate` (for example, `docker compose logs auth-migrate`).
-
-### Start only MariaDB and Valkey for host debugging
-
-```powershell
-docker compose up -d mariadb valkey
-```
-
-When running AuthService directly on the host, configure its Valkey address once:
-
-```powershell
-dotnet user-secrets set "ConnectionStrings:Valkey" "localhost:6379" --project Backend/Tracker.AuthService
-```
-
-Run the backend services from the host using `dotnet run` as needed.
-
-### Stop MariaDB and Valkey
-
-```powershell
-docker compose stop mariadb valkey
-```
-
-### Start MariaDB and Valkey again
-
-```powershell
-docker compose start mariadb valkey
-```
-
-### View MariaDB logs
-
-```powershell
-docker compose logs -f mariadb
-```
-
-### Check running containers
-
-```powershell
-docker ps
-```
-
-### Stop and remove containers
-
-```powershell
-docker compose down
-```
-
-This does **not** remove the `mariadb_data` or `valkey_data` volumes.
-
-### Completely reset the local database
+### Reset local data
 
 ```powershell
 docker compose down -v
-docker compose up -d --build
+docker compose up -d
 ```
 
-> **Warning:** This deletes the `mariadb_data` volume and all local MariaDB data, as well as the `valkey_data` volume and local token sessions.
+This removes the local MariaDB and Valkey volumes. It is destructive and should only be used when local data and sessions can be discarded.
 
-## Quick start
-
-From the `app` directory, start the full stack with one command:
+## Build and test
 
 ```powershell
-docker compose up -d --build
-```
-
-Compose runs database migrations and seeds the default AuthService accounts before the APIs start. For host-based debugging, start only MariaDB and Valkey and run the services with `dotnet run` as described above.
-
-## Build
-
-```powershell
-dotnet build Backend/Tracker.AuthService/Tracker.AuthService.csproj
-
-dotnet build Backend/Tracker.TaskService/Tracker.TaskService.csproj
-
-dotnet build Backend/Tracker.NotificationService/Tracker.NotificationService.csproj
-
-dotnet build Backend/Tracker.ProjectService/Tracker.ProjectService.csproj
-
-dotnet build Backend/Tracker.CommentService/Tracker.CommentService.csproj
+dotnet test Backend/Tests/Tracker.AuthService.Tests/Tracker.AuthService.Tests.csproj
 
 Push-Location Frontend/CustomerApp
-npm.cmd run build -- --configuration=development
-Pop-Location
-
-Push-Location Frontend/AdminPortal
-npm.cmd run build -- --configuration=development
+npm ci
+npm.cmd run build:dev
+npm.cmd test
 Pop-Location
 ```
 
-The Angular `development` configuration uses the default environment files,
-which point to localhost. The separate `dev` configuration selects the Azure
-dev domain and is used only by the CI image pipeline; no extra
-`build:development` script is needed.
+Run the equivalent frontend commands from `Frontend/AdminPortal`. CI performs these checks for changed services and applications.
 
-## Frontend testing proposal
+## UI screenshots
 
-Both Angular applications now use Jest through Angular's Jest builder. The existing specs remain next to the source files. The next frontend test group should focus on:
+The CustomerApp screenshot shows an authenticated user view; it must not contain real credentials, bearer tokens, or private personal data.
 
-1. Service HTTP contract tests with `HttpClientTestingModule`/`HttpTestingController` for auth, task, project, comment, notification, report, and admin-user services.
-2. Auth interceptor tests for bearer header injection, missing-token behavior, and `401` recovery.
-3. Guard tests for anonymous, authenticated, and admin-only navigation.
-4. Focused component tests for login/register validation, task/project forms, comment editing, notification unread state, and admin dashboard summaries.
-5. CI runs each app's tests and packages a `build:dev` artifact for the Azure dev environment.
+![CustomerApp](../reports/Figures/customer-app.png)
 
-Frontend tests should mock HTTP requests and environment-specific API origins rather than call live backend services.
+The AdminPortal screenshot shows an authenticated administration view; it must not contain real credentials, bearer tokens, or private personal data.
 
-## Azure dev deployment
+![AdminPortal](../reports/Figures/admin-portal.png)
 
-See [DEPLOYMENT.md](DEPLOYMENT.md) for local Docker Compose setup and the Azure dev image pipeline. This repository does not currently define a production cloud deployment.
-
-## Important limitations
-
-This repository is a demonstration, not production-ready identity or data infrastructure:
-
-- AuthService seeds a demo account (`admin` / `123456`) the first time it runs against an empty database.
-
-- Users, tasks, notifications, projects, and comments are persisted in MariaDB. Each service uses its own database according to the database-per-service architecture.
-
-- Access tokens and refresh sessions are still held in an in-process `ConcurrentDictionary` inside AuthService, not in MariaDB. Restarting AuthService, or running more than one AuthService instance behind a load balancer, invalidates every active session. Keep AuthService to a single instance until token storage moves to a shared store such as a MariaDB table or Redis.
-
-- Recycling any other service no longer loses persisted data because application data is stored in MariaDB. In-flight requests may still return `401` until the client's token is re-verified.
-
-- Replace the demo credential lookup with your own account-provisioning process before exposing the application publicly.
-
-- Local Docker Compose runs MariaDB, all backend services, and both frontend applications in development configuration.
-
-## Current local UI notes
-
-- CustomerApp now shows a project hub alongside task work, and its comment area lets you pick a task from the visible project list instead of forcing manual GUID entry.
-
-- CustomerApp has a `/register` page (`POST /api/v1/auth/register`) alongside `/login`.
-
-- AdminPortal includes project and comment inspection panels in the main dashboard.
-
-- If you restart AuthService or any protected backend, sign out and sign in again. The apps now validate the stored token on startup, but a fresh login is still the fastest recovery path because AuthService keeps token/refresh-session state in memory.
+The canonical image-to-README mapping and replacement instructions are in [../reports/Figures/README.md](../reports/Figures/README.md).

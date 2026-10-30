@@ -6,47 +6,19 @@ This directory contains the Azure infrastructure-as-code for MyTaskTracker. Terr
 
 The `dev` environment is split into two Terraform roots with separate Azure Blob state files. The persistent root owns resources that should survive replacement of the AKS workloads. The workloads root reads the persistent outputs through `terraform_remote_state` and creates the cluster and environment-specific resources.
 
-```mermaid
-flowchart LR
-	GH[GitHub Actions]
-	subgraph Azure[Azure subscription]
-		subgraph Persistent[dev persistent state]
-			RG[App and shared Resource Groups]
-			ACR[Azure Container Registry]
-			BAK[Blob Storage for MariaDB backups]
-			DNS[Azure DNS Zone]
-			IP[Static Standard Public IP]
-			CI[GitHub and Terraform CI identities]
-		end
-		subgraph Workloads[dev workloads state]
-			VNET[VNet, AKS and DB subnets]
-			AKS[AKS cluster]
-			KV[Key Vault]
-			WI[Backend, backup and cert-manager identities]
-			K8S[Kubernetes namespace and MariaDB Secret]
-		end
-		STATE[(Azure Blob remote state)]
-	end
-	subgraph GitOps[deploy/ GitOps configuration]
-		ARGO[Argo CD Applications]
-		CHARTS[Helm charts and values]
-		APPS[Ingress, cert-manager, MariaDB and services]
-	end
-	GH -->|OIDC| CI
-	CI --> Persistent
-	Persistent -->|outputs and remote state| Workloads
-	AKS -->|AcrPull| ACR
-	WI --> KV
-	WI --> BAK
-	WI --> DNS
-	AKS --> K8S
-	IP -. planned binding .-> AKS
-	DNS -. records managed by DNS integration .-> AKS
-	STATE --- Persistent
-	STATE --- Workloads
-	ARGO --> CHARTS --> APPS
-	AKS --> GitOps
-```
+### Reading the Azure and AKS architecture
+
+The diagram is a logical view of the dev platform and its delivery and operations paths:
+
+- **Provisioning and state:** Terraform and GitHub Actions manage Azure resources and keep Terraform state in its own storage location. This state is separate from the MariaDB backup and Loki data containers.
+- **Network boundary and ingress:** The VNet contains the AKS and database subnets. Public DNS points users to the Azure load balancer and NGINX Ingress; cert-manager obtains TLS certificates through the DNS zone. AKS NetworkPolicy resources constrain pod traffic.
+- **Build and deployment:** GitHub Actions publishes application images to ACR. Argo CD runs in its own namespace, follows the Git-managed Helm configuration, and reconciles the desired workloads in AKS; the cluster pulls the referenced images from ACR.
+- **Application data and secrets:** The `dev` namespace contains the application services, MariaDB, and Valkey. Key Vault supplies secrets to workloads. MariaDB backup data is stored separately from Loki's log chunks.
+- **Monitoring and recovery:** Prometheus collects metrics, Alloy ships logs to Loki, and Grafana presents both data sources. Database backups and the Loki chunks container provide distinct recovery/retention paths.
+
+This is an architecture diagram, not a live health check or a guarantee that every resource shown is currently deployed. Use Terraform state and plans, Argo CD, Azure, and Kubernetes to verify the current environment.
+
+![Azure dev infrastructure architecture: Terraform, Azure networking, AKS, GitOps, application services, monitoring, Key Vault, and separate backup and Loki storage](../reports/Figures/azure-aks-architecture.png)
 
 ### Azure layers
 
@@ -158,9 +130,3 @@ terraform plan -var-file=terraform.tfvars
 Run apply and destroy through GitHub Actions; do not apply, destroy, import, or modify Terraform state locally. To inspect stack outputs, run `terraform output` from that stack directory. Treat outputs and state as sensitive: the workloads state contains generated database credentials and Kubernetes Secrets even when particular Terraform outputs are marked sensitive. Avoid printing or publishing raw state.
 
 For `staging` or `prod`, first review that environment's backend configuration and values. Their backend must use a unique state key; initialize and operate on one environment directory at a time.
-
-## Deployment Status And Next Steps
-
-The progress tracker records the Azure DNS zone (`mytasktracker.work.gd`), static public IP, and manual registrar delegation as implemented. Nightly ephemeral teardown is suspended while TLS integration is in progress. The planned work is to deploy the ingress controller, bind its LoadBalancer service to the reserved public IP, and configure DNS record automation. The presence of Argo CD and Helm definitions under `deploy/` documents the intended delivery configuration; it does not by itself prove those components are currently healthy or bound to the public endpoint.
-
-The Kubernetes restore drill in `scripts/dr-restore-job.yaml` is a recovery exercise: it obtains a storage token through workload identity, downloads the latest backup and manifest, verifies the SHA-256 checksum, then restores into a temporary MariaDB service. Run it only in the intended drill namespace/cluster and review its database endpoint and credentials before execution.
