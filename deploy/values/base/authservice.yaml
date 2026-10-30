@@ -1,7 +1,7 @@
 fullnameOverride: "auth-service" # Định danh cố định để các service khác gọi
 image:
   repository: "backend/authservice" 
-  tag: "7fbd9fb4e33932d144b7dd9bef62869ea4f2e058"
+  tag: "aea59a9036e38404339a7703d163db8c749765dc"
 env:
   ASPNETCORE_ENVIRONMENT: "Development"
   AllowedFrontendOrigins: "https://mytasktracker.work.gd,https://www.mytasktracker.work.gd,https://admin.mytasktracker.work.gd"
