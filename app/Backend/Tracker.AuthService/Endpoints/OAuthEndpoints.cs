@@ -21,8 +21,8 @@ public static class OAuthEndpoints
     private const string AuthorizationTransactionCookie = "oauth_authorization_transaction";
     private static readonly TimeSpan AuthorizationRequestLifetime = TimeSpan.FromMinutes(10);
     private static readonly TimeSpan AuthorizationCodeLifetime = TimeSpan.FromMinutes(2);
-    private static readonly TimeSpan FailedLoginLifetime = TimeSpan.FromMinutes(15);
-    private const int MaxFailedLoginAttempts = 5;
+    private static readonly TimeSpan FailedLoginLifetime = TimeSpan.FromMinutes(5);
+    private const int MaxFailedLoginAttempts = 10;
 
     public static void MapOAuthEndpoints(this IEndpointRouteBuilder app)
     {
@@ -60,7 +60,9 @@ public static class OAuthEndpoints
                 AuthorizationRequestLifetime);
 
             AppendAuthorizationTransactionCookie(context, transactionId);
-            return Results.Content(RenderLoginPage(transactionId), "text/html; charset=utf-8");
+            return Results.Content(
+                RenderLoginPage(transactionId, registrationUri: RegistrationUri(redirectUri)),
+                "text/html; charset=utf-8");
         }).RequireRateLimiting("oauth");
 
         app.MapPost("/connect/authorize", async Task<IResult> (
@@ -91,7 +93,10 @@ public static class OAuthEndpoints
             if (await IsLoginLockedAsync(context, username))
             {
                 return Results.Content(
-                    RenderLoginPage(transactionId, "Too many failed attempts. Please try again later."),
+                    RenderLoginPage(
+                        transactionId,
+                        "Too many failed attempts. Please try again later.",
+                        RegistrationUri(authorizationRequest.RedirectUri)),
                     "text/html; charset=utf-8",
                     statusCode: StatusCodes.Status429TooManyRequests);
             }
@@ -101,7 +106,13 @@ public static class OAuthEndpoints
                 hasher.VerifyHashedPassword(user, user.PasswordHash, password) == PasswordVerificationResult.Failed)
             {
                 await RecordFailedLoginAsync(context, username);
-                return Results.Content(RenderLoginPage(transactionId, "Invalid username or password."), "text/html; charset=utf-8", statusCode: StatusCodes.Status401Unauthorized);
+                return Results.Content(
+                    RenderLoginPage(
+                        transactionId,
+                        "Invalid username or password.",
+                        RegistrationUri(authorizationRequest.RedirectUri)),
+                    "text/html; charset=utf-8",
+                    statusCode: StatusCodes.Status401Unauthorized);
             }
 
             await ClearFailedLoginsAsync(context, username);
@@ -313,12 +324,29 @@ public static class OAuthEndpoints
     private static string FailedLoginKey(string username) =>
         $"bruteforce:username:{username.Trim().ToLowerInvariant()}";
 
-    private static string RenderLoginPage(string transactionId, string? error = null)
+    private static string RegistrationUri(string redirectUri)
+    {
+        var callbackUri = new Uri(redirectUri);
+        return new UriBuilder(callbackUri)
+        {
+            Path = "/register",
+            Query = string.Empty,
+            Fragment = string.Empty
+        }.Uri.ToString();
+    }
+
+    private static string RenderLoginPage(
+        string transactionId,
+        string? error = null,
+        string? registrationUri = null)
     {
         var encoder = HtmlEncoder.Default;
         var errorMarkup = string.IsNullOrWhiteSpace(error)
             ? string.Empty
             : $"<p class=\"error\" role=\"alert\">{encoder.Encode(error)}</p>";
+        var registrationMarkup = string.IsNullOrWhiteSpace(registrationUri)
+            ? string.Empty
+            : $"<p>New here? <a href=\"{encoder.Encode(registrationUri)}\">Create an account</a></p>";
 
         var pageStart = """
             <!doctype html>
@@ -329,12 +357,12 @@ public static class OAuthEndpoints
         var pageEnd = """
             "><label for="username">Username</label><input id="username" name="username" autocomplete="username" required>
             <label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" required>
-            <button type="submit">Sign in</button></form></main></body></html>
+            <button type="submit">Sign in</button></form>
             """;
 
         return pageStart + errorMarkup +
             "<form method=\"post\" action=\"authorize\"><input type=\"hidden\" name=\"transaction\" value=\"" +
-            encoder.Encode(transactionId) + pageEnd;
+            encoder.Encode(transactionId) + pageEnd + registrationMarkup + "</main></body></html>";
     }
 
     private static IResult Error(string error, string? description = null) =>
