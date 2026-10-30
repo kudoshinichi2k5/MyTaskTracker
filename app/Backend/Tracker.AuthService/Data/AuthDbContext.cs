@@ -49,10 +49,7 @@ public class AuthDbContext : DbContext
                         roles,
                         (JsonSerializerOptions?)null),
 
-                    json => JsonSerializer.Deserialize<List<string>>(
-                        json,
-                        (JsonSerializerOptions?)null)
-                        ?? new List<string>())
+                    json => UserRoleSerialization.Deserialize(json))
                 .Metadata.SetValueComparer(
                     new ValueComparer<List<string>>(
                         (a, b) =>
